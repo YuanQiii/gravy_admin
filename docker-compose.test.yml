@@ -1,0 +1,50 @@
+services:
+  mysql-test:
+    image: mysql:8.0
+    container_name: gvray-admin-mysql-test
+    restart: "no"
+    environment:
+      MYSQL_ROOT_PASSWORD: test
+      MYSQL_DATABASE: gvray_admin_test
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql-test-data:/var/lib/mysql
+      - ./docker/mysql/my.cnf:/etc/mysql/conf.d/my.cnf:ro
+    networks:
+      - nest-test
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -ptest --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    command: >
+      --default-authentication-plugin=mysql_native_password
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+
+  redis-test:
+    image: redis:7-alpine
+    container_name: gvray-admin-redis-test
+    restart: "no"
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis-test-data:/data
+    networks:
+      - nest-test
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+
+volumes:
+  mysql-test-data:
+  redis-test-data:
+
+networks:
+  nest-test:
+    driver: bridge
