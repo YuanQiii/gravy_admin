@@ -10,7 +10,7 @@
 #   -h         Show this help
 #
 # Commands (default: deploy):
-#   deploy    Pull image, start MySQL if needed, rolling update with health check
+#   deploy    Pull image, start PostgreSQL if needed, rolling update with health check
 #   seed      Run prisma seed in the running container  [prompts y/N]
 #   reset     Destroy all containers + DB volume, then redeploy fresh  [prompts "yes"]
 #   rollback  Revert to the previous backup container
@@ -22,8 +22,8 @@
 # Environment variables (all optional, override via export or .env.production):
 #   TAG              Image tag            (default: latest)
 #   CONTAINER_NAME   App container name   (default: gvray_admin_app)
-#   MYSQL_CONTAINER  MySQL container name (default: gvray_admin_mysql)
-#   MYSQL_DATABASE   MySQL database name  (default: gvray_admin)
+#   PG_CONTAINER     PostgreSQL container name (default: gvray_admin_postgres)
+#   POSTGRES_DB      PostgreSQL database name (default: gvray_admin)
 #   PLATFORM         Docker platform      (default: linux/amd64)
 
 set -euo pipefail
@@ -40,8 +40,8 @@ IMAGE_NAME="gvray-admin"
 REGISTRY="${DOCKER_REGISTRY:-docker.io}"
 NAMESPACE="${DOCKER_NAMESPACE:-gvray}"
 CONTAINER_NAME="${CONTAINER_NAME:-gvray_admin_app}"
-MYSQL_CONTAINER="${MYSQL_CONTAINER:-gvray_admin_mysql}"
-MYSQL_DATABASE="${MYSQL_DATABASE:-gvray_admin}"
+PG_CONTAINER="${PG_CONTAINER:-gvray_admin_postgres}"
+POSTGRES_DB="${POSTGRES_DB:-gvray_admin}"
 PLATFORM="${PLATFORM:-linux/amd64}"
 TAG="${TAG:-latest}"
 NO_PULL=false
@@ -68,52 +68,47 @@ FULL_IMAGE="${REGISTRY}/${NAMESPACE}/${IMAGE_NAME}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ENV_FILE="$(cd "${SCRIPT_DIR}/../../" && pwd)/.env.production"
 
-# ── MySQL ─────────────────────────────────────────────────────────────────────
-ensure_mysql() {
-  # Parse password and port from DATABASE_URL (mysql://user:pass@host:port/db)
+# ── PostgreSQL ────────────────────────────────────────────────────────────────
+ensure_postgres() {
+  # Parse user, password and port from DATABASE_URL (postgresql://user:pass@host:port/db)
+  local db_user; db_user=$(echo "${DATABASE_URL}" | sed -n 's|.*://\([^:]*\):.*|\1|p')
   local db_pass; db_pass=$(echo "${DATABASE_URL}" | sed -n 's|.*://[^:]*:\([^@]*\)@.*|\1|p')
   local db_port; db_port=$(echo "${DATABASE_URL}" | sed -n 's|.*@[^:]*:\([0-9]*\)/.*|\1|p')
-  db_port="${db_port:-3306}"
+  db_user="${db_user:-postgres}"
+  db_port="${db_port:-5432}"
 
-  if docker inspect "$MYSQL_CONTAINER" >/dev/null 2>&1; then
-    local state; state=$(docker inspect "$MYSQL_CONTAINER" --format '{{.State.Status}}')
+  if docker inspect "$PG_CONTAINER" >/dev/null 2>&1; then
+    local state; state=$(docker inspect "$PG_CONTAINER" --format '{{.State.Status}}')
     if [[ "$state" == "running" ]]; then
-      ok "MySQL already running (${MYSQL_CONTAINER})."
+      ok "PostgreSQL already running (${PG_CONTAINER})."
       return
     fi
-    info "Starting existing MySQL container (${MYSQL_CONTAINER})..."
-    docker start "$MYSQL_CONTAINER"
+    info "Starting existing PostgreSQL container (${PG_CONTAINER})..."
+    docker start "$PG_CONTAINER"
   else
-    local cnf_mount=()
-    local mysql_cnf="${SCRIPT_DIR}/../mysql/my.cnf"
-    [[ -f "$mysql_cnf" ]] && cnf_mount=(-v "$(realpath "$mysql_cnf"):/etc/mysql/conf.d/my.cnf:ro")
-
-    info "Starting MySQL container (${MYSQL_CONTAINER})..."
+    info "Starting PostgreSQL container (${PG_CONTAINER})..."
     docker run -d \
-      --name    "$MYSQL_CONTAINER" \
+      --name    "$PG_CONTAINER" \
       --restart unless-stopped \
-      -p "${db_port}:3306" \
-      -e MYSQL_ROOT_PASSWORD="${db_pass:-password}" \
-      -e MYSQL_DATABASE="${MYSQL_DATABASE}" \
-      -v gvray_admin_mysql_data:/var/lib/mysql \
-      "${cnf_mount[@]}" \
-      mysql:8.0 \
-        --default-authentication-plugin=mysql_native_password \
-        --character-set-server=utf8mb4 \
-        --collation-server=utf8mb4_unicode_ci
+      -p "${db_port}:5432" \
+      -e POSTGRES_USER="${db_user}" \
+      -e POSTGRES_PASSWORD="${db_pass:-password}" \
+      -e POSTGRES_DB="${POSTGRES_DB}" \
+      -v gvray_admin_postgres_data:/var/lib/postgresql/data \
+      postgres:17-alpine
   fi
 
-  info "Waiting for MySQL to be ready (up to 120s)..."
+  info "Waiting for PostgreSQL to be ready (up to 120s)..."
   local i
   for i in $(seq 1 24); do
-    if docker exec "$MYSQL_CONTAINER" \
-        mysqladmin ping -h 127.0.0.1 -u root -p"${db_pass:-password}" --silent 2>/dev/null; then
-      ok "MySQL ready."
+    if docker exec "$PG_CONTAINER" \
+        pg_isready -U "${db_user}" -d "${POSTGRES_DB}" 2>/dev/null; then
+      ok "PostgreSQL ready."
       return
     fi
     sleep 5
   done
-  fatal "MySQL did not become ready within 120s."
+  fatal "PostgreSQL did not become ready within 120s."
 }
 
 # ── Commands ──────────────────────────────────────────────────────────────────
@@ -169,8 +164,8 @@ cmd_deploy() {
   printf "  ${BOLD}Port      ${NC} %s\n" "${PORT:-3000}"
   printf "\n"
 
-  # 1. Ensure MySQL is running before starting the app
-  ensure_mysql
+  # 1. Ensure PostgreSQL is running before starting the app
+  ensure_postgres
 
   # 2. Pull image (skip with -n to use locally built image)
   if $NO_PULL; then
@@ -280,9 +275,9 @@ cmd_reset() {
   printf "  ${RED}${BOLD}!! DANGER — DESTRUCTIVE OPERATION !!${NC}\n"
   printf "\n"
   printf "  ${RED}The following will be permanently destroyed:${NC}\n"
-  printf "  ${RED}  • App container  : ${CONTAINER_NAME} (+ all backups)${NC}\n"
-  printf "  ${RED}  • MySQL container: ${MYSQL_CONTAINER}${NC}\n"
-  printf "  ${RED}  • MySQL volume   : gvray_admin_mysql_data${NC}\n"
+  printf "  ${RED}  • App container    : ${CONTAINER_NAME} (+ all backups)${NC}\n"
+  printf "  ${RED}  • PG container     : ${PG_CONTAINER}${NC}\n"
+  printf "  ${RED}  • PG volume        : gvray_admin_postgres_data${NC}\n"
   printf "  ${RED}  • ALL DATABASE DATA WILL BE LOST${NC}\n"
   printf "\n"
   printf "  Then redeploy + optionally seed from scratch.\n"
@@ -296,12 +291,12 @@ cmd_reset() {
     | grep -E "^${CONTAINER_NAME}(_backup_|$)" \
     | xargs -r docker rm -f 2>/dev/null || true
 
-  info "Removing MySQL container..."
-  docker stop "$MYSQL_CONTAINER" 2>/dev/null || true
-  docker rm   "$MYSQL_CONTAINER" 2>/dev/null || true
+  info "Removing PostgreSQL container..."
+  docker stop "$PG_CONTAINER" 2>/dev/null || true
+  docker rm   "$PG_CONTAINER" 2>/dev/null || true
 
-  info "Removing MySQL data volume..."
-  docker volume rm gvray_admin_mysql_data 2>/dev/null || true
+  info "Removing PostgreSQL data volume..."
+  docker volume rm gvray_admin_postgres_data 2>/dev/null || true
 
   ok "Destroyed. Starting fresh deploy..."
   printf "\n"

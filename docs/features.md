@@ -101,7 +101,7 @@
 - [x] 完整的种子数据（管理员、角色、权限、部门、岗位）
 - [ ] 代码自动生成（CRUD）
 - [ ] 表单在线构建
-- [x] 开发技术文档（README / DOCKER_DEPLOYMENT / UNIFIED_RESPONSE_GUIDE / CLAUDE.md）
+- [x] 开发技术文档（README / DOCKER_DEPLOYMENT / UNIFIED_RESPONSE_GUIDE / AGENTS.md）
 - [ ] 单元测试覆盖
 - [ ] API 自动化测试
 - [ ] 持续集成/持续部署（CI/CD）

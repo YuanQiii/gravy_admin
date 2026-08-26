@@ -246,9 +246,19 @@ export class DepartmentsService extends BaseService {
       throw new ConflictException('该部门下还有用户，无法删除');
     }
 
-    await this.prisma.department.delete({
-      where: { departmentId },
-    });
+    try {
+      await this.prisma.department.delete({
+        where: { departmentId },
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2003'
+      ) {
+        throw new ConflictException('该部门仍被其他数据引用，无法删除');
+      }
+      throw error;
+    }
   }
 
   async removeMany(ids: string[]): Promise<void> {
@@ -262,9 +272,19 @@ export class DepartmentsService extends BaseService {
     if (blocked.length > 0) {
       throw new ConflictException('存在子部门或用户，无法批量删除');
     }
-    await this.prisma.department.deleteMany({
-      where: { departmentId: { in: ids } },
-    });
+    try {
+      await this.prisma.department.deleteMany({
+        where: { departmentId: { in: ids } },
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2003'
+      ) {
+        throw new ConflictException('部分部门仍被其他数据引用，无法删除');
+      }
+      throw error;
+    }
   }
 
   async getTree(

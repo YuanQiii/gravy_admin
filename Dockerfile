@@ -29,11 +29,13 @@ FROM base AS dev
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-ENV DATABASE_URL="mysql://build:build@build:3306/build"
+ENV DATABASE_URL="postgresql://build:build@build:5432/build"
 
 RUN pnpm prisma generate
 
-RUN chmod +x docker/entrypoint.sh
+# Normalize line endings (Windows core.autocrlf may check files out as CRLF,
+# which breaks the shebang when the script runs inside the container).
+RUN sed -i 's/\r$//' docker/entrypoint.sh && chmod +x docker/entrypoint.sh
 
 EXPOSE 3000
 
@@ -48,7 +50,7 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
 # Dummy DATABASE_URL so Prisma generator does not need a live DB at build time
-ENV DATABASE_URL="mysql://build:build@build:3306/build"
+ENV DATABASE_URL="postgresql://build:build@build:5432/build"
 
 RUN pnpm prisma generate
 RUN pnpm build
@@ -90,6 +92,10 @@ COPY prisma ./prisma
 
 # Startup entrypoint: runs migrations then hands off to CMD
 COPY docker/entrypoint.sh ./entrypoint.sh
+
+# Normalize line endings (Windows core.autocrlf may check files out as CRLF,
+# which breaks the shebang when the script runs inside the container).
+RUN sed -i 's/\r$//' entrypoint.sh
 
 # Create non-root user and fix ownership in a single layer
 RUN addgroup --system --gid 1001 nodejs \

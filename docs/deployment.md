@@ -8,7 +8,7 @@
 |--------|------|------|
 | **开发** | `docker-compose.dev.yml` | 本地开发，build + 热更新 |
 | **测试 / 生产** | `docker-compose.yml` | 只 pull 镜像，env 外部注入 |
-| **生产独立部署** | `docker/scripts/deploy.sh` | 滚动更新，自动回滚，独立管理 MySQL |
+| **生产独立部署** | `docker/scripts/deploy.sh` | 滚动更新，自动回滚，独立管理 PostgreSQL |
 
 ---
 
@@ -29,7 +29,7 @@ pnpm docker:dev:down
 
 **特点**
 - 端口：`3000`
-- MySQL 密码固定为 `password`（仅本地用）
+- PostgreSQL 密码固定为 `password`（仅本地用）
 - 数据库首次启动自动执行 `prisma db push` + seed
 
 ---
@@ -58,10 +58,12 @@ JWT_SECRET=your-strong-secret-here        # 必填，缺失则启动报错
 
 # 以下有默认值，按需覆盖
 NODE_ENV=production
-MYSQL_ROOT_PASSWORD=password
-# 注意：docker-compose.yml 中 DATABASE_URL 由 MYSQL_ROOT_PASSWORD + MYSQL_DATABASE 自动组装，
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=password
+POSTGRES_DB=gvray_admin
+# 注意：docker-compose.yml 中 DATABASE_URL 由 POSTGRES_USER + POSTGRES_PASSWORD + POSTGRES_DB 自动组装，
 # 直接修改 .env 中的 DATABASE_URL 对 compose 模式不生效
-DATABASE_URL=mysql://root:password@mysql:3306/gvray_admin
+DATABASE_URL=postgresql://postgres:password@postgres:5432/gvray_admin
 PORT=3000
 ENABLE_CORS=false
 IMAGE=gvray/gvray-admin:latest             # 推荐指定固定版本
@@ -96,7 +98,7 @@ IMAGE=gvray/gvray-admin:v1.2.3 docker compose up -d app
 
 ## 三、生产独立部署（deploy.sh）
 
-与 docker-compose 完全独立。自己管理 MySQL 容器，支持滚动更新和自动回滚。
+与 docker-compose 完全独立。自己管理 PostgreSQL 容器，支持滚动更新和自动回滚。
 
 ### 前置：配置 .env.production
 
@@ -170,12 +172,11 @@ pnpm docker:build:scan
 3. 用户表为空 → 自动 seed
 
 ```bash
-# 本地开发：只启动 MySQL，不启动 app
+# 本地开发：只启动 PostgreSQL，不启动 app
 pnpm db:up
 pnpm db:down
 
 # 手动操作（本地开发环境）
-pnpm prisma:migrate    # 创建迁移
 pnpm prisma:studio     # 打开数据库 GUI
 pnpm prisma:seed       # 手动执行 seed
 pnpm db:reset          # 重置数据库并重新 seed
@@ -194,7 +195,7 @@ docker exec -it gvray-admin-app sh
 
 # 查看容器日志
 docker logs gvray-admin-app
-docker logs gvray-admin-mysql
+docker logs gvray-admin-postgres
 
 # 检查端口占用
 lsof -i :3000
@@ -206,5 +207,5 @@ lsof -i :3000
 |------|------|------|
 | 启动报错 `JWT_SECRET is required` | `.env` 缺少 JWT_SECRET | 添加 JWT_SECRET 到 `.env` |
 | 健康检查失败 → 自动回滚 | 应用启动超时或崩溃 | `docker logs gvray-admin-app` 查原因 |
-| 数据库连接失败 | MySQL 未就绪或密码错误 | 检查 DATABASE_URL 和 MySQL 状态 |
+| 数据库连接失败 | PostgreSQL 未就绪或密码错误 | 检查 DATABASE_URL 和 PostgreSQL 状态 |
 | 端口已被占用 | 旧容器未清理 | `docker ps` 找到并停止旧容器 |

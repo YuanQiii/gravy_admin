@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>架构深化评审 — add-equipment-inquiry-customer-domains</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; }
+  .badge-strong { background:#dcfce7; color:#166534; }
+  .badge-explore { background:#fef9c3; color:#854d0e; }
+  .badge-speculative { background:#f1f5f9; color:#475569; }
+  .diagram-box { border:2px dashed #cbd5e1; border-radius:8px; padding:12px; background:#f8fafc; }
+  .shallow { background:#fef2f2; border-color:#fca5a5; }
+  .deep { background:#f0fdf4; border-color:#86efac; }
+  .dup-code { background:#fee2e2; color:#991b1b; font-family:monospace; font-size:11px; padding:2px 6px; border-radius:4px; }
+</style>
+</head>
+<body class="bg-slate-50 text-slate-800">
+
+<div class="max-w-6xl mx-auto p-8">
+
+  <header class="mb-10 pb-6 border-b-2 border-slate-200">
+    <h1 class="text-3xl font-bold text-slate-900">架构深化评审</h1>
+    <p class="mt-2 text-lg text-slate-600">评审对象：<code class="bg-slate-200 px-2 py-1 rounded text-sm">openspec/changes/add-equipment-inquiry-customer-domains/design.md</code></p>
+    <p class="mt-2 text-sm text-slate-500">时机：代码落地<b>前</b>——这是深化最便宜的时机。修正一个 shallow module 设计，比重构已落地代码便宜一个数量级。</p>
+  </header>
+
+  <section class="mb-12 bg-white rounded-xl shadow-sm p-6 border border-slate-200">
+    <h2 class="text-xl font-semibold mb-4 text-slate-900">基线观察</h2>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+      <div class="bg-slate-50 p-4 rounded-lg">
+        <div class="font-semibold text-slate-700 mb-2">现有 BaseService（src/shared/services/base.service.ts）</div>
+        <ul class="space-y-1 text-slate-600">
+          <li>• 9 个 protected 方法，其中 <b>4 个 paginate 变种</b>（paginate / paginateWithResponse / paginateWithSort / paginateWithSortAndResponse）是 (是否排序?) × (是否包装响应?) 的排列</li>
+          <li>• 每个变种实现极薄——paginateWithSortAndResponse 只是 paginateWithSort + ResponseUtil.paginated 的两行包装</li>
+          <li>• deletion test：删掉 3 个变种，复杂度几乎不回归到调用方 → shallow</li>
+        </ul>
+      </div>
+      <div class="bg-slate-50 p-4 rounded-lg">
+        <div class="font-semibold text-slate-700 mb-2">现有软删除模式（permissions.service.ts:L34, L92）</div>
+        <ul class="space-y-1 text-slate-600">
+          <li>• <code class="dup-code">where['deletedAt'] = null</code> 在每个 service 内联手写</li>
+          <li>• 唯一性 + 软删除冲突处理：design.md D4 计划在 9 个新 service 里复制 <code class="dup-code">findFirst({ where: { name, deletedAt: null } })</code> 校验 + <code class="dup-code">*_DUPLICATED_SOFT_DELETED</code> 错误码</li>
+          <li>• 现有 22 个 model 中只有 Permission 有软删除，问题尚未显化；新设计会让它扩散到 9 处</li>
+        </ul>
+      </div>
+    </div>
+    <p class="mt-4 text-sm text-slate-500">词汇：用 <b>module/interface/depth/seam/adapter/leverage/locality</b> 描述。ADR-0001（MySQL→PG）与本评审无冲突；ADR-0002（独立 Customer）尚未创建，本评审不重新质疑该决策。</p>
+  </section>
+
+  <article class="mb-10 bg-white rounded-xl shadow-sm p-6 border-l-4 border-emerald-500">
+    <div class="flex items-center justify-between mb-3">
+      <h2 class="text-2xl font-bold text-slate-900">候选 1：软删除 + 唯一性校验集中化</h2>
+      <span class="badge-strong px-3 py-1 rounded-full text-xs font-semibold">Strong</span>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-5">
+      <div>
+        <h3 class="font-semibold text-slate-700 mb-2">Files</h3>
+        <p class="text-sm text-slate-600">影响 design.md 的 9 个新 service：brands / catalogs / filter-types / filters / equipment / inquiries / inquiry-lines / customers / addresses。现状：permissions.service.ts 已内联一份。</p>
+      </div>
+      <div>
+        <h3 class="font-semibold text-slate-700 mb-2">Problem</h3>
+        <p class="text-sm text-slate-600">design.md D4 明确要求"创建/恢复前用 <code>findFirst</code> 校验未软删除记录无同名"+"冲突返回 <code>*_DUPLICATED_SOFT_DELETED</code>"。这段逻辑会在 9 个 service 里逐字复制。deletion test：从任一 service 删掉它，复杂度原地留下——但复制 9 份意味着 bug 修一处漏八处，<b>locality 丧失</b>。</p>
+      </div>
+    </div>
+
+    <div class="mb-5">
+      <h3 class="font-semibold text-slate-700 mb-2">Solution</h3>
+      <p class="text-sm text-slate-600">在 <code>src/shared/services/</code> 新增一个深 module——<code>SoftDeleteService</code>（或 mixin），interface 仅 3 个方法：<code>assertUniqueActive(model, field, value, excludeId?)</code> / <code>softDelete(model, id)</code> / <code>restore(model, id)</code>。把 D4 的校验逻辑、<code>deletedAt=null</code> 过滤、错误码命名规则、软删除恢复时的唯一性再校验全部藏到实现里。9 个新 service 通过它完成软删除操作，自己只声明"哪个 model、哪个字段、哪个错误码前缀"。</p>
+    </div>
+
+    <div class="mb-5">
+      <h3 class="font-semibold text-slate-700 mb-2">Benefits</h3>
+      <ul class="text-sm text-slate-600 space-y-1">
+        <li>• <b>Locality</b>：软删除与唯一性语义改一处即全模块生效（例如未来引入复合唯一约束 <code>@unique([name, deletedAt])</code> 时，只改 SoftDeleteService 的 assert 逻辑）</li>
+        <li>• <b>Leverage</b>：9 个新 service + 现有 PermissionsService 共 10 个调用方共用一个 adapter</li>
+        <li>• <b>测试</b>：interface 是 test surface——只需对 SoftDeleteService 写一组并发/冲突/恢复场景测试，不必在每个 service 里重复测软删除分支</li>
+        <li>• 错误码命名规则（<code>{MODULE}_{FIELD}_DUPLICATED_SOFT_DELETED</code>）从约定变成代码，AI/人都不会拼错</li>
+      </ul>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+      <div class="diagram-box shallow">
+        <div class="text-xs font-semibold text-red-700 mb-2 uppercase">Before — 9 份复制</div>
+        <svg viewBox="0 0 320 220" class="w-full h-44">
+          <g font-family="monospace" font-size="10">
+            <rect x="10" y="10" width="90" height="60" rx="4" fill="#fff" stroke="#fca5a5"/>
+            <text x="55" y="28" text-anchor="middle" fill="#991b1b">BrandsService</text>
+            <rect x="18" y="38" width="74" height="12" fill="#fee2e2"/>
+            <text x="55" y="47" text-anchor="middle" fill="#991b1b">findFirst+check</text>
+            <rect x="18" y="52" width="74" height="12" fill="#fee2e2"/>
+            <text x="55" y="61" text-anchor="middle" fill="#991b1b">deletedAt=null</text>
+
+            <rect x="115" y="10" width="90" height="60" rx="4" fill="#fff" stroke="#fca5a5"/>
+            <text x="160" y="28" text-anchor="middle" fill="#991b1b">CatalogsSvc</text>
+            <rect x="123" y="38" width="74" height="12" fill="#fee2e2"/>
+            <text x="160" y="47" text-anchor="middle" fill="#991b1b">findFirst+check</text>
+            <rect x="123" y="52" width="74" height="12" fill="#fee2e2"/>
+            <text x="160" y="61" text-anchor="middle" fill="#991b1b">deletedAt=null</text>
+
+            <rect x="220" y="10" width="90" height="60" rx="4" fill="#fff" stroke="#fca5a5"/>
+            <text x="265" y="28" text-anchor="middle" fill="#991b1b">FiltersSvc</text>
+            <rect x="228" y="38" width="74" height="12" fill="#fee2e2"/>
+            <text x="265" y="47" text-anchor="middle" fill="#991b1b">findFirst+check</text>
+            <rect x="228" y="52" width="74" height="12" fill="#fee2e2"/>
+            <text x="265" y="61" text-anchor="middle" fill="#991b1b">deletedAt=null</text>
+
+            <text x="160" y="95" text-anchor="middle" fill="#64748b" font-size="14">⋮ 还有 6 个 service 同构 ⋮</text>
+
+            <rect x="115" y="115" width="90" height="60" rx="4" fill="#fff" stroke="#fca5a5"/>
+            <text x="160" y="133" text-anchor="middle" fill="#991b1b">CustomersSvc</text>
+            <rect x="123" y="143" width="74" height="12" fill="#fee2e2"/>
+            <text x="160" y="152" text-anchor="middle" fill="#991b1b">findFirst+check</text>
+            <rect x="123" y="157" width="74" height="12" fill="#fee2e2"/>
+            <text x="160" y="166" text-anchor="middle" fill="#991b1b">deletedAt=null</text>
+          </g>
+          <text x="160" y="205" text-anchor="middle" fill="#991b1b" font-size="11" font-weight="bold">9 份相同逻辑，bug 修一处漏八处</text>
+        </svg>
+      </div>
+      <div class="diagram-box deep">
+        <div class="text-xs font-semibold text-emerald-700 mb-2 uppercase">After — 1 个深 module</div>
+        <svg viewBox="0 0 320 220" class="w-full h-44">
+          <g font-family="monospace" font-size="10">
+            <rect x="10" y="10" width="70" height="40" rx="4" fill="#fff" stroke="#86efac"/>
+            <text x="45" y="34" text-anchor="middle" fill="#166534">Brands</text>
+            <rect x="90" y="10" width="70" height="40" rx="4" fill="#fff" stroke="#86efac"/>
+            <text x="125" y="34" text-anchor="middle" fill="#166534">Catalogs</text>
+            <rect x="170" y="10" width="70" height="40" rx="4" fill="#fff" stroke="#86efac"/>
+            <text x="205" y="34" text-anchor="middle" fill="#166534">Filters</text>
+            <rect x="250" y="10" width="60" height="40" rx="4" fill="#fff" stroke="#86efac"/>
+            <text x="280" y="34" text-anchor="middle" fill="#166534">...6个</text>
+
+            <line x1="45" y1="50" x2="160" y2="95" stroke="#6366f1" stroke-width="1.5" stroke-dasharray="4 3"/>
+            <line x1="125" y1="50" x2="160" y2="95" stroke="#6366f1" stroke-width="1.5" stroke-dasharray="4 3"/>
+            <line x1="205" y1="50" x2="160" y2="95" stroke="#6366f1" stroke-width="1.5" stroke-dasharray="4 3"/>
+            <line x1="280" y1="50" x2="160" y2="95" stroke="#6366f1" stroke-width="1.5" stroke-dasharray="4 3"/>
+
+            <text x="170" y="88" text-anchor="middle" fill="#6366f1" font-size="9">seam</text>
+
+            <rect x="40" y="100" width="240" height="30" rx="4" fill="#f0fdf4" stroke="#6366f1" stroke-width="2"/>
+            <text x="160" y="120" text-anchor="middle" fill="#4338ca" font-weight="bold">SoftDeleteService interface (3 methods)</text>
+
+            <rect x="40" y="135" width="240" height="65" rx="4" fill="#dcfce7" stroke="#86efac"/>
+            <text x="160" y="152" text-anchor="middle" fill="#166534" font-size="9">assertUniqueActive / softDelete / restore</text>
+            <text x="160" y="167" text-anchor="middle" fill="#166534" font-size="9">— deletedAt=null 过滤</text>
+            <text x="160" y="180" text-anchor="middle" fill="#166534" font-size="9">— 冲突检测 + 错误码生成</text>
+            <text x="160" y="193" text-anchor="middle" fill="#166534" font-size="9">— 恢复时再校验</text>
+          </g>
+        </svg>
+      </div>
+    </div>
+    <p class="text-xs text-slate-500">9 个 service 不再持有软删除逻辑，只持有业务规则。<b>Depth = 大量行为藏在 3 方法 interface 之后</b>。注意：这要求 design.md D4 改写，tasks.md 2.x/3.x/4.x/5.x 的"service 实现软删除校验"改为"调用 SoftDeleteService"。</p>
+  </article>
+
+  <article class="mb-10 bg-white rounded-xl shadow-sm p-6 border-l-4 border-yellow-400">
+    <div class="flex items-center justify-between mb-3">
+      <h2 class="text-2xl font-bold text-slate-900">候选 2：InquiryNo 生成器抽为独立深 module</h2>
+      <span class="badge-explore px-3 py-1 rounded-full text-xs font-semibold">Worth exploring</span>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-5">
+      <div>
+        <h3 class="font-semibold text-slate-700 mb-2">Files</h3>
+        <p class="text-sm text-slate-600">design.md D5 / tasks 4.2：当前计划把 <code>generateInquiryNo()</code> 作为 <code>InquiriesService</code> 的一个方法。</p>
+      </div>
+      <div>
+        <h3 class="font-semibold text-slate-700 mb-2">Problem</h3>
+        <p class="text-sm text-slate-600">这段逻辑本身是深的（<code>pg_advisory_xact_lock</code> + 当月最大序号 + 3 次重试 + 候选号生成），但它混在 InquiriesService 里，与 CRUD 逻辑共用一个 interface。<b>interface 是 test surface</b>——要测并发冲突重试，得通过 InquiriesService.create 绕一大圈，<b>locality 差</b>：并发 bug 藏在 create 的某行里，与"创建询价单"业务规则混在一起。</p>
+      </div>
+    </div>
+
+    <div class="mb-5">
+      <h3 class="font-semibold text-slate-700 mb-2">Solution</h3>
+      <p class="text-sm text-slate-600">抽出独立 module <code>InquiryNoGenerator</code>（<code>src/modules/inquiry/inquiries/inquiry-no.generator.ts</code>），interface 仅 <code>next(): Promise&lt;string&gt;</code>。InquiriesService.create 注入它，事务内调 <code>generator.next()</code> 拿编号后写入。生成器的并发/重试/锁逻辑全部藏在实现里，有独立 test surface。</p>
+    </div>
+
+    <div class="mb-5">
+      <h3 class="font-semibold text-slate-700 mb-2">Benefits / 取舍</h3>
+      <ul class="text-sm text-slate-600 space-y-1">
+        <li>• <b>Locality</b>：并发重试逻辑集中在 Generator，bug 改一处；InquiriesService 只剩询价业务规则</li>
+        <li>• <b>测试</b>：可直接对 Generator 写并发场景（mock Prisma 抛唯一约束冲突），不必起完整 InquiriesService</li>
+        <li>• <b>取舍</b>：多一个文件。但 Generator 的 interface（1 方法）极小，depth 高，值得抽</li>
+        <li>• 未来若改 DB 序列方案（design.md D5 替代方案），只换 Generator adapter，InquiriesService 不动——<b>两个 adapter 才是真实 seam</b>，目前虽只有一个，但并发生成编号天然是可替换策略</li>
+      </ul>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div class="diagram-box shallow">
+        <div class="text-xs font-semibold text-red-700 mb-2 uppercase">Before — 混在 InquiriesService</div>
+        <svg viewBox="0 0 320 180" class="w-full h-40">
+          <g font-family="monospace" font-size="10">
+            <rect x="20" y="20" width="280" height="30" rx="4" fill="#fff" stroke="#fca5a5" stroke-width="2"/>
+            <text x="160" y="40" text-anchor="middle" fill="#991b1b" font-weight="bold">InquiriesService interface (8+ 方法)</text>
+
+            <rect x="20" y="55" width="280" height="105" rx="4" fill="#fee2e2" stroke="#fca5a5"/>
+            <rect x="30" y="65" width="120" height="20" fill="#fecaca"/>
+            <text x="90" y="79" text-anchor="middle" fill="#991b1b">create()</text>
+            <rect x="160" y="65" width="130" height="20" fill="#fee2e2"/>
+            <text x="225" y="79" text-anchor="middle" fill="#991b1b">findAll/findOne...</text>
+
+            <rect x="30" y="92" width="260" height="58" fill="#fecaca" stroke="#dc2626" stroke-dasharray="3 2"/>
+            <text x="160" y="108" text-anchor="middle" fill="#991b1b">generateInquiryNo():</text>
+            <text x="160" y="122" text-anchor="middle" fill="#991b1b" font-size="9">pg_advisory_xact_lock + 重试 + 序号</text>
+            <text x="160" y="138" text-anchor="middle" fill="#991b1b" font-size="9">并发逻辑混在 create 链路里</text>
+          </g>
+        </svg>
+      </div>
+      <div class="diagram-box deep">
+        <div class="text-xs font-semibold text-emerald-700 mb-2 uppercase">After — 抽出 Generator</div>
+        <svg viewBox="0 0 320 180" class="w-full h-40">
+          <g font-family="monospace" font-size="10">
+            <rect x="20" y="20" width="180" height="30" rx="4" fill="#fff" stroke="#86efac" stroke-width="2"/>
+            <text x="110" y="40" text-anchor="middle" fill="#166534" font-weight="bold">InquiriesService</text>
+
+            <rect x="20" y="55" width="180" height="105" rx="4" fill="#f0fdf4" stroke="#86efac"/>
+            <text x="110" y="78" text-anchor="middle" fill="#166534">create() 业务规则</text>
+            <text x="110" y="98" text-anchor="middle" fill="#166534">状态流转校验</text>
+            <text x="110" y="118" text-anchor="middle" fill="#166534">CRUD</text>
+
+            <line x1="200" y1="100" x2="240" y2="100" stroke="#6366f1" stroke-width="2" stroke-dasharray="4 3"/>
+            <text x="220" y="95" text-anchor="middle" fill="#6366f1" font-size="9">seam</text>
+
+            <rect x="240" y="55" width="70" height="30" rx="4" fill="#f0fdf4" stroke="#6366f1" stroke-width="2"/>
+            <text x="275" y="75" text-anchor="middle" fill="#4338ca" font-weight="bold">next()</text>
+
+            <rect x="240" y="90" width="70" height="70" rx="4" fill="#dcfce7" stroke="#86efac"/>
+            <text x="275" y="108" text-anchor="middle" fill="#166534" font-size="9">Generator</text>
+            <text x="275" y="122" text-anchor="middle" fill="#166534" font-size="8">advisory lock</text>
+            <text x="275" y="135" text-anchor="middle" fill="#166534" font-size="8">+ retry ×3</text>
+            <text x="275" y="148" text-anchor="middle" fill="#166534" font-size="8">+ 序号生成</text>
+          </g>
+        </svg>
+      </div>
+    </div>
+  </article>
+
+  <article class="mb-10 bg-white rounded-xl shadow-sm p-6 border-l-4 border-yellow-400">
+    <div class="flex items-center justify-between mb-3">
+      <h2 class="text-2xl font-bold text-slate-900">候选 3：BaseService 的 4 个 paginate 变种合并</h2>
+      <span class="badge-explore px-3 py-1 rounded-full text-xs font-semibold">Worth exploring</span>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-5">
+      <div>
+        <h3 class="font-semibold text-slate-700 mb-2">Files</h3>
+        <p class="text-sm text-slate-600"><code>src/shared/services/base.service.ts:L103-L259</code>。10 个新 service 都会调用这些方法（design.md tasks 3.x/4.x/5.x 隐含）。属"邻近现有代码"——但新设计会让调用方翻倍，深化 leverage 翻倍。</p>
+      </div>
+      <div>
+        <h3 class="font-semibold text-slate-700 mb-2">Problem</h3>
+        <p class="text-sm text-slate-600">4 个方法是 <code>(是否排序?) × (是否包装响应?)</code> 的排列组合：paginate / paginateWithResponse / paginateWithSort / paginateWithSortAndResponse。<b>Large interface + thin implementation</b>——每个变种实现就 2-3 行。deletion test：删掉 3 个变种，调用方传 options bag 即可，复杂度不回归 → shallow。</p>
+      </div>
+    </div>
+
+    <div class="mb-5">
+      <h3 class="font-semibold text-slate-700 mb-2">Solution</h3>
+      <p class="text-sm text-slate-600">合并为单一方法 <code>paginate&lt;T&gt;(model, opts: { pagination, where?, include?, orderBy?, defaultSortBy?, wrapResponse? }): Promise&lt;...&gt;</code>。options bag 表达所有变种。保留旧 4 方法作 deprecated 薄壳调用新方法，逐步迁移。</p>
+    </div>
+
+    <div class="mb-5">
+      <h3 class="font-semibold text-slate-700 mb-2">Benefits / 风险</h3>
+      <ul class="text-sm text-slate-600 space-y-1">
+        <li>• <b>Leverage</b>：新 10 service + 现有 N service 都受益，interface 从 9 方法降到 7（去 4 留 1）</li>
+        <li>• <b>Locality</b>：分页/排序/响应包装逻辑一处维护</li>
+        <li>• <b>风险</b>：触及现有 22 个 service 的调用方——需 grep 全仓替换或保留 deprecated 薄壳。建议本次只加新方法，新 10 service 用新方法，旧代码不动</li>
+        <li>• <b>ADR 冲突</b>：无；这是纯接口深化</li>
+      </ul>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div class="diagram-box shallow">
+        <div class="text-xs font-semibold text-red-700 mb-2 uppercase">Before — 4 变种</div>
+        <svg viewBox="0 0 320 160" class="w-full h-36">
+          <g font-family="monospace" font-size="9">
+            <rect x="10" y="15" width="70" height="35" rx="4" fill="#fee2e2" stroke="#fca5a5"/>
+            <text x="45" y="32" text-anchor="middle" fill="#991b1b">paginate</text>
+            <text x="45" y="44" text-anchor="middle" fill="#991b1b" font-size="8">2 行</text>
+
+            <rect x="90" y="15" width="80" height="35" rx="4" fill="#fee2e2" stroke="#fca5a5"/>
+            <text x="130" y="32" text-anchor="middle" fill="#991b1b">paginateW/Resp</text>
+            <text x="130" y="44" text-anchor="middle" fill="#991b1b" font-size="8">3 行</text>
+
+            <rect x="180" y="15" width="70" height="35" rx="4" fill="#fee2e2" stroke="#fca5a5"/>
+            <text x="215" y="32" text-anchor="middle" fill="#991b1b">paginateW/Sort</text>
+            <text x="215" y="44" text-anchor="middle" fill="#991b1b" font-size="8">2 行</text>
+
+            <rect x="260" y="15" width="50" height="35" rx="4" fill="#fee2e2" stroke="#fca5a5"/>
+            <text x="285" y="32" text-anchor="middle" fill="#991b1b">+Resp</text>
+            <text x="285" y="44" text-anchor="middle" fill="#991b1b" font-size="8">3 行</text>
+
+            <text x="160" y="80" text-anchor="middle" fill="#64748b" font-size="11">排列组合 × 薄壳</text>
+            <text x="160" y="100" text-anchor="middle" fill="#64748b" font-size="11">调用方需记 4 个名字哪个对哪个</text>
+            <text x="160" y="135" text-anchor="middle" fill="#991b1b" font-size="11" font-weight="bold">large interface, thin impl = shallow</text>
+          </g>
+        </svg>
+      </div>
+      <div class="diagram-box deep">
+        <div class="text-xs font-semibold text-emerald-700 mb-2 uppercase">After — 1 方法 + options</div>
+        <svg viewBox="0 0 320 160" class="w-full h-36">
+          <g font-family="monospace" font-size="10">
+            <rect x="40" y="15" width="240" height="28" rx="4" fill="#f0fdf4" stroke="#6366f1" stroke-width="2"/>
+            <text x="160" y="34" text-anchor="middle" fill="#4338ca" font-weight="bold">paginate(model, opts) — 1 方法</text>
+
+            <rect x="40" y="50" width="240" height="90" rx="4" fill="#dcfce7" stroke="#86efac"/>
+            <text x="160" y="70" text-anchor="middle" fill="#166534" font-size="9">opts: { pagination, where?, include?,</text>
+            <text x="160" y="84" text-anchor="middle" fill="#166534" font-size="9">  orderBy?, defaultSortBy?, wrapResponse? }</text>
+            <text x="160" y="105" text-anchor="middle" fill="#166534" font-size="9">实现内根据 opts 分支</text>
+            <text x="160" y="120" text-anchor="middle" fill="#166534" font-size="9">所有变种 = opts 的不同填法</text>
+            <text x="160" y="138" text-anchor="middle" fill="#166534" font-size="9" font-weight="bold">small interface, deep impl</text>
+          </g>
+        </svg>
+      </div>
+    </div>
+  </article>
+
+  <article class="mb-10 bg-white rounded-xl shadow-sm p-6 border-l-4 border-slate-300">
+    <div class="flex items-center justify-between mb-3">
+      <h2 class="text-2xl font-bold text-slate-900">候选 4：字典型 CRUD 模块（brands/catalogs/filter-types）共享 base</h2>
+      <span class="badge-speculative px-3 py-1 rounded-full text-xs font-semibold">Speculative</span>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-5">
+      <div>
+        <h3 class="font-semibold text-slate-700 mb-2">Files</h3>
+        <p class="text-sm text-slate-600">design.md tasks 3.1/3.2/3.3：brands / catalogs / filter-types 三个 service 几乎同构（name/code 唯一 + status + sortOrder + 软删除）。</p>
+      </div>
+      <div>
+        <h3 class="font-semibold text-slate-700 mb-2">Problem</h3>
+        <p class="text-sm text-slate-600">这三个是典型字典 CRUD——service 几乎是 Prisma 透传。deletion test 模糊：删掉 BrandsService，controller 直接调 Prisma + SoftDeleteService（候选 1）后，复杂度几乎不回归。它们本就 shallow，但是否"深化"取决于能否抽一个 <code>DictionaryCrudService</code>。</p>
+      </div>
+    </div>
+
+    <div class="mb-5">
+      <h3 class="font-semibold text-slate-700 mb-2">Solution / 风险</h3>
+      <p class="text-sm text-slate-600">可抽 <code>DictionaryCrudService&lt;T&gt;</code>，三个 service 只声明 model 句柄 + 唯一字段名 + 错误码前缀。但 <b>风险：过度抽象</b>——若未来 brands 需要"slug 生成"、filter-types 需要"引用计数"，base 会泄漏分支。三个 service 的 shallow 是"事实上的浅"，强行加 base 可能让 interface 变大但实现仍薄。</p>
+    </div>
+
+    <div class="mb-3">
+      <h3 class="font-semibold text-slate-700 mb-2">判定</h3>
+      <p class="text-sm text-slate-600">仅当候选 1（SoftDeleteService）落地后，这三个 service 真的只剩 5 行 CRUD 时再考虑。当前建议：<b>保留三个薄 service</b>，依赖候选 1 吃掉软删除复杂度即可。shallow 但有候选 1 兜底，可接受。</p>
+    </div>
+  </article>
+
+  <section class="bg-indigo-50 rounded-xl p-6 border-2 border-indigo-200">
+    <h2 class="text-2xl font-bold text-indigo-900 mb-3">顶级推荐</h2>
+    <p class="text-sm text-indigo-800 mb-3">先做 <b>候选 1（SoftDeleteService 集中化）</b>。理由：</p>
+    <ol class="text-sm text-indigo-800 space-y-1 list-decimal list-inside mb-3">
+      <li><b>窗口期</b>：design.md 尚未实现，D4 的"9 份复制"还没落地。现在改 design.md + tasks.md 一处文字，比落地后重构 9 个 service 便宜一个数量级</li>
+      <li><b>杠杆最大</b>：9 个新 service + 现有 PermissionsService = 10 个调用方共用一个深 module</li>
+      <li><b>不阻塞</b>：不触及现有 22 个 service 的调用方（除非主动迁移 PermissionsService，可后置）</li>
+      <li><b>与 ADR 无冲突</b>：ADR-0001（PG 迁移）与本无关；ADR-0002（独立 Customer）不涉及软删除策略</li>
+    </ol>
+    <p class="text-sm text-indigo-800">候选 2（InquiryNoGenerator）可作为第二优先——它本身已是深逻辑，只是位置不对，抽出成本低、收益清晰。候选 3（BaseService 合并）建议本次只加新方法供新 service 用，旧代码不动，避免 scope 蔓延。候选 4 暂缓，等候选 1 落地后再评估。</p>
+  </section>
+
+  <footer class="mt-10 pt-6 border-t border-slate-200 text-center text-xs text-slate-500">
+    架构深化评审 · 基于 design.md（add-equipment-inquiry-customer-domains）· 词汇源自 codebase-design skill · 此为临时文件，看完可删
+  </footer>
+</div>
+
+<script>
+  mermaid.initialize({ startOnLoad: true });
+</script>
+</body>
+</html>

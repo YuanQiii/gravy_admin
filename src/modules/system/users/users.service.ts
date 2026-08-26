@@ -684,9 +684,22 @@ export class UsersService extends BaseService {
       throw new ForbiddenException('不能删除导致超级管理员少于 2 个');
     }
 
-    await this.prisma.user.delete({
-      where: { userId: user.userId },
-    });
+    try {
+      await this.prisma.user.delete({
+        where: { userId: user.userId },
+      });
+    } catch (error) {
+      // 数据库原生外键约束：用户仍被其他记录引用（P2003）时返回业务冲突错误而非 500
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2003'
+      ) {
+        throw new ConflictException(
+          `该用户仍被其他数据引用，无法删除（userId: ${userId}）`,
+        );
+      }
+      throw error;
+    }
     return;
   }
 

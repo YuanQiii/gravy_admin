@@ -12,6 +12,11 @@ import {
 export async function seedPermissionsAndAssignments(prisma: PrismaClient) {
   console.log('开始创建权限并分配系统角色权限...');
 
+  // ===== 业务域：设备/滤清器/询价/客户（通过 PERMISSIONS 自动纳入下方迭代）=====
+  // 包含：EQUIPMENT_BRAND / EQUIPMENT_CATALOG / EQUIPMENT_FILTER_TYPE /
+  // EQUIPMENT_FILTER / EQUIPMENT / INQUIRY / INQUIRY_LINE / CUSTOMER /
+  // CUSTOMER_ADDRESS / CUSTOMER_FAVORITE / CUSTOMER_HISTORY
+
   // 1. 收集所有权限 code
   const allCodes: string[] = [];
   for (const group of Object.values(PERMISSIONS)) {

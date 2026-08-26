@@ -11,15 +11,33 @@ import { seedNotices } from './seeds/notices';
 
 const prisma = new PrismaClient();
 
+// PostgreSQL advisory lock ID：锁名 'nest_admin_seed' 的 FNV-1a 哈希（TS 侧预计算，保持稳定）
+const SEED_LOCK_ID = (() => {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < 'nest_admin_seed'.length; i++) {
+    h ^= 'nest_admin_seed'.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return h >>> 0;
+})();
+
 async function main() {
   console.log('开始初始化数据库...');
 
-  // 加 MySQL 应用锁，防止多个 seed 进程并发执行导致唯一键冲突
-  const lockResult = await prisma.$queryRaw<
-    Array<{ result: number }>
-  >`SELECT GET_LOCK('nest_admin_seed', 30) as result`;
-  if (!lockResult[0]?.result) {
-    throw new Error('无法获取 seed 锁，可能有其他 seed 进程正在运行');
+  // 加 PostgreSQL 咨询锁，防止多个 seed 进程并发执行导致唯一键冲突。
+  // pg_try_advisory_lock + 500ms 退避循环，累计 30 秒未获取则抛错（保留原 MySQL GET_LOCK 的超时语义）
+  const LOCK_TIMEOUT_MS = 30_000;
+  const LOCK_RETRY_MS = 500;
+  const deadline = Date.now() + LOCK_TIMEOUT_MS;
+  for (;;) {
+    const lockResult = await prisma.$queryRaw<
+      Array<{ ok: boolean }>
+    >`SELECT pg_try_advisory_lock(${SEED_LOCK_ID}::bigint) AS ok`;
+    if (lockResult[0]?.ok) break;
+    if (Date.now() >= deadline) {
+      throw new Error('无法获取 seed 锁，可能有其他 seed 进程正在运行');
+    }
+    await new Promise((resolve) => setTimeout(resolve, LOCK_RETRY_MS));
   }
 
   try {
@@ -71,8 +89,8 @@ async function main() {
     console.log(`  手机号: ${adminUser.phone}`);
     console.log(`  密码: ${seedPassword}`);
   } finally {
-    // 释放 MySQL 应用锁（连接断开时也会自动释放）
-    await prisma.$executeRaw`SELECT RELEASE_LOCK('nest_admin_seed')`;
+    // 释放 PostgreSQL 咨询锁（连接断开时也会自动释放）
+    await prisma.$queryRaw`SELECT pg_advisory_unlock(${SEED_LOCK_ID}::bigint)`;
   }
 }
 

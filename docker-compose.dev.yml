@@ -1,29 +1,27 @@
 services:
-  mysql:
-    image: mysql:8.0
-    container_name: gvray-admin-mysql-dev
+  postgres:
+    image: postgres:17-alpine
+    container_name: gvray-admin-postgres-dev
     restart: unless-stopped
     env_file:
       - path: .env.${ENV:-development}
         required: false
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-password}
-      MYSQL_DATABASE: ${MYSQL_DATABASE:-gvray_admin}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      POSTGRES_DB: ${POSTGRES_DB:-gvray_admin}
     volumes:
-      - mysql-dev-data:/var/lib/mysql
-      - ./docker/mysql/my.cnf:/etc/mysql/conf.d/my.cnf:ro
+      - postgres-dev-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
     networks:
       - nest-dev
     healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p$$MYSQL_ROOT_PASSWORD --silent"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-postgres} -d $${POSTGRES_DB:-gvray_admin}"]
       interval: 5s
       timeout: 5s
       retries: 12
       start_period: 30s
-    command: >
-      --default-authentication-plugin=mysql_native_password
-      --character-set-server=utf8mb4
-      --collation-server=utf8mb4_unicode_ci
 
   app:
     build:
@@ -33,18 +31,20 @@ services:
     container_name: gvray-admin-app-dev
     restart: "no"
     depends_on:
-      mysql:
+      postgres:
         condition: service_healthy
     env_file:
       - path: .env.${ENV:-development}
         required: false
     environment:
       NODE_ENV: development
-      DATABASE_URL: mysql://root:${MYSQL_ROOT_PASSWORD:-password}@mysql:3306/${MYSQL_DATABASE:-gvray_admin}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-password}@postgres:5432/${POSTGRES_DB:-gvray_admin}
       JWT_SECRET: ${JWT_SECRET:-dev-jwt-secret-local-only}
       JWT_ACCESS_TOKEN_EXPIRES_IN: ${JWT_ACCESS_TOKEN_EXPIRES_IN:-2h}
       JWT_REFRESH_TOKEN_EXPIRES_IN: ${JWT_REFRESH_TOKEN_EXPIRES_IN:-7d}
       PORT: ${PORT:-3000}
+      SUPER_ADMIN_INITIAL_PASSWORD: ${SUPER_ADMIN_INITIAL_PASSWORD:-123456}
+      REDIS_HOST: redis
       ENABLE_CORS: ${ENABLE_CORS:-true}
       CORS_ORIGINS: ${CORS_ORIGINS:-}
     ports:
@@ -72,7 +72,7 @@ services:
       start_period: 5s
 
 volumes:
-  mysql-dev-data:
+  postgres-dev-data:
   redis-dev-data:
 
 networks:

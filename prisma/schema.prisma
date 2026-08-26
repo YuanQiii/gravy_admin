@@ -9,9 +9,8 @@ generator client {
 }
 
 datasource db {
-  provider     = "mysql"
-  url          = env("DATABASE_URL")
-  relationMode = "prisma"
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 model User {
@@ -34,9 +33,9 @@ model User {
 
   // 审计字段
   createdById String? // 创建者ID
-  createdBy   User?   @relation("UserCreatedBy", fields: [createdById], references: [userId], onDelete: NoAction, onUpdate: NoAction)
+  createdBy   User?   @relation("UserCreatedBy", fields: [createdById], references: [userId], onDelete: Restrict, onUpdate: Restrict)
   updatedById String? // 更新者ID  
-  updatedBy   User?   @relation("UserUpdatedBy", fields: [updatedById], references: [userId], onDelete: NoAction, onUpdate: NoAction)
+  updatedBy   User?   @relation("UserUpdatedBy", fields: [updatedById], references: [userId], onDelete: Restrict, onUpdate: Restrict)
 
   // 反向关联 - 作为创建者/更新者的记录
   createdUsers           User[]           @relation("UserCreatedBy")
@@ -64,6 +63,21 @@ model User {
   updatedRoleDepartments RoleDepartment[] @relation("RoleDepartmentUpdatedBy")
   createdNotices         Notice[]         @relation("NoticeCreatedBy")
   updatedNotices         Notice[]         @relation("NoticeUpdatedBy")
+  // 业务域反向关系（add-equipment-inquiry-customer-domains）
+  createdEquipmentBrands EquipmentBrand[] @relation("EquipmentBrandCreatedBy")
+  updatedEquipmentBrands EquipmentBrand[] @relation("EquipmentBrandUpdatedBy")
+  createdEquipmentCatalogs EquipmentCatalog[] @relation("EquipmentCatalogCreatedBy")
+  updatedEquipmentCatalogs EquipmentCatalog[] @relation("EquipmentCatalogUpdatedBy")
+  createdFilterTypes     FilterType[]     @relation("FilterTypeCreatedBy")
+  updatedFilterTypes     FilterType[]     @relation("FilterTypeUpdatedBy")
+  createdFilters         Filter[]         @relation("FilterCreatedBy")
+  updatedFilters         Filter[]         @relation("FilterUpdatedBy")
+  createdEquipment       Equipment[]      @relation("EquipmentCreatedBy")
+  updatedEquipment       Equipment[]      @relation("EquipmentUpdatedBy")
+  createdInquiries       Inquiry[]        @relation("InquiryCreatedBy")
+  updatedInquiries       Inquiry[]        @relation("InquiryUpdatedBy")
+  createdInquiryLines    InquiryLine[]    @relation("InquiryLineCreatedBy")
+  updatedInquiryLines    InquiryLine[]    @relation("InquiryLineUpdatedBy")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -100,9 +114,9 @@ model Role {
 
   // 审计字段
   createdById String? // 创建者ID
-  createdBy   User?   @relation("RoleCreatedBy", fields: [createdById], references: [userId], onDelete: NoAction, onUpdate: NoAction)
+  createdBy   User?   @relation("RoleCreatedBy", fields: [createdById], references: [userId], onDelete: Restrict, onUpdate: Restrict)
   updatedById String? // 更新者ID
-  updatedBy   User?   @relation("RoleUpdatedBy", fields: [updatedById], references: [userId], onDelete: NoAction, onUpdate: NoAction)
+  updatedBy   User?   @relation("RoleUpdatedBy", fields: [updatedById], references: [userId], onDelete: Restrict, onUpdate: Restrict)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -119,7 +133,7 @@ model RolePermission {
 
   // 审计字段
   createdById String? // 创建者ID
-  createdBy   User?   @relation("RolePermissionCreatedBy", fields: [createdById], references: [userId], onDelete: NoAction, onUpdate: NoAction)
+  createdBy   User?   @relation("RolePermissionCreatedBy", fields: [createdById], references: [userId], onDelete: Restrict, onUpdate: Restrict)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -138,9 +152,9 @@ model RoleDepartment {
 
   // 审计字段
   createdById String? // 创建者ID
-  createdBy   User?   @relation("RoleDepartmentCreatedBy", fields: [createdById], references: [userId], onDelete: NoAction, onUpdate: NoAction)
+  createdBy   User?   @relation("RoleDepartmentCreatedBy", fields: [createdById], references: [userId], onDelete: Restrict, onUpdate: Restrict)
   updatedById String? // 更新者ID
-  updatedBy   User?   @relation("RoleDepartmentUpdatedBy", fields: [updatedById], references: [userId], onDelete: NoAction, onUpdate: NoAction)
+  updatedBy   User?   @relation("RoleDepartmentUpdatedBy", fields: [updatedById], references: [userId], onDelete: Restrict, onUpdate: Restrict)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -163,9 +177,9 @@ model Permission {
 
   // 审计字段
   createdById String? // 创建者ID
-  createdBy   User?   @relation("PermissionCreatedBy", fields: [createdById], references: [userId], onDelete: NoAction, onUpdate: NoAction)
+  createdBy   User?   @relation("PermissionCreatedBy", fields: [createdById], references: [userId], onDelete: Restrict, onUpdate: Restrict)
   updatedById String? // 更新者ID
-  updatedBy   User?   @relation("PermissionUpdatedBy", fields: [updatedById], references: [userId], onDelete: NoAction, onUpdate: NoAction)
+  updatedBy   User?   @relation("PermissionUpdatedBy", fields: [updatedById], references: [userId], onDelete: Restrict, onUpdate: Restrict)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -191,14 +205,14 @@ model Menu {
   sort           Int      @default(0)
   status         String   @default("enabled") @db.VarChar(16) // disabled: 禁用, enabled: 启用
   parentMenuId   String?
-  parent         Menu?    @relation("MenuHierarchy", fields: [parentMenuId], references: [menuId], onDelete: NoAction, onUpdate: NoAction)
+  parent         Menu?    @relation("MenuHierarchy", fields: [parentMenuId], references: [menuId], onDelete: Restrict, onUpdate: Restrict)
   children       Menu[]   @relation("MenuHierarchy")
 
   // 审计字段
   createdById String? // 创建者ID
-  createdBy   User?   @relation("MenuCreatedBy", fields: [createdById], references: [userId], onDelete: NoAction, onUpdate: NoAction)
+  createdBy   User?   @relation("MenuCreatedBy", fields: [createdById], references: [userId], onDelete: Restrict, onUpdate: Restrict)
   updatedById String? // 更新者ID
-  updatedBy   User?   @relation("MenuUpdatedBy", fields: [updatedById], references: [userId], onDelete: NoAction, onUpdate: NoAction)
+  updatedBy   User?   @relation("MenuUpdatedBy", fields: [updatedById], references: [userId], onDelete: Restrict, onUpdate: Restrict)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -223,16 +237,16 @@ model Department {
   status          String           @default("enabled") @db.VarChar(16) // disabled: 禁用, enabled: 启用
   sort            Int              @default(0)
   remark          String?          @db.Text // 备注信息
-  parent          Department?      @relation("DepartmentHierarchy", fields: [parentId], references: [departmentId], onDelete: NoAction, onUpdate: NoAction)
+  parent          Department?      @relation("DepartmentHierarchy", fields: [parentId], references: [departmentId], onDelete: Restrict, onUpdate: Restrict)
   children        Department[]     @relation("DepartmentHierarchy")
   users           User[] // 部门下的用户
   roleDepartments RoleDepartment[] // 角色-部门关联
 
   // 审计字段
   createdById String? // 创建者ID
-  createdBy   User?   @relation("DepartmentCreatedBy", fields: [createdById], references: [userId], onDelete: NoAction, onUpdate: NoAction)
+  createdBy   User?   @relation("DepartmentCreatedBy", fields: [createdById], references: [userId], onDelete: Restrict, onUpdate: Restrict)
   updatedById String? // 更新者ID
-  updatedBy   User?   @relation("DepartmentUpdatedBy", fields: [updatedById], references: [userId], onDelete: NoAction, onUpdate: NoAction)
+  updatedBy   User?   @relation("DepartmentUpdatedBy", fields: [updatedById], references: [userId], onDelete: Restrict, onUpdate: Restrict)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -253,9 +267,9 @@ model Position {
 
   // 审计字段
   createdById String? // 创建者ID
-  createdBy   User?   @relation("PositionCreatedBy", fields: [createdById], references: [userId], onDelete: NoAction, onUpdate: NoAction)
+  createdBy   User?   @relation("PositionCreatedBy", fields: [createdById], references: [userId], onDelete: Restrict, onUpdate: Restrict)
   updatedById String? // 更新者ID
-  updatedBy   User?   @relation("PositionUpdatedBy", fields: [updatedById], references: [userId], onDelete: NoAction, onUpdate: NoAction)
+  updatedBy   User?   @relation("PositionUpdatedBy", fields: [updatedById], references: [userId], onDelete: Restrict, onUpdate: Restrict)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -272,7 +286,7 @@ model UserPosition {
 
   // 审计字段
   createdById String? // 创建者ID
-  createdBy   User?   @relation("UserPositionCreatedBy", fields: [createdById], references: [userId], onDelete: NoAction, onUpdate: NoAction)
+  createdBy   User?   @relation("UserPositionCreatedBy", fields: [createdById], references: [userId], onDelete: Restrict, onUpdate: Restrict)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -290,7 +304,7 @@ model UserRole {
 
   // 审计字段
   createdById String? // 创建者ID
-  createdBy   User?   @relation("UserRoleCreatedBy", fields: [createdById], references: [userId], onDelete: NoAction, onUpdate: NoAction)
+  createdBy   User?   @relation("UserRoleCreatedBy", fields: [createdById], references: [userId], onDelete: Restrict, onUpdate: Restrict)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -312,9 +326,9 @@ model DictionaryType {
 
   // 审计字段
   createdById String? // 创建者ID
-  createdBy   User?   @relation("DictionaryTypeCreatedBy", fields: [createdById], references: [userId], onDelete: NoAction, onUpdate: NoAction)
+  createdBy   User?   @relation("DictionaryTypeCreatedBy", fields: [createdById], references: [userId], onDelete: Restrict, onUpdate: Restrict)
   updatedById String? // 更新者ID
-  updatedBy   User?   @relation("DictionaryTypeUpdatedBy", fields: [updatedById], references: [userId], onDelete: NoAction, onUpdate: NoAction)
+  updatedBy   User?   @relation("DictionaryTypeUpdatedBy", fields: [updatedById], references: [userId], onDelete: Restrict, onUpdate: Restrict)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -336,9 +350,9 @@ model DictionaryItem {
 
   // 审计字段
   createdById String? // 创建者ID
-  createdBy   User?   @relation("DictionaryItemCreatedBy", fields: [createdById], references: [userId], onDelete: NoAction, onUpdate: NoAction)
+  createdBy   User?   @relation("DictionaryItemCreatedBy", fields: [createdById], references: [userId], onDelete: Restrict, onUpdate: Restrict)
   updatedById String? // 更新者ID
-  updatedBy   User?   @relation("DictionaryItemUpdatedBy", fields: [updatedById], references: [userId], onDelete: NoAction, onUpdate: NoAction)
+  updatedBy   User?   @relation("DictionaryItemUpdatedBy", fields: [updatedById], references: [userId], onDelete: Restrict, onUpdate: Restrict)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -362,9 +376,9 @@ model Config {
 
   // 审计字段
   createdById String? // 创建者ID
-  createdBy   User?   @relation("ConfigCreatedBy", fields: [createdById], references: [userId], onDelete: NoAction, onUpdate: NoAction)
+  createdBy   User?   @relation("ConfigCreatedBy", fields: [createdById], references: [userId], onDelete: Restrict, onUpdate: Restrict)
   updatedById String? // 更新者ID
-  updatedBy   User?   @relation("ConfigUpdatedBy", fields: [updatedById], references: [userId], onDelete: NoAction, onUpdate: NoAction)
+  updatedBy   User?   @relation("ConfigUpdatedBy", fields: [updatedById], references: [userId], onDelete: Restrict, onUpdate: Restrict)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -457,9 +471,9 @@ model Notice {
 
   // 审计字段
   createdById String?
-  createdBy   User?   @relation("NoticeCreatedBy", fields: [createdById], references: [userId], onDelete: NoAction, onUpdate: NoAction)
+  createdBy   User?   @relation("NoticeCreatedBy", fields: [createdById], references: [userId], onDelete: Restrict, onUpdate: Restrict)
   updatedById String?
-  updatedBy   User?   @relation("NoticeUpdatedBy", fields: [updatedById], references: [userId], onDelete: NoAction, onUpdate: NoAction)
+  updatedBy   User?   @relation("NoticeUpdatedBy", fields: [updatedById], references: [userId], onDelete: Restrict, onUpdate: Restrict)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -476,4 +490,333 @@ model UserNoticeRead {
 
   @@unique([userId, noticeId])
   @@map("user_notice_reads")
+}
+
+// ===== 业务域：设备/滤清器/询价/客户（add-equipment-inquiry-customer-domains）=====
+
+/// 设备品牌（字典）
+model EquipmentBrand {
+  id        Int       @id @default(autoincrement())
+  brandId   String    @unique @default(uuid())
+  name      String    @unique
+  slug      String?   @unique
+  sortOrder Int       @default(0)
+  status    String    @default("enabled") @db.VarChar(16)
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  // 审计字段
+  createdById String?
+  createdBy   User?   @relation("EquipmentBrandCreatedBy", fields: [createdById], references: [userId], onDelete: Restrict, onUpdate: Restrict)
+  updatedById String?
+  updatedBy   User?   @relation("EquipmentBrandUpdatedBy", fields: [updatedById], references: [userId], onDelete: Restrict, onUpdate: Restrict)
+
+  equipment Equipment[]
+
+  @@index([deletedAt])
+  @@map("equipment_brands")
+}
+
+/// 设备目录（字典）
+model EquipmentCatalog {
+  id          Int       @id @default(autoincrement())
+  catalogId   String    @unique @default(uuid())
+  name        String    @unique
+  code        String?   @unique
+  description String?   @db.Text
+  sortOrder   Int       @default(0)
+  status      String    @default("enabled") @db.VarChar(16)
+  deletedAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // 审计字段
+  createdById String?
+  createdBy   User?   @relation("EquipmentCatalogCreatedBy", fields: [createdById], references: [userId], onDelete: Restrict, onUpdate: Restrict)
+  updatedById String?
+  updatedBy   User?   @relation("EquipmentCatalogUpdatedBy", fields: [updatedById], references: [userId], onDelete: Restrict, onUpdate: Restrict)
+
+  equipment Equipment[]
+
+  @@index([deletedAt])
+  @@map("equipment_catalogs")
+}
+
+/// 滤清器类型（字典）
+model FilterType {
+  id          Int       @id @default(autoincrement())
+  filterTypeId String   @unique @default(uuid())
+  name        String    @unique
+  code        String    @unique
+  description String?   @db.Text
+  sortOrder   Int       @default(0)
+  status      String    @default("enabled") @db.VarChar(16)
+  deletedAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // 审计字段
+  createdById String?
+  createdBy   User?   @relation("FilterTypeCreatedBy", fields: [createdById], references: [userId], onDelete: Restrict, onUpdate: Restrict)
+  updatedById String?
+  updatedBy   User?   @relation("FilterTypeUpdatedBy", fields: [updatedById], references: [userId], onDelete: Restrict, onUpdate: Restrict)
+
+  @@index([deletedAt])
+  @@map("filter_types")
+}
+
+/// 滤清器
+model Filter {
+  id           Int       @id @default(autoincrement())
+  filterId     String    @unique @default(uuid())
+  model        String    @unique
+  typeName     String
+  gencode      String?   @unique
+  volume       Decimal?  @db.Decimal(10, 3)
+  weight       Decimal?  @db.Decimal(10, 3)
+  dimensionD1  Decimal?  @db.Decimal(10, 2)
+  dimensionD2  Decimal?  @db.Decimal(10, 2)
+  dimensionD3  Decimal?  @db.Decimal(10, 2)
+  dimensionD7  String?
+  dimensionH1  Decimal?  @db.Decimal(10, 2)
+  dimensionH2  Decimal?  @db.Decimal(10, 2)
+  dimensionH3  Decimal?  @db.Decimal(10, 2)
+  dimensionD8  String?
+  annb         String?
+  bynb         String?
+  photoUuid    String?
+  drawingUuid  String?
+  compatibility Json    @default("{}")
+  sortOrder    Int       @default(0)
+  status       String    @default("enabled") @db.VarChar(16)
+  deletedAt    DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  // 审计字段
+  createdById String?
+  createdBy   User?   @relation("FilterCreatedBy", fields: [createdById], references: [userId], onDelete: Restrict, onUpdate: Restrict)
+  updatedById String?
+  updatedBy   User?   @relation("FilterUpdatedBy", fields: [updatedById], references: [userId], onDelete: Restrict, onUpdate: Restrict)
+
+  equipmentFilters EquipmentFilter[]
+  inquiryLines     InquiryLine[]
+  customerFavorites CustomerFavorite[]
+  customerHistory  CustomerHistory[]
+
+  @@index([deletedAt])
+  @@index([typeName])
+  @@map("filters")
+}
+
+/// 设备档案
+model Equipment {
+  id                  Int       @id @default(autoincrement())
+  equipmentId         String    @unique @default(uuid())
+  brandId             String?
+  brand               EquipmentBrand? @relation(fields: [brandId], references: [brandId], onDelete: Restrict, onUpdate: Restrict)
+  brandName           String
+  model               String
+  productionDateStart DateTime?
+  productionDateEnd   DateTime?
+  engineBrand         String?
+  engineType          String?
+  power               Decimal?  @db.Decimal(10, 2)
+  engineEnergy        String?   @db.VarChar(32)
+  catalogId           String?
+  catalog             EquipmentCatalog? @relation(fields: [catalogId], references: [catalogId], onDelete: Restrict, onUpdate: Restrict)
+  catalogName         String
+  sortOrder           Int       @default(0)
+  status              String    @default("enabled") @db.VarChar(16)
+  deletedAt           DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  // 审计字段
+  createdById String?
+  createdBy   User?   @relation("EquipmentCreatedBy", fields: [createdById], references: [userId], onDelete: Restrict, onUpdate: Restrict)
+  updatedById String?
+  updatedBy   User?   @relation("EquipmentUpdatedBy", fields: [updatedById], references: [userId], onDelete: Restrict, onUpdate: Restrict)
+
+  equipmentFilters EquipmentFilter[]
+
+  @@unique([brandName, model])
+  @@index([deletedAt])
+  @@index([brandId])
+  @@index([catalogId])
+  @@map("equipment")
+}
+
+/// 设备-滤清器多对多关联（事件型，无 updatedAt）
+model EquipmentFilter {
+  id          Int      @id @default(autoincrement())
+  equipmentId String
+  equipment   Equipment @relation(fields: [equipmentId], references: [equipmentId], onDelete: Cascade, onUpdate: Restrict)
+  filterId    String
+  filter      Filter    @relation(fields: [filterId], references: [filterId], onDelete: Cascade, onUpdate: Restrict)
+  deletedAt   DateTime?
+  createdAt   DateTime @default(now())
+
+  @@unique([equipmentId, filterId])
+  @@index([deletedAt])
+  @@index([filterId])
+  @@map("equipment_filters")
+}
+
+// ===== 询价单域 =====
+
+/// 询价单
+model Inquiry {
+  id               Int       @id @default(autoincrement())
+  inquiryId        String    @unique @default(uuid())
+  inquiryNo        String    @unique
+  title            String
+  description      String?   @db.Text
+  status           String    @default("draft") @db.VarChar(16)
+  customerName     String?
+  customerEmail    String?
+  customerPhone    String?
+  totalAmount      Decimal?  @db.Decimal(12, 2)
+  customerId       String?
+  customer         Customer? @relation(fields: [customerId], references: [customerId], onDelete: Restrict, onUpdate: Restrict)
+  createdById      String?
+  createdBy        User?     @relation("InquiryCreatedBy", fields: [createdById], references: [userId], onDelete: Restrict, onUpdate: Restrict)
+  updatedById      String?
+  updatedBy        User?     @relation("InquiryUpdatedBy", fields: [updatedById], references: [userId], onDelete: Restrict, onUpdate: Restrict)
+  shippingAddressId String?
+  shippingAddress  CustomerAddress? @relation(fields: [shippingAddressId], references: [addressId], onDelete: SetNull, onUpdate: Restrict)
+  submittedAt      DateTime?
+  quotedAt         DateTime?
+  expiresAt        DateTime?
+  deletedAt        DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  inquiryLines InquiryLine[]
+
+  @@index([deletedAt])
+  @@index([status])
+  @@index([customerId])
+  @@index([createdById])
+  @@map("inquiries")
+}
+
+/// 询价单明细
+model InquiryLine {
+  id           Int       @id @default(autoincrement())
+  inquiryLineId String   @unique @default(uuid())
+  inquiryId    String
+  inquiry      Inquiry   @relation(fields: [inquiryId], references: [inquiryId], onDelete: Cascade, onUpdate: Restrict)
+  filterId     String?
+  filter       Filter?   @relation(fields: [filterId], references: [filterId], onDelete: SetNull, onUpdate: Restrict)
+  productName  String
+  model        String?
+  typeName     String?
+  quantity     Int       @default(1)
+  unitPrice    Decimal?  @db.Decimal(12, 2)
+  subtotal     Decimal?  @db.Decimal(12, 2)
+  remarks      String?   @db.Text
+  sortOrder    Int       @default(0)
+  deletedAt    DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  // 审计字段
+  createdById String?
+  createdBy   User?   @relation("InquiryLineCreatedBy", fields: [createdById], references: [userId], onDelete: Restrict, onUpdate: Restrict)
+  updatedById String?
+  updatedBy   User?   @relation("InquiryLineUpdatedBy", fields: [updatedById], references: [userId], onDelete: Restrict, onUpdate: Restrict)
+
+  @@index([deletedAt])
+  @@index([inquiryId])
+  @@index([filterId])
+  @@map("inquiry_lines")
+}
+
+// ===== 客户域 =====
+
+/// B2C 客户（独立于后台 User）
+model Customer {
+  id         Int       @id @default(autoincrement())
+  customerId String    @unique @default(uuid())
+  username   String    @unique
+  password   String
+  email      String?   @unique
+  phoneNumber String?  @unique
+  nickName   String
+  avatar     String?
+  status     String    @default("enabled") @db.VarChar(16)
+  openid     String?   @unique
+  unionid    String?   @unique
+  deletedAt  DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  addresses  CustomerAddress[]
+  favorites  CustomerFavorite[]
+  history    CustomerHistory[]
+  inquiries  Inquiry[]
+
+  @@index([deletedAt])
+  @@index([status])
+  @@map("customers")
+}
+
+/// 客户收货地址
+model CustomerAddress {
+  id           Int       @id @default(autoincrement())
+  addressId    String    @unique @default(uuid())
+  customerId   String
+  customer     Customer  @relation(fields: [customerId], references: [customerId], onDelete: Cascade, onUpdate: Restrict)
+  receiver     String
+  phone        String
+  province     String
+  city         String
+  district     String?
+  detailAddress String
+  zipCode      String?
+  isDefault    Boolean   @default(false)
+  deletedAt    DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  inquiries Inquiry[]
+
+  @@index([deletedAt])
+  @@index([customerId])
+  @@index([isDefault])
+  @@map("customer_addresses")
+}
+
+/// 客户收藏（事件型，无 updatedAt）
+model CustomerFavorite {
+  id         Int      @id @default(autoincrement())
+  favoriteId String   @unique @default(uuid())
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [customerId], onDelete: Cascade, onUpdate: Restrict)
+  filterId   String
+  filter     Filter   @relation(fields: [filterId], references: [filterId], onDelete: Cascade, onUpdate: Restrict)
+  createdAt  DateTime @default(now())
+
+  @@unique([customerId, filterId])
+  @@index([filterId])
+  @@map("customer_favorites")
+}
+
+/// 客户浏览历史（事件型，无 updatedAt，upsert 语义）
+model CustomerHistory {
+  id         Int      @id @default(autoincrement())
+  historyId  String   @unique @default(uuid())
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [customerId], onDelete: Cascade, onUpdate: Restrict)
+  filterId   String
+  filter     Filter   @relation(fields: [filterId], references: [filterId], onDelete: Cascade, onUpdate: Restrict)
+  visitedAt  DateTime @default(now())
+  createdAt  DateTime @default(now())
+
+  @@unique([customerId, filterId])
+  @@index([filterId])
+  @@index([visitedAt])
+  @@map("customer_history")
 }

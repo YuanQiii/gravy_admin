@@ -1,6 +1,6 @@
 # GVRAY Admin
 
-🚀 基于 **NestJS 11**、**TypeScript**、**Prisma**、**MySQL**、**Redis** 构建的企业级后台管理脚手架，内置 **RBAC 权限管理**、**JWT 认证**、**Swagger/OpenAPI**、**Docker 部署** 与 **AI 开发支持**，可直接作为企业后台项目的 **Starter Template**。
+🚀 基于 **NestJS 11**、**TypeScript**、**Prisma**、**PostgreSQL**、**Redis** 构建的企业级后台管理脚手架，内置 **RBAC 权限管理**、**JWT 认证**、**Swagger/OpenAPI**、**Docker 部署** 与 **AI 开发支持**，可直接作为企业后台项目的 **Starter Template**。
 
 
 <p align="center">
@@ -21,12 +21,12 @@
 - 🔑 **多方式登录** —— 用户名、邮箱、手机号、User ID
 - 🛡️ **安全防护** —— CORS、统一异常、参数校验、日志脱敏、密码哈希
 - 🐳 **Docker 优先** —— 开发 / 测试 / 生产三套配置，支持滚动更新
-- 🤖 **AI Ready** —— 内置 `CLAUDE.md` 与模块化知识库，Claude Code / Cursor / Copilot 直接用
+- 🤖 **AI Ready** —— 内置 `AGENTS.md` 与模块化知识库，TRAE / Claude Code / Cursor 等 AI 编程助手直接用
 - 🎯 **规范化工程** —— ESLint、Prettier、统一响应格式、完整种子数据
 
 ## 🛠️ 技术栈
 
-NestJS 11 · Prisma 6 · TypeScript 5 · MySQL 8 · Redis 6 · Swagger · Docker
+NestJS 11 · Prisma 6 · TypeScript 5 · PostgreSQL 17 · Redis 6 · Swagger · Docker
 
 ## 🚀 快速开始
 
@@ -34,7 +34,7 @@ NestJS 11 · Prisma 6 · TypeScript 5 · MySQL 8 · Redis 6 · Swagger · Docker
 
 - Node.js >= 20
 - pnpm >= 9（Corepack 内置，`corepack enable` 即可）
-- MySQL >= 8.0
+- PostgreSQL >= 17
 - Redis >= 6.0
 - Docker（可选）
 
@@ -44,12 +44,12 @@ git clone https://github.com/gvray/gvray-admin.git && cd gvray-admin
 pnpm install
 cp .env.example .env
 
-# 方式一：Docker 启动 MySQL + Redis
-docker compose -f docker-compose.dev.yml up -d mysql redis
+# 方式一：Docker 启动 PostgreSQL + Redis
+docker compose -f docker-compose.dev.yml up -d postgres redis
 
-# 方式二：已有本地 MySQL + Redis，配置 .env 后跳过上一步
+# 方式二：已有本地 PostgreSQL + Redis，配置 .env 后跳过上一步
 
-pnpm prisma migrate dev
+pnpm prisma db push
 pnpm prisma db seed
 pnpm start:dev
 ```
@@ -81,7 +81,7 @@ src/
 prisma/         # Schema + 迁移 + Seed
 docs/           # 项目文档
 docker/         # Docker 部署配置
-.claude/        # AI 知识库
+.agents/        # AI 知识库
 ```
 
 > 📖 [完整项目结构 →](docs/project-structure.md)
@@ -126,8 +126,8 @@ docker/         # Docker 部署配置
 
 ## 🤖 AI 编程支持
 
-- [`CLAUDE.md`](./CLAUDE.md) — Claude Code 自动加载入口
-- [`.claude/project/`](./.claude/project/) — 按需知识库（架构 / DTO / 权限 / 响应格式）
+- [`AGENTS.md`](./AGENTS.md) — AI 编程助手自动加载入口（TRAE / Claude Code 等通用）
+- [`.agents/project/`](./.agents/project/) — 按需知识库（架构 / DTO / 权限 / 响应格式）
 
 > 📖 [AI 开发指南 →](docs/ai-development.md)
 

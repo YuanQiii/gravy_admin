@@ -1,43 +1,39 @@
 services:
-  mysql:
-    image: mysql:8.0
-    container_name: gvray-admin-mysql
+  postgres:
+    image: postgres:17-alpine
+    container_name: gvray-admin-postgres
     restart: unless-stopped
     env_file:
       - path: .env.${ENV:-production}
         required: false
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-password}
-      MYSQL_DATABASE: ${MYSQL_DATABASE:-gvray_admin}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      POSTGRES_DB: ${POSTGRES_DB:-gvray_admin}
     volumes:
-      - mysql-data:/var/lib/mysql
-      - ./docker/mysql/my.cnf:/etc/mysql/conf.d/my.cnf:ro
+      - postgres-data:/var/lib/postgresql/data
     networks:
       - nest-net
     healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p$$MYSQL_ROOT_PASSWORD --silent"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-postgres} -d $${POSTGRES_DB:-gvray_admin}"]
       interval: 5s
       timeout: 5s
       retries: 12
       start_period: 30s
-    command: >
-      --default-authentication-plugin=mysql_native_password
-      --character-set-server=utf8mb4
-      --collation-server=utf8mb4_unicode_ci
 
   app:
     image: ${IMAGE:-gvray/gvray-admin:latest}
     container_name: gvray-admin-app
     restart: unless-stopped
     depends_on:
-      mysql:
+      postgres:
         condition: service_healthy
     env_file:
       - path: .env.${ENV:-production}
         required: false
     environment:
       NODE_ENV: ${NODE_ENV:-production}
-      DATABASE_URL: mysql://root:${MYSQL_ROOT_PASSWORD:-password}@mysql:3306/${MYSQL_DATABASE:-gvray_admin}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-password}@postgres:5432/${POSTGRES_DB:-gvray_admin}
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
       JWT_ACCESS_TOKEN_EXPIRES_IN: ${JWT_ACCESS_TOKEN_EXPIRES_IN:-2h}
       JWT_REFRESH_TOKEN_EXPIRES_IN: ${JWT_REFRESH_TOKEN_EXPIRES_IN:-7d}
@@ -86,7 +82,7 @@ services:
       start_period: 5s
 
 volumes:
-  mysql-data:
+  postgres-data:
   redis-data:
 
 networks:

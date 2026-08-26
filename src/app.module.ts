@@ -11,7 +11,11 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from '@/modules/auth/auth.module';
 import { SystemModule } from '@/modules/system/system.module';
+import { EquipmentModule } from '@/modules/equipment/equipment.module';
+import { InquiryModule } from '@/modules/inquiry/inquiry.module';
+import { CustomerModule } from '@/modules/customer/customer.module';
 import { PrismaModule } from '@/prisma/prisma.module';
+import { SoftDeleteModule } from '@/shared/services/soft-delete.module';
 import { DashboardModule } from '@/modules/dashboard/dashboard.module';
 import { ProfileModule } from '@/modules/profile/profile.module';
 import { OperationLogsModule } from '@/modules/system/operation-logs/operation-logs.module';
@@ -41,9 +45,13 @@ import { FeatureFlagGuard } from '@/core/guards/feature-flag.guard';
       ignoreEnvFile: false,
     }),
     PrismaModule,
+    SoftDeleteModule,
     RedisModule,
     AuthModule,
     SystemModule,
+    EquipmentModule,
+    InquiryModule,
+    CustomerModule,
     DashboardModule,
     ProfileModule,
     OperationLogsModule,

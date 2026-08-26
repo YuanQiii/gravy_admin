@@ -19,7 +19,7 @@ export interface TestHarness {
  * e2e 测试应用工厂。
  *
  * 默认用内存 mock 替换 PrismaService 和 RedisService，
- * 测试无需真实 MySQL / Redis 即可启动完整 AppModule。
+ * 测试无需真实 PostgreSQL / Redis 即可启动完整 AppModule。
  * 全局管道与 main.ts 保持一致（EmptyStringTransformPipe + ValidationPipe）。
  *
  * 用法：

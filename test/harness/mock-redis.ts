@@ -88,28 +88,40 @@ export function createInMemoryRedisService(): RedisService & {
     incr: async (key: string) => {
       const entry = getLive(key);
       const next = Number(entry?.value ?? 0) + 1;
-      store.set(key, { value: String(next), expiresAt: entry?.expiresAt ?? null });
+      store.set(key, {
+        value: String(next),
+        expiresAt: entry?.expiresAt ?? null,
+      });
       return next;
     },
 
     incrBy: async (key: string, increment: number) => {
       const entry = getLive(key);
       const next = Number(entry?.value ?? 0) + increment;
-      store.set(key, { value: String(next), expiresAt: entry?.expiresAt ?? null });
+      store.set(key, {
+        value: String(next),
+        expiresAt: entry?.expiresAt ?? null,
+      });
       return next;
     },
 
     decr: async (key: string) => {
       const entry = getLive(key);
       const next = Number(entry?.value ?? 0) - 1;
-      store.set(key, { value: String(next), expiresAt: entry?.expiresAt ?? null });
+      store.set(key, {
+        value: String(next),
+        expiresAt: entry?.expiresAt ?? null,
+      });
       return next;
     },
 
     decrBy: async (key: string, decrement: number) => {
       const entry = getLive(key);
       const next = Number(entry?.value ?? 0) - decrement;
-      store.set(key, { value: String(next), expiresAt: entry?.expiresAt ?? null });
+      store.set(key, {
+        value: String(next),
+        expiresAt: entry?.expiresAt ?? null,
+      });
       return next;
     },
 
@@ -140,7 +152,10 @@ export function createInMemoryRedisService(): RedisService & {
         ? JSON.parse(entry.value || '{}')
         : {};
       hash[field] = value;
-      store.set(key, { value: JSON.stringify(hash), expiresAt: entry?.expiresAt ?? null });
+      store.set(key, {
+        value: JSON.stringify(hash),
+        expiresAt: entry?.expiresAt ?? null,
+      });
       return 1;
     },
 
@@ -155,7 +170,10 @@ export function createInMemoryRedisService(): RedisService & {
           count++;
         }
       }
-      store.set(key, { value: JSON.stringify(hash), expiresAt: entry.expiresAt });
+      store.set(key, {
+        value: JSON.stringify(hash),
+        expiresAt: entry.expiresAt,
+      });
       return count;
     },
 
@@ -202,7 +220,10 @@ export function createInMemoryRedisService(): RedisService & {
     zAdd: async (key: string, score: number, member: string) => {
       const entry = getLive(key);
       const zset = entry
-        ? (JSON.parse(entry.value || '[]') as { score: number; value: string }[])
+        ? (JSON.parse(entry.value || '[]') as {
+            score: number;
+            value: string;
+          }[])
         : [];
       zset.push({ score, value: member });
       store.set(key, {
@@ -235,7 +256,9 @@ export function createInMemoryRedisService(): RedisService & {
     ): AsyncGenerator<string[]> {
       // 简化实现：将 glob 通配符转换为正则
       const regex = new RegExp(
-        '^' + match.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*') + '$',
+        '^' +
+          match.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*') +
+          '$',
       );
       const keys = [...store.keys()].filter((key) => regex.test(key));
       if (keys.length > 0) yield keys;

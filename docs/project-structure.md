@@ -50,7 +50,7 @@ prisma/                     # Prisma Schema + 迁移 + Seed（项目根目录，
 │   └── utils/            # 工具函数（ResponseUtil / TimeUtil）
 └── main.ts               # 应用入口（Swagger / 全局管道 / 拦截器）
 
-.claude/                  # Claude Code 配置与 AI 按需知识库
+.agents/                  # AI 编程助手按需知识库
 └── project/              # AI 工作流 / 架构 / DTO / 权限等按需文档
 
 docker/                   # Docker 部署配置

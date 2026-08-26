@@ -6,6 +6,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { plainToInstance } from 'class-transformer';
 import { PrismaService } from '@/prisma/prisma.service';
+import { Prisma } from '@prisma/client';
 import { CreateMenuDto } from './dto/create-menu.dto';
 import { UpdateMenuDto } from './dto/update-menu.dto';
 import { QueryMenuDto } from './dto/query-menu.dto';
@@ -267,9 +268,19 @@ export class MenuService extends BaseService {
       }
     }
 
-    await this.prisma.menu.delete({
-      where: { menuId: menu.menuId },
-    });
+    try {
+      await this.prisma.menu.delete({
+        where: { menuId: menu.menuId },
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2003'
+      ) {
+        throw new ConflictException('该菜单下还有子菜单，请先删除子菜单');
+      }
+      throw error;
+    }
   }
 
   async getMenuTree(queryDto?: QueryMenuDto): Promise<MenuTreeNodeDto[]> {
