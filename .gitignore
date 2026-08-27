@@ -139,3 +139,6 @@ dist
 .pnp.*
 
 /generated/prisma
+
+# Database backups (pg_dump outputs, may contain business data)
+prisma/backups/

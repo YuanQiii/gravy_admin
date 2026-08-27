@@ -16,6 +16,7 @@ import { CreateEquipmentDto } from './dto/create-equipment.dto';
 import { UpdateEquipmentDto } from './dto/update-equipment.dto';
 import { QueryEquipmentDto } from './dto/query-equipment.dto';
 import { EquipmentResponseDto } from './dto/equipment-response.dto';
+import { FilterResponseDto } from '../filters/dto/filter-response.dto';
 
 /**
  * 设备档案错误码前缀（复合唯一约束 [brandName, model] 兜底）。
@@ -116,9 +117,22 @@ export class EquipmentService extends BaseService {
     if (!equipment || equipment.deletedAt) {
       throw new NotFoundException('EQUIPMENT_EQUIPMENT_NOT_FOUND');
     }
-    return plainToInstance(EquipmentResponseDto, equipment, {
-      excludeExtraneousValues: true,
-    });
+    const { equipmentFilters, ...rest } = equipment;
+    return plainToInstance(
+      EquipmentResponseDto,
+      {
+        ...rest,
+        // 嵌套 filter 含 Prisma Decimal，须先过 FilterResponseDto（@Type(() => Number)）
+        // 否则 class-transformer 以 Decimal 构造器重建实例时抛 Invalid argument。
+        equipmentFilters: equipmentFilters.map((ef) => ({
+          ...ef,
+          filter: plainToInstance(FilterResponseDto, ef.filter, {
+            excludeExtraneousValues: true,
+          }),
+        })),
+      },
+      { excludeExtraneousValues: true },
+    );
   }
 
   async update(

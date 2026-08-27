@@ -1,5 +1,11 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Exclude, Expose } from 'class-transformer';
+import { Exclude, Expose, Type } from 'class-transformer';
+
+/**
+ * Prisma Decimal -> number（null/undefined 原样保留）。
+ * 不加 @Type 时 class-transformer 会以 value.constructor（Decimal）重建实例，
+ * `new Decimal(undefined)` 抛 Invalid argument；@Type(() => Number) 走原语转换路径。
+ */
 
 export class FilterResponseDto {
   @ApiProperty({ type: 'integer' })
@@ -27,22 +33,27 @@ export class FilterResponseDto {
 
   @ApiPropertyOptional({ description: '容积' })
   @Expose()
+  @Type(() => Number)
   volume?: number;
 
   @ApiPropertyOptional({ description: '重量' })
   @Expose()
+  @Type(() => Number)
   weight?: number;
 
   @ApiPropertyOptional({ description: '尺寸 D1' })
   @Expose()
+  @Type(() => Number)
   dimensionD1?: number;
 
   @ApiPropertyOptional({ description: '尺寸 D2' })
   @Expose()
+  @Type(() => Number)
   dimensionD2?: number;
 
   @ApiPropertyOptional({ description: '尺寸 D3' })
   @Expose()
+  @Type(() => Number)
   dimensionD3?: number;
 
   @ApiPropertyOptional({ description: '尺寸 D7', type: String })
@@ -51,14 +62,17 @@ export class FilterResponseDto {
 
   @ApiPropertyOptional({ description: '尺寸 H1' })
   @Expose()
+  @Type(() => Number)
   dimensionH1?: number;
 
   @ApiPropertyOptional({ description: '尺寸 H2' })
   @Expose()
+  @Type(() => Number)
   dimensionH2?: number;
 
   @ApiPropertyOptional({ description: '尺寸 H3' })
   @Expose()
+  @Type(() => Number)
   dimensionH3?: number;
 
   @ApiPropertyOptional({ description: '尺寸 D8', type: String })

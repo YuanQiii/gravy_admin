@@ -1,5 +1,11 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Exclude, Expose } from 'class-transformer';
+import { Exclude, Expose, Type } from 'class-transformer';
+
+/**
+ * Prisma Decimal -> number（null/undefined 原样保留）。
+ * 不加 @Type 时 class-transformer 会以 value.constructor（Decimal）重建实例，
+ * `new Decimal(undefined)` 抛 Invalid argument；@Type(() => Number) 走原语转换路径。
+ */
 
 export class EquipmentResponseDto {
   @ApiProperty({ type: 'integer' })
@@ -51,6 +57,7 @@ export class EquipmentResponseDto {
 
   @ApiPropertyOptional({ description: '功率' })
   @Expose()
+  @Type(() => Number)
   power?: number;
 
   @ApiPropertyOptional({ description: '引擎能源类型' })
