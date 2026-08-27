@@ -26,15 +26,12 @@ import { RequirePermissions } from '@/core/decorators/permissions.decorator';
 import { OperationLog } from '@/core/decorators/operation-log.decorator';
 import { ResponseUtil } from '@/shared/utils/response.util';
 import { CUSTOMER_ADDRESS_PERMISSIONS } from '@/shared/constants/permissions.constant';
-import { JwtAuthGuard } from '@/core/guards/jwt-auth.guard';
-import { GuestWriteGuard } from '@/core/guards/guest-write.guard';
-import { RolesGuard } from '@/core/guards/roles.guard';
-import { PermissionsGuard } from '@/core/guards/permissions.guard';
+import { AccessGuard } from '@/core/guards/access.guard';
 
 @ApiTags('客户地址管理')
 @ApiBearerAuth('JWT-auth')
 @Controller('customer/addresses')
-@UseGuards(JwtAuthGuard, GuestWriteGuard, RolesGuard, PermissionsGuard)
+@UseGuards(AccessGuard)
 export class AddressesController {
   constructor(private readonly addressesService: AddressesService) {}
 

@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { plainToInstance } from 'class-transformer';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '@/prisma/prisma.service';
-import { BaseService } from '@/shared/services/base.service';
+import { BaseService, VisibilityOpts } from '@/shared/services/base.service';
 import { SoftDeleteService } from '@/shared/services/soft-delete.service';
 import { PaginationData } from '@/shared/interfaces/response.interface';
 import { CreateBrandDto } from './dto/create-brand.dto';
@@ -62,12 +62,14 @@ export class BrandsService extends BaseService {
 
   async findAll(
     query: QueryBrandDto,
+    opts?: VisibilityOpts,
   ): Promise<PaginationData<BrandResponseDto>> {
     const where = this.buildWhere({
       contains: { name: query.name },
       equals: { status: query.status, slug: query.slug },
     });
     where.deletedAt = null;
+    this.applyVisibility(where, opts);
 
     const result = await this.paginateWithSort(
       this.prisma.equipmentBrand,
@@ -84,13 +86,17 @@ export class BrandsService extends BaseService {
     };
   }
 
-  async findOne(brandId: string): Promise<BrandResponseDto> {
+  async findOne(
+    brandId: string,
+    opts?: VisibilityOpts,
+  ): Promise<BrandResponseDto> {
     const brand = await this.prisma.equipmentBrand.findUnique({
       where: { brandId },
     });
     if (!brand || brand.deletedAt) {
       throw new NotFoundException('品牌不存在');
     }
+    this.assertVisible(brand, opts);
     return plainToInstance(BrandResponseDto, brand, {
       excludeExtraneousValues: true,
     });

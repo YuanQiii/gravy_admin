@@ -15,7 +15,14 @@
 async create() {}
 ```
 
-系统管理模块通常配合 `@UseGuards(JwtAuthGuard, GuestWriteGuard, RolesGuard, PermissionsGuard)`。`JwtAuthGuard`、`GuestWriteGuard`、`RolesGuard`、`PermissionsGuard` 均是 Controller/路由级使用；全局守卫只有 `FeatureFlagGuard`（见 [architecture.md](architecture.md) 和 [configs.md](configs.md)）。
+受保护路由统一使用 `@UseGuards(AccessGuard)`（编排 `JwtAuthGuard` → `GuestWriteGuard` → `RolesGuard` → `PermissionsGuard`，四守卫顺序调用，单守卫拒绝即中断后续）。`AccessGuard` 在 `AuthModule` 注册，是标准 4 件套 controller 的唯一守卫入口。全局守卫有 `FeatureFlagGuard`（仅对标记 `@FeatureFlag(...)` 的路由生效）与 `ThrottlerGuard`（限流，见 [configs.md](configs.md)）。
+
+## 匿名访问（@Public）
+
+- 真正公开的 GET 接口使用 `@Public()` 装饰器（`src/core/decorators/public.decorator.ts`），`AccessGuard` 检测到 `IS_PUBLIC_KEY` 元数据后短路放行，不调用任何被编排守卫。
+- `@Public()` 仅用于 GET 接口，禁止挂在写操作上。
+- 公开方法配合 `@Throttle({ default: { limit: 60, ttl: 60000 } })` 限流 60/min。
+- Service 层通过 `opts.visibility = 'anonymous'` 强制 `status='enabled'` 过滤（见 `BaseService.applyVisibility`/`assertVisible`），Controller 传参模式：`user ? undefined : { visibility: 'anonymous' }`。
 
 ## 权限扫描
 

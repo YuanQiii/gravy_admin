@@ -8,7 +8,7 @@ import { ConfigService } from '@nestjs/config';
 import { plainToInstance } from 'class-transformer';
 import { Prisma, Filter } from '@prisma/client';
 import { PrismaService } from '@/prisma/prisma.service';
-import { BaseService } from '@/shared/services/base.service';
+import { BaseService, VisibilityOpts } from '@/shared/services/base.service';
 import { SoftDeleteService } from '@/shared/services/soft-delete.service';
 import { PaginationData } from '@/shared/interfaces/response.interface';
 import { isEquipmentEngineEnergy } from '@/shared/constants/equipment.constant';
@@ -81,6 +81,7 @@ export class EquipmentService extends BaseService {
 
   async findAll(
     query: QueryEquipmentDto,
+    opts?: VisibilityOpts,
   ): Promise<PaginationData<EquipmentResponseDto>> {
     const where: Record<string, unknown> = { deletedAt: null };
     if (query.keyword) {
@@ -93,6 +94,7 @@ export class EquipmentService extends BaseService {
     if (query.catalogId) where.catalogId = query.catalogId;
     if (query.engineEnergy) where.engineEnergy = query.engineEnergy;
     if (query.status) where.status = query.status;
+    this.applyVisibility(where, opts);
 
     const result = await this.paginateWithSort(
       this.prisma.equipment,
@@ -109,14 +111,27 @@ export class EquipmentService extends BaseService {
     };
   }
 
-  async findOne(equipmentId: string): Promise<EquipmentResponseDto> {
+  async findOne(
+    equipmentId: string,
+    opts?: VisibilityOpts,
+  ): Promise<EquipmentResponseDto> {
+    const isAnonymous = opts?.visibility === 'anonymous';
     const equipment = await this.prisma.equipment.findUnique({
       where: { equipmentId },
-      include: { equipmentFilters: { include: { filter: true } } },
+      include: {
+        equipmentFilters: {
+          // 匿名访客仅看到关联的 enabled 滤清器；登录用户看全量
+          ...(isAnonymous
+            ? { where: { filter: { status: 'enabled' } } }
+            : {}),
+          include: { filter: true },
+        },
+      },
     });
     if (!equipment || equipment.deletedAt) {
       throw new NotFoundException('EQUIPMENT_EQUIPMENT_NOT_FOUND');
     }
+    this.assertVisible(equipment, opts);
     const { equipmentFilters, ...rest } = equipment;
     return plainToInstance(
       EquipmentResponseDto,

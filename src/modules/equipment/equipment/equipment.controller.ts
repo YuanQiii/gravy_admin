@@ -28,15 +28,14 @@ import { OperationLog } from '@/core/decorators/operation-log.decorator';
 import { CurrentUser } from '@/core/decorators/current-user.decorator';
 import { ResponseUtil } from '@/shared/utils/response.util';
 import { EQUIPMENT_PERMISSIONS } from '@/shared/constants/permissions.constant';
-import { JwtAuthGuard } from '@/core/guards/jwt-auth.guard';
-import { GuestWriteGuard } from '@/core/guards/guest-write.guard';
-import { RolesGuard } from '@/core/guards/roles.guard';
-import { PermissionsGuard } from '@/core/guards/permissions.guard';
+import { AccessGuard } from '@/core/guards/access.guard';
+import { Public } from '@/core/decorators/public.decorator';
+import { Throttle } from '@nestjs/throttler';
 
 @ApiTags('设备档案管理')
 @ApiBearerAuth('JWT-auth')
 @Controller('equipment/equipment')
-@UseGuards(JwtAuthGuard, GuestWriteGuard, RolesGuard, PermissionsGuard)
+@UseGuards(AccessGuard)
 export class EquipmentController {
   constructor(private readonly equipmentService: EquipmentService) {}
 
@@ -58,24 +57,38 @@ export class EquipmentController {
   }
 
   @Get()
-  @RequirePermissions(EQUIPMENT_PERMISSIONS.LIST)
-  @ApiOperation({ summary: '获取设备档案列表' })
+  @Public()
+  @Throttle({ default: { limit: 60, ttl: 60000 } })
+  @ApiOperation({ summary: '获取设备档案列表', description: '公开接口，无需认证' })
   @ApiResponse({ status: 200, description: '获取设备档案列表成功' })
-  async findAll(@Query() query: QueryEquipmentDto) {
-    const pageData = await this.equipmentService.findAll(query);
+  async findAll(
+    @Query() query: QueryEquipmentDto,
+    @CurrentUser() user?: { userId?: string },
+  ) {
+    const pageData = await this.equipmentService.findAll(
+      query,
+      user ? undefined : { visibility: 'anonymous' },
+    );
     return ResponseUtil.paginated(pageData, '获取设备档案列表成功');
   }
 
   @Get(':id')
-  @RequirePermissions(EQUIPMENT_PERMISSIONS.VIEW)
-  @ApiOperation({ summary: '获取设备档案详情' })
+  @Public()
+  @Throttle({ default: { limit: 60, ttl: 60000 } })
+  @ApiOperation({ summary: '获取设备档案详情', description: '公开接口，无需认证' })
   @ApiResponse({
     status: 200,
     description: '获取设备档案详情成功',
     type: EquipmentResponseDto,
   })
-  async findOne(@Param('id') id: string) {
-    const data = await this.equipmentService.findOne(id);
+  async findOne(
+    @Param('id') id: string,
+    @CurrentUser() user?: { userId?: string },
+  ) {
+    const data = await this.equipmentService.findOne(
+      id,
+      user ? undefined : { visibility: 'anonymous' },
+    );
     return ResponseUtil.found(data, '获取设备档案详情成功');
   }
 

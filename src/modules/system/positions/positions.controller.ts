@@ -22,10 +22,7 @@ import { CreatePositionDto } from './dto/create-position.dto';
 import { UpdatePositionDto } from './dto/update-position.dto';
 import { QueryPositionDto } from './dto/query-position.dto';
 import { PositionResponseDto } from './dto/position-response.dto';
-import { JwtAuthGuard } from '@/core/guards/jwt-auth.guard';
-import { GuestWriteGuard } from '@/core/guards/guest-write.guard';
-import { RolesGuard } from '@/core/guards/roles.guard';
-import { PermissionsGuard } from '@/core/guards/permissions.guard';
+import { AccessGuard } from '@/core/guards/access.guard';
 import { RequirePermissions } from '@/core/decorators/permissions.decorator';
 import { OperationLog } from '@/core/decorators/operation-log.decorator';
 import { ResponseUtil } from '@/shared/utils/response.util';
@@ -36,7 +33,7 @@ import { POSITION_PERMISSIONS } from '@/shared/constants/permissions.constant';
 
 @ApiTags('岗位管理')
 @Controller('system/positions')
-@UseGuards(JwtAuthGuard, GuestWriteGuard, RolesGuard, PermissionsGuard)
+@UseGuards(AccessGuard)
 @ApiBearerAuth('JWT-auth')
 export class PositionsController {
   constructor(private readonly positionsService: PositionsService) {}

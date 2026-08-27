@@ -19,10 +19,7 @@ import {
 import { LoginLogsService } from './login-logs.service';
 import { QueryLoginLogDto } from './dto/query-login-log.dto';
 import { LoginLogResponseDto } from './dto/login-log-response.dto';
-import { JwtAuthGuard } from '@/core/guards/jwt-auth.guard';
-import { GuestWriteGuard } from '@/core/guards/guest-write.guard';
-import { RolesGuard } from '@/core/guards/roles.guard';
-import { PermissionsGuard } from '@/core/guards/permissions.guard';
+import { AccessGuard } from '@/core/guards/access.guard';
 import { RequirePermissions } from '@/core/decorators/permissions.decorator';
 import { OperationLog } from '@/core/decorators/operation-log.decorator';
 import { ResponseUtil } from '@/shared/utils/response.util';
@@ -32,7 +29,7 @@ import { CleanLoginLogsDto } from './dto/clean-login-logs.dto';
 
 @ApiTags('登录日志管理')
 @Controller('system/login-logs')
-@UseGuards(JwtAuthGuard, GuestWriteGuard, RolesGuard, PermissionsGuard)
+@UseGuards(AccessGuard)
 @ApiBearerAuth('JWT-auth')
 export class LoginLogsController {
   constructor(private readonly loginLogsService: LoginLogsService) {}

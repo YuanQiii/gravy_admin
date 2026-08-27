@@ -27,15 +27,14 @@ import { OperationLog } from '@/core/decorators/operation-log.decorator';
 import { CurrentUser } from '@/core/decorators/current-user.decorator';
 import { ResponseUtil } from '@/shared/utils/response.util';
 import { EQUIPMENT_BRAND_PERMISSIONS } from '@/shared/constants/permissions.constant';
-import { JwtAuthGuard } from '@/core/guards/jwt-auth.guard';
-import { GuestWriteGuard } from '@/core/guards/guest-write.guard';
-import { RolesGuard } from '@/core/guards/roles.guard';
-import { PermissionsGuard } from '@/core/guards/permissions.guard';
+import { AccessGuard } from '@/core/guards/access.guard';
+import { Public } from '@/core/decorators/public.decorator';
+import { Throttle } from '@nestjs/throttler';
 
 @ApiTags('设备品牌管理')
 @ApiBearerAuth('JWT-auth')
 @Controller('equipment/brands')
-@UseGuards(JwtAuthGuard, GuestWriteGuard, RolesGuard, PermissionsGuard)
+@UseGuards(AccessGuard)
 export class BrandsController {
   constructor(private readonly brandsService: BrandsService) {}
 
@@ -57,24 +56,38 @@ export class BrandsController {
   }
 
   @Get()
-  @RequirePermissions(EQUIPMENT_BRAND_PERMISSIONS.LIST)
-  @ApiOperation({ summary: '获取品牌列表' })
+  @Public()
+  @Throttle({ default: { limit: 60, ttl: 60000 } })
+  @ApiOperation({ summary: '获取品牌列表', description: '公开接口，无需认证' })
   @ApiResponse({ status: 200, description: '获取品牌列表成功' })
-  async findAll(@Query() query: QueryBrandDto) {
-    const pageData = await this.brandsService.findAll(query);
+  async findAll(
+    @Query() query: QueryBrandDto,
+    @CurrentUser() user?: { userId?: string },
+  ) {
+    const pageData = await this.brandsService.findAll(
+      query,
+      user ? undefined : { visibility: 'anonymous' },
+    );
     return ResponseUtil.paginated(pageData, '获取品牌列表成功');
   }
 
   @Get(':id')
-  @RequirePermissions(EQUIPMENT_BRAND_PERMISSIONS.VIEW)
-  @ApiOperation({ summary: '获取品牌详情' })
+  @Public()
+  @Throttle({ default: { limit: 60, ttl: 60000 } })
+  @ApiOperation({ summary: '获取品牌详情', description: '公开接口，无需认证' })
   @ApiResponse({
     status: 200,
     description: '获取品牌详情成功',
     type: BrandResponseDto,
   })
-  async findOne(@Param('id') id: string) {
-    const data = await this.brandsService.findOne(id);
+  async findOne(
+    @Param('id') id: string,
+    @CurrentUser() user?: { userId?: string },
+  ) {
+    const data = await this.brandsService.findOne(
+      id,
+      user ? undefined : { visibility: 'anonymous' },
+    );
     return ResponseUtil.found(data, '获取品牌详情成功');
   }
 

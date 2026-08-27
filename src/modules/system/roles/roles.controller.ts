@@ -31,10 +31,7 @@ import {
 } from './dto/role-response.dto';
 import { AssignDataScopeDto } from './dto/assign-data-scope.dto';
 
-import { JwtAuthGuard } from '@/core/guards/jwt-auth.guard';
-import { GuestWriteGuard } from '@/core/guards/guest-write.guard';
-import { RolesGuard } from '@/core/guards/roles.guard';
-import { PermissionsGuard } from '@/core/guards/permissions.guard';
+import { AccessGuard } from '@/core/guards/access.guard';
 
 import { RequirePermissions } from '@/core/decorators/permissions.decorator';
 import { OperationLog } from '@/core/decorators/operation-log.decorator';
@@ -45,7 +42,7 @@ import { BatchDeleteRolesDto } from './dto/batch-delete-roles.dto';
 
 @ApiTags('角色管理')
 @Controller('system/roles')
-@UseGuards(JwtAuthGuard, GuestWriteGuard, RolesGuard, PermissionsGuard)
+@UseGuards(AccessGuard)
 @ApiBearerAuth('JWT-auth')
 export class RolesController {
   constructor(private readonly rolesService: RolesService) {}

@@ -57,3 +57,9 @@ Query DTO 通常继承 `PaginationSortDto`，查询条件全部可选。
 - 禁止响应 DTO 出现 `password`、token、secret 等敏感字段。
 - 禁止响应 DTO 暴露数据库自增 `id`。
 - 禁止把 Prisma 模型完整复制成响应 DTO。
+
+## 公开接口 Swagger 标注
+
+- 公开 GET 接口（`@Public()`）的 `@ApiOperation` 须加 `description: '公开接口，无需认证'`，便于 Swagger UI 识别。
+- 公开接口不加方法级 `@ApiBearerAuth()`；类级保留以覆盖其他受保护方法。
+- 公开接口复用现有 `*ResponseDto`，不创建 public 专用 DTO 变体。

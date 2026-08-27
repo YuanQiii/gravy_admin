@@ -1,6 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
-import { App } from 'supertest/types';
 import { AppModule } from '../../src/app.module';
 import { PrismaService } from '../../src/prisma/prisma.service';
 import { RedisService } from '../../src/redis/redis.service';
@@ -9,7 +8,7 @@ import { createMockPrismaService } from './mock-prisma';
 import { createInMemoryRedisService } from './mock-redis';
 
 export interface TestHarness {
-  app: INestApplication<App>;
+  app: INestApplication;
   module: TestingModule;
   prisma: PrismaService;
   redis: ReturnType<typeof createInMemoryRedisService>;
@@ -41,7 +40,7 @@ export async function createTestApp(): Promise<TestHarness> {
     .useValue(redis)
     .compile();
 
-  const app = moduleFixture.createNestApplication<App>({ logger: false });
+  const app = moduleFixture.createNestApplication({ logger: false });
 
   // 与 main.ts 一致：先转换空字符串，再进行验证
   app.useGlobalPipes(

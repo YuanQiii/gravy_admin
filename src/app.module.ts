@@ -7,6 +7,7 @@ import {
   Reflector,
   DiscoveryModule,
 } from '@nestjs/core';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from '@/modules/auth/auth.module';
@@ -44,6 +45,11 @@ import { FeatureFlagGuard } from '@/core/guards/feature-flag.guard';
       cache: true,
       ignoreEnvFile: false,
     }),
+    // 全局默认限流：1000 req/min per-IP（单机内存 store 过渡版，多实例下生效配额为 N×1000）
+    // 公开接口（@Public + @Throttle）进一步收紧到 60 req/min
+    ThrottlerModule.forRoot({
+      throttlers: [{ limit: 1000, ttl: 60000 }],
+    }),
     PrismaModule,
     SoftDeleteModule,
     RedisModule,
@@ -78,6 +84,12 @@ import { FeatureFlagGuard } from '@/core/guards/feature-flag.guard';
     {
       provide: APP_GUARD,
       useClass: FeatureFlagGuard,
+    },
+    // ThrottlerGuard 作为第二个全局 APP_GUARD，与 FeatureFlagGuard 并列
+    // （NestJS 允许多个 APP_GUARD，按 provider 注册顺序执行）
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
     },
     Reflector,
   ],

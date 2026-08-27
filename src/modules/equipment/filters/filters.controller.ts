@@ -27,15 +27,14 @@ import { OperationLog } from '@/core/decorators/operation-log.decorator';
 import { CurrentUser } from '@/core/decorators/current-user.decorator';
 import { ResponseUtil } from '@/shared/utils/response.util';
 import { EQUIPMENT_FILTER_PERMISSIONS } from '@/shared/constants/permissions.constant';
-import { JwtAuthGuard } from '@/core/guards/jwt-auth.guard';
-import { GuestWriteGuard } from '@/core/guards/guest-write.guard';
-import { RolesGuard } from '@/core/guards/roles.guard';
-import { PermissionsGuard } from '@/core/guards/permissions.guard';
+import { AccessGuard } from '@/core/guards/access.guard';
+import { Public } from '@/core/decorators/public.decorator';
+import { Throttle } from '@nestjs/throttler';
 
 @ApiTags('滤清器管理')
 @ApiBearerAuth('JWT-auth')
 @Controller('equipment/filters')
-@UseGuards(JwtAuthGuard, GuestWriteGuard, RolesGuard, PermissionsGuard)
+@UseGuards(AccessGuard)
 export class FiltersController {
   constructor(private readonly filtersService: FiltersService) {}
 
@@ -57,24 +56,38 @@ export class FiltersController {
   }
 
   @Get()
-  @RequirePermissions(EQUIPMENT_FILTER_PERMISSIONS.LIST)
-  @ApiOperation({ summary: '获取滤清器列表' })
+  @Public()
+  @Throttle({ default: { limit: 60, ttl: 60000 } })
+  @ApiOperation({ summary: '获取滤清器列表', description: '公开接口，无需认证' })
   @ApiResponse({ status: 200, description: '获取滤清器列表成功' })
-  async findAll(@Query() query: QueryFilterDto) {
-    const pageData = await this.filtersService.findAll(query);
+  async findAll(
+    @Query() query: QueryFilterDto,
+    @CurrentUser() user?: { userId?: string },
+  ) {
+    const pageData = await this.filtersService.findAll(
+      query,
+      user ? undefined : { visibility: 'anonymous' },
+    );
     return ResponseUtil.paginated(pageData, '获取滤清器列表成功');
   }
 
   @Get(':id')
-  @RequirePermissions(EQUIPMENT_FILTER_PERMISSIONS.VIEW)
-  @ApiOperation({ summary: '获取滤清器详情' })
+  @Public()
+  @Throttle({ default: { limit: 60, ttl: 60000 } })
+  @ApiOperation({ summary: '获取滤清器详情', description: '公开接口，无需认证' })
   @ApiResponse({
     status: 200,
     description: '获取滤清器详情成功',
     type: FilterResponseDto,
   })
-  async findOne(@Param('id') id: string) {
-    const data = await this.filtersService.findOne(id);
+  async findOne(
+    @Param('id') id: string,
+    @CurrentUser() user?: { userId?: string },
+  ) {
+    const data = await this.filtersService.findOne(
+      id,
+      user ? undefined : { visibility: 'anonymous' },
+    );
     return ResponseUtil.found(data, '获取滤清器详情成功');
   }
 

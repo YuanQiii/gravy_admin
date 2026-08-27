@@ -28,20 +28,41 @@ export function createMockPrismaService(): PrismaService {
     }),
   };
 
+  // 已知的只读 Prisma 方法及其在 mock 下应返回的"空"语义默认值。
+  // 测试可通过 mockResolvedValue 显式覆盖这些默认值。
+  // 作用：在 app.init() 触发的 bootstrap 扫描（如 PermissionsScannerService）
+  // 中避免 findMany 返回 undefined 导致 Array.prototype.find 抛错。
+  const READ_DEFAULTS: Record<string, unknown> = {
+    findMany: [],
+    findUnique: null,
+    findFirst: null,
+    findUniqueOrThrow: null,
+    findFirstOrThrow: null,
+    count: 0,
+    aggregate: {},
+    groupBy: [],
+    createManyAndReturn: [],
+  };
+
   const prisma = new Proxy(root as unknown as PrismaService, {
-    get(target: Record<string | symbol, unknown>, prop: string | symbol) {
+    get(target: any, prop: string | symbol) {
       if (prop in target) {
         return target[prop];
       }
       if (typeof prop !== 'string') {
         return undefined;
       }
-      // 懒创建模型代理：model 下的每个方法都是独立的 jest.fn()
+      // 懒创建模型代理：model 下的每个方法都是独立的 jest.fn()，
+      // 已知的只读方法默认返回空集合/null/0，避免 bootstrap 扫描中抛 TypeError
       const model = new Proxy({} as Record<string, jest.Mock>, {
-        get(modelTarget, method: string | symbol) {
+        get(modelTarget: any, method: string | symbol) {
           if (typeof method !== 'string') return undefined;
           if (!(method in modelTarget)) {
-            modelTarget[method] = jest.fn();
+            const defaultValue = READ_DEFAULTS[method];
+            modelTarget[method] =
+              defaultValue !== undefined
+                ? jest.fn().mockResolvedValue(defaultValue)
+                : jest.fn();
           }
           return modelTarget[method];
         },

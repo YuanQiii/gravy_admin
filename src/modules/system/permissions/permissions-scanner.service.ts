@@ -129,7 +129,7 @@ export class PermissionsScannerService implements OnApplicationBootstrap {
   }> {
     let created = 0;
     let updated = 0;
-    const sensitive: string[] = [];
+    const sensitiveSet = new Set<string>();
 
     const existingPermissions = await this.prisma.permission.findMany({
       where: {
@@ -151,7 +151,7 @@ export class PermissionsScannerService implements OnApplicationBootstrap {
       const meta = PERMISSION_METADATA_MAP.get(perm.code);
 
       if (meta?.sensitive) {
-        sensitive.push(perm.code);
+        sensitiveSet.add(perm.code);
       }
 
       await this.prisma.permission.upsert({
@@ -197,7 +197,7 @@ export class PermissionsScannerService implements OnApplicationBootstrap {
       deleted++;
     }
 
-    return { created, updated, deleted, sensitive };
+    return { created, updated, deleted, sensitive: Array.from(sensitiveSet) };
   }
 
   /**

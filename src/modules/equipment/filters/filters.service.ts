@@ -7,7 +7,7 @@ import { ConfigService } from '@nestjs/config';
 import { plainToInstance } from 'class-transformer';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '@/prisma/prisma.service';
-import { BaseService } from '@/shared/services/base.service';
+import { BaseService, VisibilityOpts } from '@/shared/services/base.service';
 import { SoftDeleteService } from '@/shared/services/soft-delete.service';
 import { PaginationData } from '@/shared/interfaces/response.interface';
 import { CreateFilterDto } from './dto/create-filter.dto';
@@ -22,6 +22,55 @@ const FILTER_UNIQUE_PREFIX_BY_FIELD: Record<string, string> = {
   model: 'EQUIPMENT_FILTER_MODEL',
   gencode: 'EQUIPMENT_FILTER_GENCODE',
 };
+
+/**
+ * 匿名访客加权排序字段表 — 用于 B2C 浏览场景下"信息齐全优先"排序。
+ *
+ * 三档权重（来自 spec docs/specs/anonymous-filter-weighted-sort.md）：
+ * - 核心展示型（gencode/photoUuid/drawingUuid）权重 5 — B2C 转化关键
+ * - 关键参数型（weight/volume）权重 3 — 核心规格
+ * - 详细参数型（dimensionD1/D2/D3/D7/H1/H2/H3/D8）权重 1 — 尺寸细节
+ *
+ * isString=true 的字段需同时判 `!= ''`（schema 上为 String?，可能存空字符串脏数据）；
+ * isString=false 的字段（Decimal?）只需 `IS NOT NULL`。
+ *
+ * 注：列名经迁移脚本 prisma/scripts/migrate_af_eqm_to_gvray.sql 验证为 camelCase，
+ * raw SQL 中需带双引号（如 "photoUuid"、"dimensionD1"）。
+ */
+const WEIGHTED_SORT_FIELDS: ReadonlyArray<{
+  field: string;
+  weight: number;
+  isString: boolean;
+}> = [
+  { field: 'gencode', weight: 5, isString: true },
+  { field: 'photoUuid', weight: 5, isString: true },
+  { field: 'drawingUuid', weight: 5, isString: true },
+  { field: 'weight', weight: 3, isString: false },
+  { field: 'volume', weight: 3, isString: false },
+  { field: 'dimensionD1', weight: 1, isString: false },
+  { field: 'dimensionD2', weight: 1, isString: false },
+  { field: 'dimensionD3', weight: 1, isString: false },
+  { field: 'dimensionD7', weight: 1, isString: true },
+  { field: 'dimensionH1', weight: 1, isString: false },
+  { field: 'dimensionH2', weight: 1, isString: false },
+  { field: 'dimensionH3', weight: 1, isString: false },
+  { field: 'dimensionD8', weight: 1, isString: true },
+];
+
+/**
+ * 加权求和 SQL 片段 — 由 WEIGHTED_SORT_FIELDS 编译为静态 raw SQL。
+ *
+ * 字段名与权重值均为常量（非用户输入），可安全内联到 raw SQL 中。
+ * 例：(CASE WHEN "gencode" IS NOT NULL AND "gencode" != '' THEN 5 ELSE 0 END) + ...
+ */
+const WEIGHTED_SORT_SUM_SQL = WEIGHTED_SORT_FIELDS.map(
+  ({ field, weight, isString }) => {
+    const condition = isString
+      ? `"${field}" IS NOT NULL AND "${field}" != ''`
+      : `"${field}" IS NOT NULL`;
+    return `(CASE WHEN ${condition} THEN ${weight} ELSE 0 END)`;
+  },
+).join(' + ');
 
 @Injectable()
 export class FiltersService extends BaseService {
@@ -75,6 +124,7 @@ export class FiltersService extends BaseService {
 
   async findAll(
     query: QueryFilterDto,
+    opts?: VisibilityOpts,
   ): Promise<PaginationData<FilterResponseDto>> {
     const where: Prisma.FilterWhereInput = { deletedAt: null };
     if (query.keyword) {
@@ -88,6 +138,13 @@ export class FiltersService extends BaseService {
     }
     if (query.status) {
       where.status = query.status;
+    }
+    this.applyVisibility(where as Record<string, unknown>, opts);
+
+    // 匿名访客走非空加权排序（B2C 转化优先展示信息齐全产品）。
+    // sortBy 参数对匿名访客被忽略 — 保护产品决策排序体验一致性。
+    if (opts?.visibility === 'anonymous') {
+      return this.findAllWithWeightedSort(query, where);
     }
 
     const result = await this.paginateWithSort(
@@ -105,13 +162,79 @@ export class FiltersService extends BaseService {
     };
   }
 
-  async findOne(filterId: string): Promise<FilterResponseDto> {
+  /**
+   * 匿名访客加权排序查询 — 通过 raw SQL 计算非空字段加权分。
+   *
+   * 排序：加权分 DESC（信息齐全优先）→ sortOrder DESC（运营权重兜底）
+   *      → createdAt DESC（最后入库兜底，保证翻页稳定）。
+   *
+   * 实现约束：
+   * - where 条件全部参数化（status/typeName/keyword 经 ${...} 插值防注入）；
+   * - 加权求和片段 WEIGHTED_SORT_SUM_SQL 为静态常量（字段名与权重均为硬编码），
+   *   通过 Prisma.raw 内联，不走参数化路径；
+   * - 列名为 camelCase 带双引号（迁移脚本约定）；
+   * - count 查询继续走 Prisma.filter.count({ where })，与排序无关；
+   * - $queryRaw 返回的 Decimal 字段为 string，由 FilterResponseDto 的 @Type(() => Number)
+   *   在 plainToInstance 阶段转 number。
+   *
+   * 详见 spec docs/specs/anonymous-filter-weighted-sort.md。
+   */
+  private async findAllWithWeightedSort(
+    query: QueryFilterDto,
+    where: Prisma.FilterWhereInput,
+  ): Promise<PaginationData<FilterResponseDto>> {
+    const skip = query.getSkip();
+    const take = query.getTake();
+
+    // 构造参数化 WHERE 子句
+    const conditions: Prisma.Sql[] = [Prisma.sql`"deletedAt" IS NULL`];
+    if (where.status) {
+      conditions.push(Prisma.sql`"status" = ${where.status}`);
+    }
+    if (where.typeName) {
+      conditions.push(Prisma.sql`"typeName" = ${where.typeName}`);
+    }
+    if (query.keyword) {
+      const pattern = `%${query.keyword}%`;
+      conditions.push(
+        Prisma.sql`("model" ILIKE ${pattern} OR "gencode" ILIKE ${pattern})`,
+      );
+    }
+
+    const rows = await this.prisma.$queryRaw<
+      Record<string, unknown>[]
+    >`
+      SELECT * FROM "filters"
+      WHERE ${Prisma.join(conditions, ' AND ')}
+      ORDER BY (${Prisma.raw(WEIGHTED_SORT_SUM_SQL)}) DESC,
+      "sortOrder" DESC,
+      "createdAt" DESC
+      LIMIT ${take} OFFSET ${skip}
+    `;
+
+    const total = await this.prisma.filter.count({ where });
+
+    return {
+      items: plainToInstance(FilterResponseDto, rows, {
+        excludeExtraneousValues: true,
+      }),
+      total,
+      page: query.page,
+      pageSize: query.pageSize,
+    };
+  }
+
+  async findOne(
+    filterId: string,
+    opts?: VisibilityOpts,
+  ): Promise<FilterResponseDto> {
     const filter = await this.prisma.filter.findUnique({
       where: { filterId },
     });
     if (!filter || filter.deletedAt) {
       throw new NotFoundException('滤清器不存在');
     }
+    this.assertVisible(filter, opts);
     return plainToInstance(FilterResponseDto, filter, {
       excludeExtraneousValues: true,
     });

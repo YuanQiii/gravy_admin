@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { plainToInstance } from 'class-transformer';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '@/prisma/prisma.service';
-import { BaseService } from '@/shared/services/base.service';
+import { BaseService, VisibilityOpts } from '@/shared/services/base.service';
 import { SoftDeleteService } from '@/shared/services/soft-delete.service';
 import { PaginationData } from '@/shared/interfaces/response.interface';
 import { CreateFilterTypeDto } from './dto/create-filter-type.dto';
@@ -60,12 +60,14 @@ export class FilterTypesService extends BaseService {
 
   async findAll(
     query: QueryFilterTypeDto,
+    opts?: VisibilityOpts,
   ): Promise<PaginationData<FilterTypeResponseDto>> {
     const where = this.buildWhere({
       contains: { name: query.name },
       equals: { status: query.status, code: query.code },
     });
     where.deletedAt = null;
+    this.applyVisibility(where, opts);
 
     const result = await this.paginateWithSort(
       this.prisma.filterType,
@@ -82,13 +84,17 @@ export class FilterTypesService extends BaseService {
     };
   }
 
-  async findOne(filterTypeId: string): Promise<FilterTypeResponseDto> {
+  async findOne(
+    filterTypeId: string,
+    opts?: VisibilityOpts,
+  ): Promise<FilterTypeResponseDto> {
     const filterType = await this.prisma.filterType.findUnique({
       where: { filterTypeId },
     });
     if (!filterType || filterType.deletedAt) {
       throw new NotFoundException('滤清器类型不存在');
     }
+    this.assertVisible(filterType, opts);
     return plainToInstance(FilterTypeResponseDto, filterType, {
       excludeExtraneousValues: true,
     });

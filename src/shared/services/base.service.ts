@@ -8,6 +8,18 @@ import { PaginationResponse } from '../interfaces/response.interface';
 import { SUPER_ROLE_KEY } from '../constants/role.constant';
 
 /**
+ * 可见性选项。
+ * - `'authenticated'`（默认）：登录用户行为，不强制过滤 status。
+ * - `'anonymous'`：匿名访客行为，强制 `status='enabled'`、对 disabled 记录抛 404。
+ *
+ * 由 controller 在调用 service 时按 `@CurrentUser() user` 是否存在传入：
+ * `user ? undefined : { visibility: 'anonymous' }`。
+ */
+export type VisibilityOpts = {
+  visibility?: 'anonymous' | 'authenticated';
+};
+
+/**
  * 基础服务类
  * 提供通用的CRUD操作和分页查询方法
  */
@@ -17,6 +29,42 @@ export abstract class BaseService {
     protected readonly prisma: PrismaService,
     protected readonly configService: ConfigService,
   ) {}
+
+  /**
+   * 按可见性强制过滤查询条件。
+   *
+   * `visibility === 'anonymous'` 时强制 `where.status = 'enabled'`，
+   * **无视**调用方已有 `where.status`（防 query 绕过：匿名访客不能通过
+   * `?status=disabled` 看到非启用记录）。
+   *
+   * `visibility === 'authenticated'`（含未传 opts）时不干预，保留调用方原 where。
+   */
+  protected applyVisibility(
+    where: Record<string, unknown>,
+    opts?: VisibilityOpts,
+  ): void {
+    if (opts?.visibility === 'anonymous') {
+      where.status = 'enabled';
+    }
+  }
+
+  /**
+   * 按可见性校验单条记录是否对匿名访客可见。
+   *
+   * `visibility === 'anonymous'` 且 `record.status !== 'enabled'` 时
+   * 抛 `NotFoundException`——与"记录不存在"语义一致，不暴露存在性
+   * （即不告诉匿名访客"这条记录是 disabled"，只说"找不到"）。
+   *
+   * `visibility === 'authenticated'`（含未传 opts）时直接放行。
+   */
+  protected assertVisible(
+    record: { status: string } | null,
+    opts?: VisibilityOpts,
+  ): void {
+    if (opts?.visibility === 'anonymous' && record?.status !== 'enabled') {
+      throw new NotFoundException('记录不存在');
+    }
+  }
 
   protected async isSuperAdmin(userId: string): Promise<boolean> {
     const user = await this.prisma.user.findUnique({

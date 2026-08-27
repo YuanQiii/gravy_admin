@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { plainToInstance } from 'class-transformer';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '@/prisma/prisma.service';
-import { BaseService } from '@/shared/services/base.service';
+import { BaseService, VisibilityOpts } from '@/shared/services/base.service';
 import { SoftDeleteService } from '@/shared/services/soft-delete.service';
 import { PaginationData } from '@/shared/interfaces/response.interface';
 import { CreateCatalogDto } from './dto/create-catalog.dto';
@@ -62,12 +62,14 @@ export class CatalogsService extends BaseService {
 
   async findAll(
     query: QueryCatalogDto,
+    opts?: VisibilityOpts,
   ): Promise<PaginationData<CatalogResponseDto>> {
     const where = this.buildWhere({
       contains: { name: query.name },
       equals: { status: query.status, code: query.code },
     });
     where.deletedAt = null;
+    this.applyVisibility(where, opts);
 
     const result = await this.paginateWithSort(
       this.prisma.equipmentCatalog,
@@ -84,13 +86,17 @@ export class CatalogsService extends BaseService {
     };
   }
 
-  async findOne(catalogId: string): Promise<CatalogResponseDto> {
+  async findOne(
+    catalogId: string,
+    opts?: VisibilityOpts,
+  ): Promise<CatalogResponseDto> {
     const catalog = await this.prisma.equipmentCatalog.findUnique({
       where: { catalogId },
     });
     if (!catalog || catalog.deletedAt) {
       throw new NotFoundException('目录不存在');
     }
+    this.assertVisible(catalog, opts);
     return plainToInstance(CatalogResponseDto, catalog, {
       excludeExtraneousValues: true,
     });
