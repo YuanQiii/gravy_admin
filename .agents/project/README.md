@@ -13,6 +13,7 @@
 | 修改配置项或 seed 配置 | [configs.md](configs.md), [../../CONFIGS_ANALYSIS.md](../../CONFIGS_ANALYSIS.md) |
 | 修改部署、Docker、环境变量 | [deployment.md](deployment.md), [../../DOCKER_DEPLOYMENT.md](../../DOCKER_DEPLOYMENT.md) |
 | 修改密码、日志、审计、安全策略 | [coding.md](coding.md) |
+| 沉淀工程经验、回顾踩坑 | [pitfalls.md](pitfalls.md) |
 
 ## 文档边界
 
