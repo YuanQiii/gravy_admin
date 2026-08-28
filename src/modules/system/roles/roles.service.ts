@@ -358,7 +358,7 @@ export class RolesService extends BaseService {
       }
 
       // 清除该角色下所有用户的权限缓存
-      await this.invalidateRoleUserCache(roleId);
+      await this.permissionCache.invalidateRole(roleId);
     }
 
     const result = await this.prisma.role.findUnique({
@@ -473,7 +473,7 @@ export class RolesService extends BaseService {
     });
 
     // 清除该角色下所有用户的权限缓存
-    await this.invalidateRoleUserCache(roleId);
+    await this.permissionCache.invalidateRole(roleId);
 
     return plainToInstance(RoleResponseDto, result, {
       excludeExtraneousValues: true,
@@ -528,21 +528,11 @@ export class RolesService extends BaseService {
     });
 
     // 清除该角色下所有用户的权限缓存
-    await this.invalidateRoleUserCache(roleId);
+    await this.permissionCache.invalidateRole(roleId);
 
     return plainToInstance(RoleResponseDto, result, {
       excludeExtraneousValues: true,
     });
-  }
-
-  private async invalidateRoleUserCache(roleId: string): Promise<void> {
-    const userRoles = await this.prisma.userRole.findMany({
-      where: { roleId },
-      select: { userId: true },
-    });
-    for (const ur of userRoles) {
-      await this.permissionCache.del(ur.userId);
-    }
   }
 
   // 为角色分配用户

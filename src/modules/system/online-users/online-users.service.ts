@@ -99,7 +99,7 @@ export class OnlineUsersService {
 
   async kickUser(userId: string): Promise<void> {
     await this.tokenService.revokeAllUserTokens(userId);
-    await this.permissionCache.del(userId);
+    await this.permissionCache.invalidateUser(userId);
   }
 
   async kickUserSession(userId: string, tokenHash: string): Promise<void> {

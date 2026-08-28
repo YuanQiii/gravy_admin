@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { RedisService } from './redis.service';
+import { PrismaService } from '@/prisma/prisma.service';
 
 @Injectable()
 export class PermissionCacheService {
@@ -7,7 +8,10 @@ export class PermissionCacheService {
   private readonly KEY_PREFIX = 'perm:user';
   private readonly DEFAULT_TTL = 3600; // 1 小时
 
-  constructor(private readonly redisService: RedisService) {}
+  constructor(
+    private readonly redisService: RedisService,
+    private readonly prisma: PrismaService,
+  ) {}
 
   /**
    * 设置用户权限缓存
@@ -48,9 +52,33 @@ export class PermissionCacheService {
   }
 
   /**
-   * 删除用户权限缓存（踢人、改角色时调用）
+   * 失效单个用户的权限缓存（踢人、改用户角色/权限时调用）
    */
-  async del(userId: string): Promise<void> {
+  async invalidateUser(userId: string): Promise<void> {
+    await this.del(userId);
+  }
+
+  /**
+   * 失效某个角色关联的所有用户的权限缓存
+   * 响应角色权限变更对全部受影响用户的生效
+   */
+  async invalidateRole(roleId: string): Promise<void> {
+    if (!this.redisService.isAvailable()) {
+      return;
+    }
+    const userRoles = await this.prisma.userRole.findMany({
+      where: { roleId },
+      select: { userId: true },
+    });
+    for (const ur of userRoles) {
+      await this.del(ur.userId);
+    }
+  }
+
+  /**
+   * 删除用户权限缓存
+   */
+  private async del(userId: string): Promise<void> {
     if (!this.redisService.isAvailable()) {
       return;
     }

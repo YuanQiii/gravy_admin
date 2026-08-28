@@ -21,6 +21,93 @@ import { PermissionCacheService } from '@/redis/permission-cache.service';
 import { plainToInstance } from 'class-transformer';
 import { startOfDay, endOfDay } from '@/shared/utils/time.util';
 
+/**
+ * User 响应投影：单实体回查与列表查询统一复用的 select 形状
+ * 收敛自原先在多个方法中逐字复制的 select 块，避免新增字段需要多处同步
+ */
+const USER_RESPONSE_SELECT = {
+  userId: true,
+  email: true,
+  username: true,
+  nickname: true,
+  phone: true,
+  avatar: true,
+  gender: true,
+  description: true,
+  status: true,
+  createdAt: true,
+  updatedAt: true,
+  userRoles: {
+    select: {
+      role: {
+        select: {
+          roleId: true,
+          name: true,
+        },
+      },
+    },
+  },
+  department: {
+    select: {
+      departmentId: true,
+      name: true,
+    },
+  },
+  userPositions: {
+    select: {
+      position: {
+        select: {
+          positionId: true,
+          name: true,
+        },
+      },
+    },
+  },
+} as const;
+
+/**
+ * User 分页列表投影：与 USER_RESPONSE_SELECT 一致但刻意不含 description
+ * （列表负载最小化；description 仅单实体回查返回）
+ */
+const USER_LIST_SELECT = {
+  userId: true,
+  email: true,
+  username: true,
+  nickname: true,
+  phone: true,
+  avatar: true,
+  gender: true,
+  status: true,
+  createdAt: true,
+  updatedAt: true,
+  userRoles: {
+    select: {
+      role: {
+        select: {
+          roleId: true,
+          name: true,
+        },
+      },
+    },
+  },
+  department: {
+    select: {
+      departmentId: true,
+      name: true,
+    },
+  },
+  userPositions: {
+    select: {
+      position: {
+        select: {
+          positionId: true,
+          name: true,
+        },
+      },
+    },
+  },
+} as const;
+
 @Injectable()
 export class UsersService extends BaseService {
   constructor(
@@ -29,6 +116,23 @@ export class UsersService extends BaseService {
     private readonly permissionCache: PermissionCacheService,
   ) {
     super(prisma, configService);
+  }
+
+  /**
+   * 回查用户并转换为响应 DTO
+   * 统一持有 User 关系投影（USER_RESPONSE_SELECT），单实体回查站点复用
+   */
+  private async findUserForResponse(userId: string): Promise<UserResponseDto> {
+    const user = await this.prisma.user.findUnique({
+      where: { userId },
+      select: USER_RESPONSE_SELECT,
+    });
+    if (!user) {
+      throw new NotFoundException(`用户ID ${userId} 不存在`);
+    }
+    return plainToInstance(UserResponseDto, user, {
+      excludeExtraneousValues: true,
+    });
   }
 
   /**
@@ -94,6 +198,35 @@ export class UsersService extends BaseService {
     if (count !== new Set(roleIds).size) {
       throw new NotFoundException('部分角色不存在');
     }
+  }
+
+  /**
+   * 校验角色变更操作的前置约束（assignRoles/removeRoles 共有部分）
+   * 目标用户存在、不能修改自己的角色、层级保护、角色ID有效
+   * @returns 目标用户（供后续关联写入复用）
+   */
+  private async assertRoleMutationAllowed(
+    userId: string,
+    currentUserId: string | undefined,
+    roleIds: string[],
+  ): Promise<{ userId: string }> {
+    const user = await this.prisma.user.findUnique({
+      where: { userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException(`用户ID ${userId} 不存在`);
+    }
+
+    if (userId === currentUserId) {
+      throw new ForbiddenException('不能修改自己的角色');
+    }
+
+    await this.checkSuperAdminHierarchy(userId, currentUserId, '修改角色');
+
+    await this.validateRoleIds(roleIds);
+
+    return { userId: user.userId };
   }
 
   async create(
@@ -224,52 +357,7 @@ export class UsersService extends BaseService {
     });
 
     // 重新查询用户以获取完整的关联数据
-    const userWithRelations = await this.prisma.user.findUnique({
-      where: { userId: user.userId },
-      select: {
-        userId: true,
-        email: true,
-        username: true,
-        nickname: true,
-        phone: true,
-        avatar: true,
-        gender: true,
-        description: true,
-        status: true,
-        createdAt: true,
-        updatedAt: true,
-        userRoles: {
-          select: {
-            role: {
-              select: {
-                roleId: true,
-                name: true,
-              },
-            },
-          },
-        },
-        department: {
-          select: {
-            departmentId: true,
-            name: true,
-          },
-        },
-        userPositions: {
-          select: {
-            position: {
-              select: {
-                positionId: true,
-                name: true,
-              },
-            },
-          },
-        },
-      },
-    });
-
-    return plainToInstance(UserResponseDto, userWithRelations, {
-      excludeExtraneousValues: true,
-    });
+    return this.findUserForResponse(user.userId);
   }
 
   async findAll(
@@ -324,44 +412,7 @@ export class UsersService extends BaseService {
     const [items, total] = await Promise.all([
       this.prisma.user.findMany({
         where,
-        select: {
-          userId: true,
-          email: true,
-          username: true,
-          nickname: true,
-          phone: true,
-          avatar: true,
-          gender: true,
-          status: true,
-          createdAt: true,
-          updatedAt: true,
-          userRoles: {
-            select: {
-              role: {
-                select: {
-                  roleId: true,
-                  name: true,
-                },
-              },
-            },
-          },
-          department: {
-            select: {
-              departmentId: true,
-              name: true,
-            },
-          },
-          userPositions: {
-            select: {
-              position: {
-                select: {
-                  positionId: true,
-                  name: true,
-                },
-              },
-            },
-          },
-        },
+        select: USER_LIST_SELECT,
         orderBy: [{ createdAt: 'desc' }],
         skip: state.skip,
         take: state.take,
@@ -380,57 +431,7 @@ export class UsersService extends BaseService {
   }
 
   async findOne(userId: string): Promise<UserResponseDto> {
-    const user = await this.prisma.user.findUnique({
-      where: { userId: userId },
-      select: {
-        userId: true,
-        email: true,
-        username: true,
-        nickname: true,
-        phone: true,
-        avatar: true,
-        gender: true,
-        description: true,
-        status: true,
-        createdAt: true,
-        updatedAt: true,
-        userRoles: {
-          select: {
-            role: {
-              select: {
-                roleId: true,
-                name: true,
-              },
-            },
-          },
-        },
-        department: {
-          select: {
-            departmentId: true,
-            name: true,
-          },
-        },
-        userPositions: {
-          select: {
-            position: {
-              select: {
-                positionId: true,
-                name: true,
-              },
-            },
-          },
-        },
-      },
-    });
-
-    if (!user) {
-      throw new NotFoundException(`用户ID ${userId} 不存在`);
-    }
-
-    const userResponse = plainToInstance(UserResponseDto, user, {
-      excludeExtraneousValues: true,
-    });
-    return userResponse;
+    return this.findUserForResponse(userId);
   }
 
   async update(
@@ -528,56 +529,12 @@ export class UsersService extends BaseService {
       });
     }
 
-    // 重新查询用户以获取完整的关联数据
-    const userWithRelations = await this.prisma.user.findUnique({
-      where: { userId: user.userId },
-      select: {
-        userId: true,
-        email: true,
-        username: true,
-        nickname: true,
-        phone: true,
-        avatar: true,
-        gender: true,
-        status: true,
-        createdAt: true,
-        updatedAt: true,
-        userRoles: {
-          select: {
-            role: {
-              select: {
-                roleId: true,
-                name: true,
-              },
-            },
-          },
-        },
-        department: {
-          select: {
-            departmentId: true,
-            name: true,
-          },
-        },
-        userPositions: {
-          select: {
-            position: {
-              select: {
-                positionId: true,
-                name: true,
-              },
-            },
-          },
-        },
-      },
-    });
-
     if (rest.status !== undefined) {
-      await this.permissionCache.del(userId);
+      await this.permissionCache.invalidateUser(userId);
     }
 
-    return plainToInstance(UserResponseDto, userWithRelations, {
-      excludeExtraneousValues: true,
-    });
+    // 重新查询用户以获取完整的关联数据
+    return this.findUserForResponse(user.userId);
   }
 
   async resetPassword(
@@ -615,51 +572,7 @@ export class UsersService extends BaseService {
     });
 
     // 重新查询用户以获取完整的关联数据
-    const userWithRelations = await this.prisma.user.findUnique({
-      where: { userId: user.userId },
-      select: {
-        userId: true,
-        email: true,
-        username: true,
-        nickname: true,
-        phone: true,
-        avatar: true,
-        gender: true,
-        status: true,
-        createdAt: true,
-        updatedAt: true,
-        userRoles: {
-          select: {
-            role: {
-              select: {
-                roleId: true,
-                name: true,
-              },
-            },
-          },
-        },
-        department: {
-          select: {
-            departmentId: true,
-            name: true,
-          },
-        },
-        userPositions: {
-          select: {
-            position: {
-              select: {
-                positionId: true,
-                name: true,
-              },
-            },
-          },
-        },
-      },
-    });
-
-    return plainToInstance(UserResponseDto, userWithRelations, {
-      excludeExtraneousValues: true,
-    });
+    return this.findUserForResponse(user.userId);
   }
 
   async remove(userId: string, currentUserId?: string): Promise<void> {
@@ -709,21 +622,7 @@ export class UsersService extends BaseService {
     roleIds: string[],
     currentUserId: string,
   ): Promise<UserResponseDto> {
-    const user = await this.prisma.user.findUnique({
-      where: { userId },
-    });
-
-    if (!user) {
-      throw new NotFoundException(`用户ID ${userId} 不存在`);
-    }
-
-    if (userId === currentUserId) {
-      throw new ForbiddenException('不能修改自己的角色');
-    }
-
-    await this.checkSuperAdminHierarchy(userId, currentUserId, '修改角色');
-
-    await this.validateRoleIds(roleIds);
+    await this.assertRoleMutationAllowed(userId, currentUserId, roleIds);
 
     const containsSuperRole = await this.containsSuperAdminRole(roleIds);
 
@@ -743,14 +642,14 @@ export class UsersService extends BaseService {
 
     // 先删除现有的角色关联
     await this.prisma.userRole.deleteMany({
-      where: { userId: user.userId },
+      where: { userId },
     });
 
     // 创建新的角色关联
     if (roleIds && roleIds.length > 0) {
       await this.prisma.userRole.createMany({
         data: roleIds.map((roleId) => ({
-          userId: user.userId,
+          userId,
           roleId,
           createdById: currentUserId,
         })),
@@ -758,58 +657,13 @@ export class UsersService extends BaseService {
     }
 
     await this.prisma.user.update({
-      where: { userId: user.userId },
+      where: { userId },
       data: { updatedById: currentUserId },
     });
 
-    // 重新查询用户以获取完整的关联数据
-    const userWithRelations = await this.prisma.user.findUnique({
-      where: { userId: user.userId },
-      select: {
-        userId: true,
-        email: true,
-        username: true,
-        nickname: true,
-        phone: true,
-        avatar: true,
-        gender: true,
-        status: true,
-        createdAt: true,
-        updatedAt: true,
-        userRoles: {
-          select: {
-            role: {
-              select: {
-                roleId: true,
-                name: true,
-              },
-            },
-          },
-        },
-        department: {
-          select: {
-            departmentId: true,
-            name: true,
-          },
-        },
-        userPositions: {
-          select: {
-            position: {
-              select: {
-                positionId: true,
-                name: true,
-              },
-            },
-          },
-        },
-      },
-    });
+    await this.permissionCache.invalidateUser(userId);
 
-    await this.permissionCache.del(userId);
-
-    return plainToInstance(UserResponseDto, userWithRelations, {
-      excludeExtraneousValues: true,
-    });
+    return this.findUserForResponse(userId);
   }
 
   // 移除用户的角色
@@ -818,21 +672,7 @@ export class UsersService extends BaseService {
     roleIds: string[],
     currentUserId?: string,
   ): Promise<UserResponseDto> {
-    const user = await this.prisma.user.findUnique({
-      where: { userId },
-    });
-
-    if (!user) {
-      throw new NotFoundException(`用户ID ${userId} 不存在`);
-    }
-
-    if (userId === currentUserId) {
-      throw new ForbiddenException('不能修改自己的角色');
-    }
-
-    await this.checkSuperAdminHierarchy(userId, currentUserId, '修改角色');
-
-    await this.validateRoleIds(roleIds);
+    await this.assertRoleMutationAllowed(userId, currentUserId, roleIds);
 
     const removesSuperRole = await this.containsSuperAdminRole(roleIds);
     if (
@@ -847,65 +687,20 @@ export class UsersService extends BaseService {
     if (roleIds && roleIds.length > 0) {
       await this.prisma.userRole.deleteMany({
         where: {
-          userId: user.userId,
+          userId,
           roleId: { in: roleIds },
         },
       });
     }
 
     await this.prisma.user.update({
-      where: { userId: user.userId },
+      where: { userId },
       data: { updatedById: currentUserId },
     });
 
-    // 重新查询用户以获取完整的关联数据
-    const userWithRelations = await this.prisma.user.findUnique({
-      where: { userId: user.userId },
-      select: {
-        userId: true,
-        email: true,
-        username: true,
-        nickname: true,
-        phone: true,
-        avatar: true,
-        gender: true,
-        status: true,
-        createdAt: true,
-        updatedAt: true,
-        userRoles: {
-          select: {
-            role: {
-              select: {
-                roleId: true,
-                name: true,
-              },
-            },
-          },
-        },
-        department: {
-          select: {
-            departmentId: true,
-            name: true,
-          },
-        },
-        userPositions: {
-          select: {
-            position: {
-              select: {
-                positionId: true,
-                name: true,
-              },
-            },
-          },
-        },
-      },
-    });
+    await this.permissionCache.invalidateUser(userId);
 
-    await this.permissionCache.del(userId);
-
-    return plainToInstance(UserResponseDto, userWithRelations, {
-      excludeExtraneousValues: true,
-    });
+    return this.findUserForResponse(userId);
   }
 
   async removeMany(ids: string[], currentUserId?: string): Promise<void> {
