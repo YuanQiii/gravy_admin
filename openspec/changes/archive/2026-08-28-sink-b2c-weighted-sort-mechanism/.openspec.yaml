@@ -1,0 +1,7 @@
+schema: spec-driven
+created: 2026-08-28
+labels: [ready-for-agent]
+# Behavior-preserving refactor: the completeness-weighted sort mechanism is sunk
+# into a shared deep module with zero semantic change. No spec-level behavior
+# changes, so no delta spec is written.
+skip_specs: true

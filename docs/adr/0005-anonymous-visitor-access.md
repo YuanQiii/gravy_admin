@@ -121,3 +121,27 @@ ADR 0005 上线后，B2C 转化反馈：anonymous 列表中信息残缺（多字
   3. 调整对应 e2e 测试的 A/B/C 分值构造数据。
 - raw SQL 使用 `Prisma.sql` + `Prisma.raw` 双轨：所有用户输入（keyword、status、id）都经 `${...}` 参数化；列名与权重（常量）经 `Prisma.raw` 内联，不暴露 SQL 注入面。
 - 测试中 `prisma.$queryRaw` mock 为三个模块共享同一个根 jest.fn()，在每个加权排序 describe 的 `beforeEach` 中显式 `mockClear()` + `mockResolvedValue(...)`，保证 5.6/5.7/5.8 之间不交叉污染 mock 调用记录。
+
+---
+
+## 加权排序机制下沉为共享深模块（ADR 增补，2026-08-28）
+
+### 背景
+上一条增补（决策 2-3）把加权排序从 `filters` 扩展至 `equipment`、`catalogs`，但实现方式是"复用 filters 模板"：SUM-SQL 编译、参数化 raw 查询、三级稳定翻页、count 分页、DTO 包络等机制代码在三个 service 中各复制一份（约 150 行中 ~80% 逐字相同），真正逐模块变化的只有数据（表名、字段权重表、where→SQL 条件、ResponseDto）。维护仪式需"改一处同步三处"（见上一条增补后果段所列 3 步），机制级 bug（翻页不稳定、注入缺口）要打三遍补丁，漏一处即静默回归。
+
+### 决策
+1. **机制下沉为 equipment 模块内一个共享深模块**：`src/modules/equipment/weighted-sort.ts` 导出纯函数 `runWeightedSort(prisma, spec)` 与 `WeightedSortSpec` 类型；接口全部为数据（table、fields、conditions、pagination、dto、count），返回 `PaginationData<DTO>`。count 以 thunk 传入（各模块 Prisma where 类型不同，真实类型差异，不用泛型强统）。
+   - `runWeightedSort` 先经 `Prisma.sql` 组装单一 `Prisma.Sql` 再以普通参数传给 `$queryRaw(sql)`：表名/加权求和（编译期常量）经 `Prisma.raw` 内联进 strings；用户条件/分页（运行期输入）经模板插值进 values（参数化）。
+   - 三个 service 保留并仅保留**数据**：字段权重表（`WeightedField` 类型对齐）、`conditions` 构建、count thunk、用于分页的 query DTO。
+2. **谓词收敛**：`BaseService` 导出 `isB2cVisibility(opts)`（与 `B2C_VISIBILITIES` / `VisibilityOpts` 同居），替换四处带 cast 的 `B2C_VISIBILITIES.includes(opts?.visibility as ...)`（3 个 `findAll` 分支 + equipment `findOne` 的 B2C 关系过滤），`applyVisibility`/`assertVisible` 内部亦改用它实现。分支判断保留在各 `findAll`（接口语义），不下沉 BaseService。
+3. **catalogs 条件改直**：`name` 条件自 query DTO 直接构建为 `"name" ILIKE ${pattern}`，删除经 `buildWhere` 的 contains 中转再拆包的反向路径（行为等价）。
+4. **测试 Seam**：
+   - unit 主 Seam：新增 `weighted-sort.spec.ts`，以 Prisma.Sql 的 `strings`/`values` 数组断言注入安全（用户值在 values、列名/权重在 strings）、isString 空串判定、ORDER BY 三级结构、LIMIT/OFFSET、count 调用、DTO 包络排除冗余字段。
+   - e2e 回归网：既有 `test/equipment-anonymous.e2e-spec.ts` 三个 weighted-sort describe（5.6/5.7/5.8）**断言零修改**——接口 `findAll(query, opts)` 与响应结构未变、行为零变更，冒烟由既有 e2e 全绿证明。
+
+### 后果
+- 机制级维护从"三处复制 + 反向拆包"收敛为单点：新增/修改加权字段只需改一处字段表（`runWeightedSort` 自动编译 SUM-SQL），再同步 spec 权重表与 e2e 分值构造数据——**上一条增补后果段所列"改一处同步三处的三步维护仪式"至此被本条取代**。
+- 深模块接口小、实现大，删除测试过（删三个私有方法复杂度集中不扩散）；test surface 即 interface（纯函数单测 + e2e 零改动双 seam）。
+- 管理后台路径（传 `undefined`）仍走 `paginateWithSort`，完全不感知；B2C 三分流语义逐字保留（'anonymous' | 'b2c' | 'admin'）。
+- 跨模块消费者暂不存在（brands / filter-types 经 schema 核实几乎无业务 nullable 字段），模块置于 equipment 内而非 shared；未来出现跨模块 B2C 消费者时 `git mv` 提升。
+- 语义零变更：排序规则、权重数值、参数化策略、B2C 忽略 sortBy、count 复用 status='enabled' 全部沿用上一条增补，未做任何改动。

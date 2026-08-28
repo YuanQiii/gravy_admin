@@ -5,11 +5,12 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '@/prisma/prisma.service';
 import {
   BaseService,
-  B2C_VISIBILITIES,
   VisibilityOpts,
+  isB2cVisibility,
 } from '@/shared/services/base.service';
 import { SoftDeleteService } from '@/shared/services/soft-delete.service';
 import { PaginationData } from '@/shared/interfaces/response.interface';
+import { runWeightedSort, WeightedField } from '../weighted-sort';
 import { CreateCatalogDto } from './dto/create-catalog.dto';
 import { UpdateCatalogDto } from './dto/update-catalog.dto';
 import { QueryCatalogDto } from './dto/query-catalog.dto';
@@ -36,23 +37,10 @@ const CATALOG_UNIQUE_PREFIX_BY_FIELD: Record<string, string> = {
  * 列名经 schema + 迁移约定：code (camelCase), description (camelCase)。
  * raw SQL 列名带双引号。description 存在 `@db.Text`，可防空字符串脏数据。
  */
-const CATALOG_WEIGHTED_FIELDS: ReadonlyArray<{
-  field: string;
-  weight: number;
-  isString: boolean;
-}> = [
+const CATALOG_WEIGHTED_FIELDS: ReadonlyArray<WeightedField> = [
   { field: 'code', weight: 5, isString: true },
   { field: 'description', weight: 3, isString: true },
 ];
-
-const CATALOG_WEIGHTED_SUM_SQL = CATALOG_WEIGHTED_FIELDS.map(
-  ({ field, weight, isString }) => {
-    const condition = isString
-      ? `"${field}" IS NOT NULL AND "${field}" != ''`
-      : `"${field}" IS NOT NULL`;
-    return `(CASE WHEN ${condition} THEN ${weight} ELSE 0 END)`;
-  },
-).join(' + ');
 
 @Injectable()
 export class CatalogsService extends BaseService {
@@ -108,11 +96,7 @@ export class CatalogsService extends BaseService {
 
     // B2C 浏览域（anonymous / b2c）走加权排序 — 信息齐全目录优先，
     // sortBy 参数被忽略，保证产品决策排序体验一致。
-    if (
-      B2C_VISIBILITIES.includes(
-        opts?.visibility as (typeof B2C_VISIBILITIES)[number],
-      )
-    ) {
+    if (isB2cVisibility(opts)) {
       return this.findAllWithWeightedSort(query, where);
     }
 
@@ -145,9 +129,6 @@ export class CatalogsService extends BaseService {
     query: QueryCatalogDto,
     where: Record<string, unknown>,
   ): Promise<PaginationData<CatalogResponseDto>> {
-    const skip = query.getSkip();
-    const take = query.getTake();
-
     const conditions: Prisma.Sql[] = [Prisma.sql`"deletedAt" IS NULL`];
     if (where.status) {
       conditions.push(Prisma.sql`"status" = ${where.status as string}`);
@@ -155,38 +136,23 @@ export class CatalogsService extends BaseService {
     if (where.code) {
       conditions.push(Prisma.sql`"code" = ${where.code as string}`);
     }
-    // BaseService.buildWhere 对 name=contains 会生成 {name: {contains, mode}}
-    const nameFilter = where.name as
-      | { contains: string; mode?: string }
-      | undefined;
-    if (nameFilter?.contains) {
-      const pattern = `%${nameFilter.contains}%`;
+    // name 条件直接从 query DTO 构建（不走 buildWhere 的 contains 中转再拆包）
+    if (query.name) {
+      const pattern = `%${query.name}%`;
       conditions.push(Prisma.sql`"name" ILIKE ${pattern}`);
     }
 
-    const rows = await this.prisma.$queryRaw<
-      Record<string, unknown>[]
-    >`
-      SELECT * FROM "equipment_catalogs"
-      WHERE ${Prisma.join(conditions, ' AND ')}
-      ORDER BY (${Prisma.raw(CATALOG_WEIGHTED_SUM_SQL)}) DESC,
-      "sortOrder" DESC,
-      "createdAt" DESC
-      LIMIT ${take} OFFSET ${skip}
-    `;
-
-    const total = await this.prisma.equipmentCatalog.count({
-      where: where as Prisma.EquipmentCatalogWhereInput,
+    return runWeightedSort<CatalogResponseDto>(this.prisma, {
+      table: 'equipment_catalogs',
+      fields: CATALOG_WEIGHTED_FIELDS,
+      conditions,
+      pagination: query,
+      dto: CatalogResponseDto,
+      count: () =>
+        this.prisma.equipmentCatalog.count({
+          where: where as Prisma.EquipmentCatalogWhereInput,
+        }),
     });
-
-    return {
-      items: plainToInstance(CatalogResponseDto, rows, {
-        excludeExtraneousValues: true,
-      }),
-      total,
-      page: query.page,
-      pageSize: query.pageSize,
-    };
   }
 
   async findOne(

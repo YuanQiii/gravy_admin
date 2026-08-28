@@ -10,12 +10,13 @@ import { Prisma, Filter } from '@prisma/client';
 import { PrismaService } from '@/prisma/prisma.service';
 import {
   BaseService,
-  B2C_VISIBILITIES,
   VisibilityOpts,
+  isB2cVisibility,
 } from '@/shared/services/base.service';
 import { SoftDeleteService } from '@/shared/services/soft-delete.service';
 import { PaginationData } from '@/shared/interfaces/response.interface';
 import { isEquipmentEngineEnergy } from '@/shared/constants/equipment.constant';
+import { runWeightedSort, WeightedField } from '../weighted-sort';
 import { CreateEquipmentDto } from './dto/create-equipment.dto';
 import { UpdateEquipmentDto } from './dto/update-equipment.dto';
 import { QueryEquipmentDto } from './dto/query-equipment.dto';
@@ -42,11 +43,7 @@ const EQUIPMENT_UNIQUE_PREFIX = 'EQUIPMENT_EQUIPMENT';
  * 列名经 schema @@map + 迁移约定为 camelCase，raw SQL 需带双引号。
  * isString=true 的字段同时判 `!= ''` 防空字符串脏数据。
  */
-const EQUIPMENT_WEIGHTED_FIELDS: ReadonlyArray<{
-  field: string;
-  weight: number;
-  isString: boolean;
-}> = [
+const EQUIPMENT_WEIGHTED_FIELDS: ReadonlyArray<WeightedField> = [
   // w=5: 引擎核心参数（共 4 项，满分 20）
   { field: 'engineBrand', weight: 5, isString: true },
   { field: 'engineType', weight: 5, isString: true },
@@ -59,15 +56,6 @@ const EQUIPMENT_WEIGHTED_FIELDS: ReadonlyArray<{
   { field: 'brandId', weight: 1, isString: true },
   { field: 'catalogId', weight: 1, isString: true },
 ];
-
-const EQUIPMENT_WEIGHTED_SUM_SQL = EQUIPMENT_WEIGHTED_FIELDS.map(
-  ({ field, weight, isString }) => {
-    const condition = isString
-      ? `"${field}" IS NOT NULL AND "${field}" != ''`
-      : `"${field}" IS NOT NULL`;
-    return `(CASE WHEN ${condition} THEN ${weight} ELSE 0 END)`;
-  },
-).join(' + ');
 
 @Injectable()
 export class EquipmentService extends BaseService {
@@ -144,11 +132,7 @@ export class EquipmentService extends BaseService {
 
     // B2C 浏览域（anonymous / b2c）走加权排序 — 信息齐全产品优先，
     // sortBy 参数被忽略，保证产品决策排序体验一致。
-    if (
-      B2C_VISIBILITIES.includes(
-        opts?.visibility as (typeof B2C_VISIBILITIES)[number],
-      )
-    ) {
+    if (isB2cVisibility(opts)) {
       return this.findAllWithWeightedSort(query, where);
     }
 
@@ -180,9 +164,6 @@ export class EquipmentService extends BaseService {
     query: QueryEquipmentDto,
     where: Record<string, unknown>,
   ): Promise<PaginationData<EquipmentResponseDto>> {
-    const skip = query.getSkip();
-    const take = query.getTake();
-
     const conditions: Prisma.Sql[] = [Prisma.sql`"deletedAt" IS NULL`];
     if (where.status) {
       conditions.push(Prisma.sql`"status" = ${where.status as string}`);
@@ -205,38 +186,24 @@ export class EquipmentService extends BaseService {
       );
     }
 
-    const rows = await this.prisma.$queryRaw<
-      Record<string, unknown>[]
-    >`
-      SELECT * FROM "equipment"
-      WHERE ${Prisma.join(conditions, ' AND ')}
-      ORDER BY (${Prisma.raw(EQUIPMENT_WEIGHTED_SUM_SQL)}) DESC,
-      "sortOrder" DESC,
-      "createdAt" DESC
-      LIMIT ${take} OFFSET ${skip}
-    `;
-
-    const total = await this.prisma.equipment.count({
-      where: where as Prisma.EquipmentWhereInput,
+    return runWeightedSort<EquipmentResponseDto>(this.prisma, {
+      table: 'equipment',
+      fields: EQUIPMENT_WEIGHTED_FIELDS,
+      conditions,
+      pagination: query,
+      dto: EquipmentResponseDto,
+      count: () =>
+        this.prisma.equipment.count({
+          where: where as Prisma.EquipmentWhereInput,
+        }),
     });
-
-    return {
-      items: plainToInstance(EquipmentResponseDto, rows, {
-        excludeExtraneousValues: true,
-      }),
-      total,
-      page: query.page,
-      pageSize: query.pageSize,
-    };
   }
 
   async findOne(
     equipmentId: string,
     opts?: VisibilityOpts,
   ): Promise<EquipmentResponseDto> {
-    const isB2c = B2C_VISIBILITIES.includes(
-      opts?.visibility as (typeof B2C_VISIBILITIES)[number],
-    );
+    const isB2c = isB2cVisibility(opts);
     const equipment = await this.prisma.equipment.findUnique({
       where: { equipmentId },
       include: {

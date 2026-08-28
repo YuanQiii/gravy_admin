@@ -52,6 +52,7 @@ _Avoid_: guest,游客 (those refer to the logged-in demo User account `guest/123
 | Term | Meaning |
 |---|---|
 | `SoftDeleteService` | Cross-cutting @Global NestJS service. Centralizes soft-delete logic + uniqueness validation for models with `deletedAt`. 3-method deep module: `assertUniqueActive`, `softDelete`, `handleUniqueError`. See ADR 0003. |
+| `Completeness-weighted sort` | 信息齐全加权排序 — the B2C browsing-domain sort rule (anonymous / b2c visibilities only): products with fewer NULL business fields rank first. Order: weighted completeness score DESC → `sortOrder` DESC → `createdAt` DESC (third level guarantees stable pagination). `sortBy` query param is ignored in this domain. Field/weight tables are per-module data; the mechanism is shared. See ADR 0005 增补. |
 | `pg_advisory_xact_lock` | PostgreSQL transaction-scoped advisory lock. Used in `InquiriesService.generateInquiryNo()` to serialize same-month inquiry number generation. |
 | `ILIKE` | PostgreSQL case-insensitive LIKE. Used for keyword search across equipment/inquiry/customer modules (instead of full-text search — see proposal Q7). |
 | `Snapshot field` | A denormalized field (e.g. `Equipment.brandName`) copied from a related record at creation time. Insulates historical records from later renames. |

@@ -18,6 +18,19 @@ import { SUPER_ROLE_KEY } from '../constants/role.constant';
 export const B2C_VISIBILITIES = ['anonymous', 'b2c'] as const;
 
 /**
+ * 判断给定可见性是否为 B2C 浏览域（'anonymous' 或 'b2c'）。
+ *
+ * B2C 浏览域强制 `status='enabled'` 且（模块支持时）走 Completeness-weighted
+ * 加权排序；'admin'（含未传 undefined）是显式管理域。谓词只读、无副作用，
+ * 供 service 判断是否进入加权排序分支或可见性过滤。'admin' 未列在
+ * B2C_VISIBILITIES 中，故此处恒为 false。
+ */
+export const isB2cVisibility = (opts?: VisibilityOpts): boolean =>
+  B2C_VISIBILITIES.includes(
+    opts?.visibility as (typeof B2C_VISIBILITIES)[number],
+  );
+
+/**
  * 可见性选项（三分流）。
  * - `'anonymous'`：匿名访客，强制 `status='enabled'` + 加权排序（若模块支持）。
  * - `'b2c'`：**预留**，未来 B2C Customer 登录后使用。行为与 `'anonymous'` 完全一致。
@@ -56,7 +69,7 @@ export abstract class BaseService {
     where: Record<string, unknown>,
     opts?: VisibilityOpts,
   ): void {
-    if (B2C_VISIBILITIES.includes(opts?.visibility as typeof B2C_VISIBILITIES[number])) {
+    if (isB2cVisibility(opts)) {
       where.status = 'enabled';
     }
   }
@@ -75,9 +88,7 @@ export abstract class BaseService {
     opts?: VisibilityOpts,
   ): void {
     if (
-      B2C_VISIBILITIES.includes(
-        opts?.visibility as typeof B2C_VISIBILITIES[number],
-      ) &&
+      isB2cVisibility(opts) &&
       record?.status !== 'enabled'
     ) {
       throw new NotFoundException('记录不存在');
