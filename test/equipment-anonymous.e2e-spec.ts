@@ -160,15 +160,23 @@ function getModelMocks(prisma: any, modelKey: string): ModelMocks {
 
 /**
  * Raw-SQL mock accessor — exposes the root-level $queryRaw mock plus the
- * filter model's findMany/count mocks so tests can drive the anonymous
- * weighted-sort path ($queryRaw) and assert call interactions.
+ * filter/equipment/catalog model's findMany/count mocks so tests can drive
+ * the anonymous weighted-sort path ($queryRaw) and assert call interactions.
  *
- * Mirrors the getModelMocks pattern but for $queryRaw + a single model,
+ * Mirrors the getModelMocks pattern but for $queryRaw + individual models,
  * avoiding repeated `prisma as unknown as {...}` casts at each test site.
  */
 interface RawMocks {
   $queryRaw: jest.Mock;
   filter: {
+    findMany: jest.Mock;
+    count: jest.Mock;
+  };
+  equipment: {
+    findMany: jest.Mock;
+    count: jest.Mock;
+  };
+  catalog: {
     findMany: jest.Mock;
     count: jest.Mock;
   };
@@ -180,6 +188,15 @@ function getRawMocks(prisma: any): RawMocks {
     filter: {
       findMany: prisma.filter.findMany,
       count: prisma.filter.count,
+    },
+    equipment: {
+      findMany: prisma.equipment.findMany,
+      count: prisma.equipment.count,
+    },
+    catalog: {
+      // Prisma model 名是 equipmentCatalog（见 schema EquipmentCatalog）
+      findMany: prisma.equipmentCatalog.findMany,
+      count: prisma.equipmentCatalog.count,
     },
   };
 }
@@ -223,14 +240,18 @@ describe('Equipment Anonymous Access (e2e)', () => {
   /* ── 5.1: Anonymous GET returns 200 with enabled records only ── */
 
   describe('5.1 Anonymous GET list endpoints', () => {
-    // Note: 'filters' list endpoint moved to 5.6 — anonymous path now uses
-    // $queryRaw (weighted sort) instead of findMany, so the shared
-    // `findMany was called` assertion no longer applies.
+    // Note: 'filters' moved to 5.6, 'equipment' to 5.7, 'catalogs' to 5.8 —
+    // those modules now use $queryRaw (weighted sort) for anonymous access,
+    // so the shared `findMany was called` assertion no longer applies.
+    // Only dictionary-ish tables (brands / filter-types) remain here.
     const cases: Array<[string, string, string, () => any]> = [
       ['brands', '/equipment/brands', 'equipmentBrand', makeEnabledBrand],
-      ['catalogs', '/equipment/catalogs', 'equipmentCatalog', makeEnabledCatalog],
-      ['filter-types', '/equipment/filter-types', 'filterType', makeEnabledFilterType],
-      ['equipment', '/equipment/equipment', 'equipment', makeEnabledEquipment],
+      [
+        'filter-types',
+        '/equipment/filter-types',
+        'filterType',
+        makeEnabledFilterType,
+      ],
     ];
 
     beforeEach(() => {
@@ -518,6 +539,211 @@ describe('Equipment Anonymous Access (e2e)', () => {
       expect(res.body.data.items).toHaveLength(2);
       expect(res.body.data.items[0].filterId).toBe('flt-new');
       expect(res.body.data.items[1].filterId).toBe('flt-old');
+    });
+  });
+
+  /* ── 5.7: Anonymous equipment weighted sort ──────────────────────── */
+
+  describe('5.7 Anonymous equipment weighted sort', () => {
+    // 加权字段划分（见 specs v2 §Implementation → Equipment weighted sort）：
+    //   核心 w=5: engineBrand / engineType / power / engineEnergy  (4 fields)
+    //   关键 w=3: productionDateStart / productionDateEnd           (2 fields)
+    //   完整 w=1: brandId / catalogId                               (2 fields)
+    //
+    // A: 全量 8 个字段 → 总分 4*5 + 2*3 + 2*1 = 28
+    const eqA = {
+      ...makeEnabledEquipment(),
+      equipmentId: 'eq-A',
+      model: 'A-Engine-Full',
+      engineBrand: 'Cat',
+      engineType: 'C6.6',
+      power: 100,
+      engineEnergy: 'diesel',
+      productionDateStart: new Date('2020-01-01T00:00:00Z'),
+      productionDateEnd: new Date('2024-12-31T00:00:00Z'),
+      brandId: 'brand-001',
+      catalogId: 'cat-001',
+    };
+    // B: 仅关键参数（w=3 全） → 总分 6
+    const eqB = {
+      ...makeEnabledEquipment(),
+      equipmentId: 'eq-B',
+      model: 'B-Production-Only',
+      // 置空非关键字段，保证 score 只来自关键参数
+      engineBrand: null,
+      engineType: null,
+      power: null,
+      engineEnergy: null,
+      productionDateStart: new Date('2021-01-01T00:00:00Z'),
+      productionDateEnd: new Date('2023-12-31T00:00:00Z'),
+      brandId: null,
+      catalogId: null,
+    };
+    // C: 字段全空 → 总分 0
+    const eqC = {
+      ...makeEnabledEquipment(),
+      equipmentId: 'eq-C',
+      model: 'C-Empty-Fields',
+      engineBrand: null,
+      engineType: null,
+      power: null,
+      engineEnergy: null,
+      productionDateStart: null,
+      productionDateEnd: null,
+      brandId: null,
+      catalogId: null,
+    };
+
+    beforeEach(() => {
+      const mocks = getRawMocks(harness.prisma);
+      mocks.$queryRaw.mockClear();
+      mocks.equipment.findMany.mockClear();
+      mocks.equipment.count.mockClear();
+      mocks.$queryRaw.mockResolvedValue([eqA, eqB, eqC]);
+      mocks.equipment.count.mockResolvedValue(3);
+      mocks.equipment.findMany.mockResolvedValue([]);
+    });
+
+    it('anonymous GET /equipment returns items in $queryRaw weighted order', async () => {
+      const mocks = getRawMocks(harness.prisma);
+      const res = await request(harness.app.getHttpServer())
+        .get('/equipment/equipment?page=1&pageSize=10')
+        .expect(200);
+
+      expect(res.body.data.items).toHaveLength(3);
+      expect(res.body.data.items[0].equipmentId).toBe('eq-A');
+      expect(res.body.data.items[1].equipmentId).toBe('eq-B');
+      expect(res.body.data.items[2].equipmentId).toBe('eq-C');
+      for (const item of res.body.data.items) {
+        expect(item.status).toBe('enabled');
+      }
+      // DTO 过滤：不能暴露自增 id
+      for (const item of res.body.data.items) {
+        expect(item.id).toBeUndefined();
+      }
+      expect(res.body.data.total).toBe(3);
+      expect(res.body.data.page).toBe(1);
+      expect(res.body.data.pageSize).toBe(10);
+
+      expect(mocks.$queryRaw).toHaveBeenCalled();
+      expect(mocks.equipment.findMany).not.toHaveBeenCalled();
+    });
+
+    it('anonymous GET /equipment ignores ?sortBy param (weighted sort wins)', async () => {
+      const mocks = getRawMocks(harness.prisma);
+      const res = await request(harness.app.getHttpServer())
+        .get('/equipment/equipment?page=1&pageSize=10&sortBy=model&sortOrder=desc')
+        .expect(200);
+
+      expect(res.body.data.items[0].equipmentId).toBe('eq-A');
+      expect(res.body.data.items[2].equipmentId).toBe('eq-C');
+
+      expect(mocks.$queryRaw).toHaveBeenCalled();
+      expect(mocks.equipment.findMany).not.toHaveBeenCalled();
+    });
+
+    it('anonymous GET /equipment passes status=enabled to count query', async () => {
+      const mocks = getRawMocks(harness.prisma);
+      await request(harness.app.getHttpServer())
+        .get('/equipment/equipment?page=1&pageSize=10')
+        .expect(200);
+
+      expect(mocks.equipment.count).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ status: 'enabled' }),
+        }),
+      );
+    });
+  });
+
+  /* ── 5.8: Anonymous catalogs weighted sort ───────────────────────── */
+
+  describe('5.8 Anonymous catalogs weighted sort', () => {
+    // 加权字段（EquipmentCatalog 业务 nullable 共 2 个）：
+    //   核心 w=5: code            (产品系列号，客户搜索匹配用)
+    //   关键 w=3: description     (产品说明)
+    //
+    // A: 字段全齐 → 8
+    const catA = {
+      ...makeEnabledCatalog(),
+      catalogId: 'cat-A',
+      code: 'CODE-A',
+      description: 'Full hydraulic excavator range',
+    };
+    // B: 仅 description → 3
+    const catB = {
+      ...makeEnabledCatalog(),
+      catalogId: 'cat-B',
+      code: null,
+      description: 'Some description only',
+    };
+    // C: 字段全空 → 0
+    const catC = {
+      ...makeEnabledCatalog(),
+      catalogId: 'cat-C',
+      code: null,
+      description: null,
+    };
+
+    beforeEach(() => {
+      const mocks = getRawMocks(harness.prisma);
+      mocks.$queryRaw.mockClear();
+      mocks.catalog.findMany.mockClear();
+      mocks.catalog.count.mockClear();
+      mocks.$queryRaw.mockResolvedValue([catA, catB, catC]);
+      mocks.catalog.count.mockResolvedValue(3);
+      mocks.catalog.findMany.mockResolvedValue([]);
+    });
+
+    it('anonymous GET /equipment/catalogs returns items in $queryRaw weighted order', async () => {
+      const mocks = getRawMocks(harness.prisma);
+      const res = await request(harness.app.getHttpServer())
+        .get('/equipment/catalogs?page=1&pageSize=10')
+        .expect(200);
+
+      expect(res.body.data.items).toHaveLength(3);
+      expect(res.body.data.items[0].catalogId).toBe('cat-A');
+      expect(res.body.data.items[1].catalogId).toBe('cat-B');
+      expect(res.body.data.items[2].catalogId).toBe('cat-C');
+      for (const item of res.body.data.items) {
+        expect(item.status).toBe('enabled');
+      }
+      // DTO 过滤：不能暴露自增 id
+      for (const item of res.body.data.items) {
+        expect(item.id).toBeUndefined();
+      }
+      expect(res.body.data.total).toBe(3);
+      expect(res.body.data.page).toBe(1);
+      expect(res.body.data.pageSize).toBe(10);
+
+      expect(mocks.$queryRaw).toHaveBeenCalled();
+      expect(mocks.catalog.findMany).not.toHaveBeenCalled();
+    });
+
+    it('anonymous GET /equipment/catalogs ignores ?sortBy param (weighted sort wins)', async () => {
+      const mocks = getRawMocks(harness.prisma);
+      const res = await request(harness.app.getHttpServer())
+        .get('/equipment/catalogs?page=1&pageSize=10&sortBy=name&sortOrder=desc')
+        .expect(200);
+
+      expect(res.body.data.items[0].catalogId).toBe('cat-A');
+      expect(res.body.data.items[2].catalogId).toBe('cat-C');
+
+      expect(mocks.$queryRaw).toHaveBeenCalled();
+      expect(mocks.catalog.findMany).not.toHaveBeenCalled();
+    });
+
+    it('anonymous GET /equipment/catalogs passes status=enabled to count query', async () => {
+      const mocks = getRawMocks(harness.prisma);
+      await request(harness.app.getHttpServer())
+        .get('/equipment/catalogs?page=1&pageSize=10')
+        .expect(200);
+
+      expect(mocks.catalog.count).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ status: 'enabled' }),
+        }),
+      );
     });
   });
 });

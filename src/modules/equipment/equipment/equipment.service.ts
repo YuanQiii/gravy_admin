@@ -8,7 +8,11 @@ import { ConfigService } from '@nestjs/config';
 import { plainToInstance } from 'class-transformer';
 import { Prisma, Filter } from '@prisma/client';
 import { PrismaService } from '@/prisma/prisma.service';
-import { BaseService, VisibilityOpts } from '@/shared/services/base.service';
+import {
+  BaseService,
+  B2C_VISIBILITIES,
+  VisibilityOpts,
+} from '@/shared/services/base.service';
 import { SoftDeleteService } from '@/shared/services/soft-delete.service';
 import { PaginationData } from '@/shared/interfaces/response.interface';
 import { isEquipmentEngineEnergy } from '@/shared/constants/equipment.constant';
@@ -22,6 +26,48 @@ import { FilterResponseDto } from '../filters/dto/filter-response.dto';
  * 设备档案错误码前缀（复合唯一约束 [brandName, model] 兜底）。
  */
 const EQUIPMENT_UNIQUE_PREFIX = 'EQUIPMENT_EQUIPMENT';
+
+/**
+ * B2C 浏览场景 — Equipment 匿名加权排序字段表。
+ *
+ * schema Equipment 的业务 nullable 字段共 8 个（不含审计/删除字段）：
+ *   brandId, catalogId, engineBrand, engineType, power, engineEnergy,
+ *   productionDateStart, productionDateEnd
+ *
+ * 三档权重（按 B2C 客户决策价值）：
+ * - 核心参数（引擎四要素）w=5: engineBrand / engineType / power / engineEnergy
+ * - 生命周期（产品起止）w=3:   productionDateStart / productionDateEnd
+ * - 关联完整性（外键）w=1:     brandId / catalogId
+ *
+ * 列名经 schema @@map + 迁移约定为 camelCase，raw SQL 需带双引号。
+ * isString=true 的字段同时判 `!= ''` 防空字符串脏数据。
+ */
+const EQUIPMENT_WEIGHTED_FIELDS: ReadonlyArray<{
+  field: string;
+  weight: number;
+  isString: boolean;
+}> = [
+  // w=5: 引擎核心参数（共 4 项，满分 20）
+  { field: 'engineBrand', weight: 5, isString: true },
+  { field: 'engineType', weight: 5, isString: true },
+  { field: 'power', weight: 5, isString: false },
+  { field: 'engineEnergy', weight: 5, isString: true },
+  // w=3: 产品生命周期（共 2 项，满分 6）
+  { field: 'productionDateStart', weight: 3, isString: false },
+  { field: 'productionDateEnd', weight: 3, isString: false },
+  // w=1: 关联完整性（共 2 项，满分 2）
+  { field: 'brandId', weight: 1, isString: true },
+  { field: 'catalogId', weight: 1, isString: true },
+];
+
+const EQUIPMENT_WEIGHTED_SUM_SQL = EQUIPMENT_WEIGHTED_FIELDS.map(
+  ({ field, weight, isString }) => {
+    const condition = isString
+      ? `"${field}" IS NOT NULL AND "${field}" != ''`
+      : `"${field}" IS NOT NULL`;
+    return `(CASE WHEN ${condition} THEN ${weight} ELSE 0 END)`;
+  },
+).join(' + ');
 
 @Injectable()
 export class EquipmentService extends BaseService {
@@ -96,6 +142,16 @@ export class EquipmentService extends BaseService {
     if (query.status) where.status = query.status;
     this.applyVisibility(where, opts);
 
+    // B2C 浏览域（anonymous / b2c）走加权排序 — 信息齐全产品优先，
+    // sortBy 参数被忽略，保证产品决策排序体验一致。
+    if (
+      B2C_VISIBILITIES.includes(
+        opts?.visibility as (typeof B2C_VISIBILITIES)[number],
+      )
+    ) {
+      return this.findAllWithWeightedSort(query, where);
+    }
+
     const result = await this.paginateWithSort(
       this.prisma.equipment,
       query,
@@ -111,17 +167,83 @@ export class EquipmentService extends BaseService {
     };
   }
 
+  /**
+   * B2C 浏览域 Equipment 加权排序查询。
+   *
+   * 排序：加权分 DESC（信息齐全优先）→ sortOrder DESC（运营权重兜底）
+   *      → createdAt DESC（最后入库兜底，保证翻页稳定）。
+   *
+   * 约束同 filters.service: where 条件参数化防注入，加权求和片段为
+   * 静态常量内联（字段名和权重都是硬编码）。
+   */
+  private async findAllWithWeightedSort(
+    query: QueryEquipmentDto,
+    where: Record<string, unknown>,
+  ): Promise<PaginationData<EquipmentResponseDto>> {
+    const skip = query.getSkip();
+    const take = query.getTake();
+
+    const conditions: Prisma.Sql[] = [Prisma.sql`"deletedAt" IS NULL`];
+    if (where.status) {
+      conditions.push(Prisma.sql`"status" = ${where.status as string}`);
+    }
+    if (where.brandId) {
+      conditions.push(Prisma.sql`"brandId" = ${where.brandId as string}`);
+    }
+    if (where.catalogId) {
+      conditions.push(Prisma.sql`"catalogId" = ${where.catalogId as string}`);
+    }
+    if (where.engineEnergy) {
+      conditions.push(
+        Prisma.sql`"engineEnergy" = ${where.engineEnergy as string}`,
+      );
+    }
+    if (query.keyword) {
+      const pattern = `%${query.keyword}%`;
+      conditions.push(
+        Prisma.sql`("model" ILIKE ${pattern} OR "brandName" ILIKE ${pattern})`,
+      );
+    }
+
+    const rows = await this.prisma.$queryRaw<
+      Record<string, unknown>[]
+    >`
+      SELECT * FROM "equipment"
+      WHERE ${Prisma.join(conditions, ' AND ')}
+      ORDER BY (${Prisma.raw(EQUIPMENT_WEIGHTED_SUM_SQL)}) DESC,
+      "sortOrder" DESC,
+      "createdAt" DESC
+      LIMIT ${take} OFFSET ${skip}
+    `;
+
+    const total = await this.prisma.equipment.count({
+      where: where as Prisma.EquipmentWhereInput,
+    });
+
+    return {
+      items: plainToInstance(EquipmentResponseDto, rows, {
+        excludeExtraneousValues: true,
+      }),
+      total,
+      page: query.page,
+      pageSize: query.pageSize,
+    };
+  }
+
   async findOne(
     equipmentId: string,
     opts?: VisibilityOpts,
   ): Promise<EquipmentResponseDto> {
-    const isAnonymous = opts?.visibility === 'anonymous';
+    const isB2c = B2C_VISIBILITIES.includes(
+      opts?.visibility as (typeof B2C_VISIBILITIES)[number],
+    );
     const equipment = await this.prisma.equipment.findUnique({
       where: { equipmentId },
       include: {
         equipmentFilters: {
-          // 匿名访客仅看到关联的 enabled 滤清器；登录用户看全量
-          ...(isAnonymous
+          // B2C 浏览域（anonymous / b2c）仅看到关联的 enabled 滤清器；
+          // 管理域登录用户看全量。
+          ...(isB2c
             ? { where: { filter: { status: 'enabled' } } }
             : {}),
           include: { filter: true },

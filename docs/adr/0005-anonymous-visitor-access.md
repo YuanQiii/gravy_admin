@@ -80,3 +80,44 @@ Rejected. Adds a deployment dependency (Redis must be available) and `project_me
 - Related guards: [src/core/guards/jwt-auth.guard.ts](../../src/core/guards/jwt-auth.guard.ts), [src/core/guards/guest-write.guard.ts](../../src/core/guards/guest-write.guard.ts), [src/core/guards/roles.guard.ts](../../src/core/guards/roles.guard.ts), [src/core/guards/permissions.guard.ts](../../src/core/guards/permissions.guard.ts)
 - Rate limit TODO: [src/main.ts:67](../../src/main.ts#L67) (existing TODO for ThrottlerModule + Redis)
 - Predecessor ADR: ADR 0004 (equipment/filter data import) — surfaced `findAllEnabled` raw-row AGENTS.md violation referenced in Consequences
+
+---
+
+## 加权排序扩展与 VisibilityOpts 三分流（ADR 增补，2026-04-26）
+
+### 背景
+ADR 0005 上线后，B2C 转化反馈：anonymous 列表中信息残缺（多字段为 NULL）的设备/目录排在前列，客户点击后因缺乏关键规格（引擎参数、系列号、产品说明）跳失率高。运营要求"信息齐全的产品优先展示"。
+
+同时，原设计中的 `VisibilityOpts` 只有 `'anonymous' | 'authenticated'`，但：
+- `'authenticated'` 在控制器中从未传值（后台管理路径传 `undefined` 已等效，是死值）；
+- B2C 场景下 `Customer` 模型的注册/登录接口还未开放，但已预留 B2C 登录态的浏览权限需求——其可见性、排序、禁用过滤语义应与 `'anonymous'` 完全一致，不应与管理后台登录态混为一谈。
+
+### 决策
+1. **三分流 `VisibilityOpts`**：将类型改为 `'anonymous' | 'b2c' | 'admin'`，删除死值 `'authenticated'`。
+   - 定义常量 `B2C_VISIBILITIES = ['anonymous', 'b2c'] as const`，统一用 `includes()` 判断 B2C 浏览域；
+   - `'admin'`（含未传 opts，即 undefined）为管理域，保持原有 sortBy/sortOrder、可见性无强制过滤；
+   - `applyVisibility` / `assertVisible` / 各 service 的加权排序分支，统一按 `B2C_VISIBILITIES.includes()` 分流，避免后续 Customer 登录上线时出现"匿名/登录两种不同 B2C 体验"的漂移。
+2. **扩展加权排序范围**：从仅 `filters`（v1 实现）扩展至 `equipment` 与 `catalogs` 三个产品/展示模块。
+   - 实现方式复用 filters 模板：`$queryRaw` + 静态 `CASE WHEN` 加权求和 SQL（字段名与权重常量，可安全内联），查询条件（status/keyword/brandId 等）通过 `${...}` 参数化防注入；
+   - 排序规则统一：加权分 DESC → sortOrder DESC → createdAt DESC（第三级 createdAt 保证同分下翻页稳定，避免跨页重复/丢失）；
+   - sortBy 参数在 B2C 浏览域被**忽略**，保证产品决策排序体验一致性；
+   - `count` 查询继续使用 Prisma 模型的 `count({ where })`，与加权排序解耦，同时复用 `applyVisibility` 注入的 `status='enabled'` 过滤。
+3. **字段与权重按 schema + 业务价值划分**：
+   - **Filters（12 字段，满分 28）**：核心展示 gencode/photoUuid/drawingUuid（w=5 × 3 = 15），关键参数 weight/volume（w=3 × 2 = 6），详细参数 dimension{D1/D2/D3/D7/H1/H2/H3/D8}（w=1 × 8 = 8，其中 dimensionD7/D8 字符串额外判 `!= ''` 防脏数据）；
+   - **Equipment（8 业务 nullable 字段，满分 28）**：引擎核心参数 engineBrand/engineType/power/engineEnergy（w=5 × 4 = 20），产品生命周期 productionDateStart/productionDateEnd（w=3 × 2 = 6），关联完整性 brandId/catalogId（w=1 × 2 = 2）；
+   - **Catalogs（2 业务 nullable 字段，满分 8）**：核心匹配 code（w=5，产品系列号客户搜索匹配用），关键说明 description（w=3，产品说明）。
+4. **测试 Seam**：
+   - e2e 主 Seam：`test/equipment-anonymous.e2e-spec.ts` 新增 5.7 Equipment 3 用例、5.8 Catalogs 3 用例（加权排序生效、sortBy 忽略、count 注入 status='enabled'）；5.1 共享 it.each 表中 brands / filter-types 保留，filters / equipment / catalogs 各自移入独立 describe（其 call 交互断言从 `findMany was called` 切换为 `$queryRaw was called`）。
+   - unit 辅 Seam：`base.service.spec.ts` 补 4 个 `'b2c'` 对齐用例 + 原 `'authenticated'` 全部换为 `'admin'`，共 11 用例。
+5. **DTO 过滤不回退**：加权排序返回的 raw rows 在服务层 `plainToInstance(ResponseDto, { excludeExtraneousValues: true })` 过 DTO 过滤，**不暴露数据库自增 `id`、token、secret**（符合 AGENTS.md 安全约束）。Equipment 的 `power: Decimal?` 经 `@Type(() => Number)` 自动转为 number；filters 中 Decimal 字段同理。
+
+### 后果
+- B2C 首页 / 搜索列表的"信息齐全产品优先"排序可稳定提升关键规格曝光度，减少客户因点击空资料跳失。
+- 管理后台路由**完全不感知**此变更（传 `undefined` 仍走 `paginateWithSort` + sortBy/sortOrder）。
+- 未来 B2C Customer 登录上线时，控制器只需将 `visibility` 传 `'b2c'` 即可复用现有加权排序 + status 过滤逻辑，无需改 service 内部分流判断。
+- 新增 3 处模块内私有常量（EQUIPMENT_WEIGHTED_FIELDS / CATALOG_WEIGHTED_FIELDS / WEIGHTED_SORT_FIELDS）与对应 SUM SQL，新增/修改加权字段时需同时：
+  1. 更新模块内字段常量；
+  2. 更新 `docs/specs/anonymous-filter-weighted-sort.md` 权重表；
+  3. 调整对应 e2e 测试的 A/B/C 分值构造数据。
+- raw SQL 使用 `Prisma.sql` + `Prisma.raw` 双轨：所有用户输入（keyword、status、id）都经 `${...}` 参数化；列名与权重（常量）经 `Prisma.raw` 内联，不暴露 SQL 注入面。
+- 测试中 `prisma.$queryRaw` mock 为三个模块共享同一个根 jest.fn()，在每个加权排序 describe 的 `beforeEach` 中显式 `mockClear()` + `mockResolvedValue(...)`，保证 5.6/5.7/5.8 之间不交叉污染 mock 调用记录。

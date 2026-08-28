@@ -8,15 +8,28 @@ import { PaginationResponse } from '../interfaces/response.interface';
 import { SUPER_ROLE_KEY } from '../constants/role.constant';
 
 /**
- * 可见性选项。
- * - `'authenticated'`（默认）：登录用户行为，不强制过滤 status。
- * - `'anonymous'`：匿名访客行为，强制 `status='enabled'`、对 disabled 记录抛 404。
+ * B2C 浏览域的 visibility 集合——匿名访客与已登录 B2C 客户行为完全一致。
+ * 由 BaseService 与三个加权排序 service 共用同一段判断常量，避免魔法
+ * 字符串 `'anonymous'` 散落 5 处产生未来不一致。
+ *
+ * 未来接入 B2C Customer auth 时 service 侧无需改动，controller 传
+ * `{ visibility: 'b2c' }` 即可自动生效。
+ */
+export const B2C_VISIBILITIES = ['anonymous', 'b2c'] as const;
+
+/**
+ * 可见性选项（三分流）。
+ * - `'anonymous'`：匿名访客，强制 `status='enabled'` + 加权排序（若模块支持）。
+ * - `'b2c'`：**预留**，未来 B2C Customer 登录后使用。行为与 `'anonymous'` 完全一致。
+ * - `'admin'`：显式管理域（内部 User 全角色），不强制 status，按 sortOrder/sortBy 排序。
+ * - `undefined`：向后兼容等价 `'admin'`。
  *
  * 由 controller 在调用 service 时按 `@CurrentUser() user` 是否存在传入：
  * `user ? undefined : { visibility: 'anonymous' }`。
+ * 未来 Customer auth 接入时控制器加分支传 `{ visibility: 'b2c' }`。
  */
 export type VisibilityOpts = {
-  visibility?: 'anonymous' | 'authenticated';
+  visibility?: (typeof B2C_VISIBILITIES)[number] | 'admin';
 };
 
 /**
@@ -33,35 +46,40 @@ export abstract class BaseService {
   /**
    * 按可见性强制过滤查询条件。
    *
-   * `visibility === 'anonymous'` 时强制 `where.status = 'enabled'`，
+   * B2C 浏览域（`'anonymous'` 或 `'b2c'`）时强制 `where.status = 'enabled'`，
    * **无视**调用方已有 `where.status`（防 query 绕过：匿名访客不能通过
    * `?status=disabled` 看到非启用记录）。
    *
-   * `visibility === 'authenticated'`（含未传 opts）时不干预，保留调用方原 where。
+   * `'admin'`（含未传 opts 即 undefined）时不干预，保留调用方原 where。
    */
   protected applyVisibility(
     where: Record<string, unknown>,
     opts?: VisibilityOpts,
   ): void {
-    if (opts?.visibility === 'anonymous') {
+    if (B2C_VISIBILITIES.includes(opts?.visibility as typeof B2C_VISIBILITIES[number])) {
       where.status = 'enabled';
     }
   }
 
   /**
-   * 按可见性校验单条记录是否对匿名访客可见。
+   * 按可见性校验单条记录是否对 B2C 浏览域可见。
    *
-   * `visibility === 'anonymous'` 且 `record.status !== 'enabled'` 时
+   * B2C 浏览域（`'anonymous'` 或 `'b2c'`）且 `record.status !== 'enabled'` 时
    * 抛 `NotFoundException`——与"记录不存在"语义一致，不暴露存在性
-   * （即不告诉匿名访客"这条记录是 disabled"，只说"找不到"）。
+   * （即不告诉访客"这条记录是 disabled"，只说"找不到"）。
    *
-   * `visibility === 'authenticated'`（含未传 opts）时直接放行。
+   * `'admin'`（含未传 opts 即 undefined）时直接放行。
    */
   protected assertVisible(
     record: { status: string } | null,
     opts?: VisibilityOpts,
   ): void {
-    if (opts?.visibility === 'anonymous' && record?.status !== 'enabled') {
+    if (
+      B2C_VISIBILITIES.includes(
+        opts?.visibility as typeof B2C_VISIBILITIES[number],
+      ) &&
+      record?.status !== 'enabled'
+    ) {
       throw new NotFoundException('记录不存在');
     }
   }

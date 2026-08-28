@@ -3,7 +3,11 @@ import { ConfigService } from '@nestjs/config';
 import { plainToInstance } from 'class-transformer';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '@/prisma/prisma.service';
-import { BaseService, VisibilityOpts } from '@/shared/services/base.service';
+import {
+  BaseService,
+  B2C_VISIBILITIES,
+  VisibilityOpts,
+} from '@/shared/services/base.service';
 import { SoftDeleteService } from '@/shared/services/soft-delete.service';
 import { PaginationData } from '@/shared/interfaces/response.interface';
 import { CreateCatalogDto } from './dto/create-catalog.dto';
@@ -18,6 +22,37 @@ const CATALOG_UNIQUE_PREFIX_BY_FIELD: Record<string, string> = {
   name: 'EQUIPMENT_CATALOG_NAME',
   code: 'EQUIPMENT_CATALOG_CODE',
 };
+
+/**
+ * B2C 浏览场景 — Catalogs 匿名加权排序字段表。
+ *
+ * schema EquipmentCatalog 业务 nullable 字段共 2 个（不含审计/删除字段）：
+ *   code, description
+ *
+ * 权重（按 B2C 客户决策价值）：
+ * - 核心匹配 w=5: code (产品系列号，客户搜索匹配用)
+ * - 关键说明 w=3: description (产品说明)
+ *
+ * 列名经 schema + 迁移约定：code (camelCase), description (camelCase)。
+ * raw SQL 列名带双引号。description 存在 `@db.Text`，可防空字符串脏数据。
+ */
+const CATALOG_WEIGHTED_FIELDS: ReadonlyArray<{
+  field: string;
+  weight: number;
+  isString: boolean;
+}> = [
+  { field: 'code', weight: 5, isString: true },
+  { field: 'description', weight: 3, isString: true },
+];
+
+const CATALOG_WEIGHTED_SUM_SQL = CATALOG_WEIGHTED_FIELDS.map(
+  ({ field, weight, isString }) => {
+    const condition = isString
+      ? `"${field}" IS NOT NULL AND "${field}" != ''`
+      : `"${field}" IS NOT NULL`;
+    return `(CASE WHEN ${condition} THEN ${weight} ELSE 0 END)`;
+  },
+).join(' + ');
 
 @Injectable()
 export class CatalogsService extends BaseService {
@@ -71,6 +106,16 @@ export class CatalogsService extends BaseService {
     where.deletedAt = null;
     this.applyVisibility(where, opts);
 
+    // B2C 浏览域（anonymous / b2c）走加权排序 — 信息齐全目录优先，
+    // sortBy 参数被忽略，保证产品决策排序体验一致。
+    if (
+      B2C_VISIBILITIES.includes(
+        opts?.visibility as (typeof B2C_VISIBILITIES)[number],
+      )
+    ) {
+      return this.findAllWithWeightedSort(query, where);
+    }
+
     const result = await this.paginateWithSort(
       this.prisma.equipmentCatalog,
       query,
@@ -83,6 +128,64 @@ export class CatalogsService extends BaseService {
       items: plainToInstance(CatalogResponseDto, result.items, {
         excludeExtraneousValues: true,
       }),
+    };
+  }
+
+  /**
+   * B2C 浏览域 Catalogs 加权排序查询。
+   *
+   * 排序：加权分 DESC（信息齐全优先）→ sortOrder DESC（运营权重兜底）
+   *      → createdAt DESC（最后入库兜底，保证翻页稳定）。
+   *
+   * 约束同 filters.service: where 条件参数化防注入，加权求和片段为
+   * 静态常量内联（字段名和权重都是硬编码）。
+   * 表名使用 schema @@map("equipment_catalogs")。
+   */
+  private async findAllWithWeightedSort(
+    query: QueryCatalogDto,
+    where: Record<string, unknown>,
+  ): Promise<PaginationData<CatalogResponseDto>> {
+    const skip = query.getSkip();
+    const take = query.getTake();
+
+    const conditions: Prisma.Sql[] = [Prisma.sql`"deletedAt" IS NULL`];
+    if (where.status) {
+      conditions.push(Prisma.sql`"status" = ${where.status as string}`);
+    }
+    if (where.code) {
+      conditions.push(Prisma.sql`"code" = ${where.code as string}`);
+    }
+    // BaseService.buildWhere 对 name=contains 会生成 {name: {contains, mode}}
+    const nameFilter = where.name as
+      | { contains: string; mode?: string }
+      | undefined;
+    if (nameFilter?.contains) {
+      const pattern = `%${nameFilter.contains}%`;
+      conditions.push(Prisma.sql`"name" ILIKE ${pattern}`);
+    }
+
+    const rows = await this.prisma.$queryRaw<
+      Record<string, unknown>[]
+    >`
+      SELECT * FROM "equipment_catalogs"
+      WHERE ${Prisma.join(conditions, ' AND ')}
+      ORDER BY (${Prisma.raw(CATALOG_WEIGHTED_SUM_SQL)}) DESC,
+      "sortOrder" DESC,
+      "createdAt" DESC
+      LIMIT ${take} OFFSET ${skip}
+    `;
+
+    const total = await this.prisma.equipmentCatalog.count({
+      where: where as Prisma.EquipmentCatalogWhereInput,
+    });
+
+    return {
+      items: plainToInstance(CatalogResponseDto, rows, {
+        excludeExtraneousValues: true,
+      }),
+      total,
+      page: query.page,
+      pageSize: query.pageSize,
     };
   }
 

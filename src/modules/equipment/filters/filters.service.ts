@@ -7,7 +7,11 @@ import { ConfigService } from '@nestjs/config';
 import { plainToInstance } from 'class-transformer';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '@/prisma/prisma.service';
-import { BaseService, VisibilityOpts } from '@/shared/services/base.service';
+import {
+  BaseService,
+  B2C_VISIBILITIES,
+  VisibilityOpts,
+} from '@/shared/services/base.service';
 import { SoftDeleteService } from '@/shared/services/soft-delete.service';
 import { PaginationData } from '@/shared/interfaces/response.interface';
 import { CreateFilterDto } from './dto/create-filter.dto';
@@ -141,9 +145,13 @@ export class FiltersService extends BaseService {
     }
     this.applyVisibility(where as Record<string, unknown>, opts);
 
-    // 匿名访客走非空加权排序（B2C 转化优先展示信息齐全产品）。
-    // sortBy 参数对匿名访客被忽略 — 保护产品决策排序体验一致性。
-    if (opts?.visibility === 'anonymous') {
+    // B2C 浏览域（anonymous / b2c）走非空加权排序（B2C 转化优先展示信息齐全产品）。
+    // sortBy 参数被忽略 — 保护产品决策排序体验一致性。
+    if (
+      B2C_VISIBILITIES.includes(
+        opts?.visibility as (typeof B2C_VISIBILITIES)[number],
+      )
+    ) {
       return this.findAllWithWeightedSort(query, where);
     }
 
