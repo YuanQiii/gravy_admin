@@ -142,3 +142,9 @@ dist
 
 # Database backups (pg_dump outputs, may contain business data)
 prisma/backups/
+
+# Local e2e env config (contains DATABASE_URL)
+.env.e2e
+
+# CodeGraph index artifacts
+.codegraph/
