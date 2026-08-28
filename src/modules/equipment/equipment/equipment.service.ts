@@ -72,7 +72,9 @@ export class EquipmentService extends BaseService {
     createdById?: string,
   ): Promise<EquipmentResponseDto> {
     if (dto.engineEnergy && !isEquipmentEngineEnergy(dto.engineEnergy)) {
-      throw new BadRequestException('EQUIPMENT_EQUIPMENT_ENGINE_ENERGY_INVALID');
+      throw new BadRequestException(
+        'EQUIPMENT_EQUIPMENT_ENGINE_ENERGY_INVALID',
+      );
     }
 
     const brandName = await this.resolveBrandNameForCreate(
@@ -164,6 +166,34 @@ export class EquipmentService extends BaseService {
     query: QueryEquipmentDto,
     where: Record<string, unknown>,
   ): Promise<PaginationData<EquipmentResponseDto>> {
+    const conditions = this.buildWeightedConditions(where);
+
+    return runWeightedSort<EquipmentResponseDto>(this.prisma, {
+      table: 'equipment',
+      fields: EQUIPMENT_WEIGHTED_FIELDS,
+      conditions,
+      pagination: query,
+      dto: EquipmentResponseDto,
+      count: () =>
+        this.prisma.equipment.count({
+          where: where as Prisma.EquipmentWhereInput,
+        }),
+    });
+  }
+
+  /**
+   * B2C 加权排序的 raw SQL `conditions` 单一来源构建器。
+   *
+   * 从 `findAll` 已归一化的 Prisma `where` 单向推导参数化 SQL 条件，
+   * 与 `runWeightedSort` 的 `count()`（同一 `where`）始终同源，列表与
+   * total 不可能发散；新增 query 参数只需改 `findAll` 一处 + 此处映射一处。
+   *
+   * keyword 从 `where.OR` 读出 model/brandName 两项拼 ILIKE——与
+   * `findAll` 中 `contains + mode:'insensitive'` 语义等价，SQL 逐字保持。
+   */
+  private buildWeightedConditions(
+    where: Record<string, unknown>,
+  ): Prisma.Sql[] {
     const conditions: Prisma.Sql[] = [Prisma.sql`"deletedAt" IS NULL`];
     if (where.status) {
       conditions.push(Prisma.sql`"status" = ${where.status as string}`);
@@ -179,24 +209,22 @@ export class EquipmentService extends BaseService {
         Prisma.sql`"engineEnergy" = ${where.engineEnergy as string}`,
       );
     }
-    if (query.keyword) {
-      const pattern = `%${query.keyword}%`;
-      conditions.push(
-        Prisma.sql`("model" ILIKE ${pattern} OR "brandName" ILIKE ${pattern})`,
-      );
+    if (Array.isArray(where.OR)) {
+      const or = where.OR as Array<{
+        model?: { contains: string };
+        brandName?: { contains: string };
+      }>;
+      const keyword =
+        or.find((o) => o.model?.contains)?.model?.contains ||
+        or.find((o) => o.brandName?.contains)?.brandName?.contains;
+      if (keyword) {
+        const pattern = `%${keyword}%`;
+        conditions.push(
+          Prisma.sql`("model" ILIKE ${pattern} OR "brandName" ILIKE ${pattern})`,
+        );
+      }
     }
-
-    return runWeightedSort<EquipmentResponseDto>(this.prisma, {
-      table: 'equipment',
-      fields: EQUIPMENT_WEIGHTED_FIELDS,
-      conditions,
-      pagination: query,
-      dto: EquipmentResponseDto,
-      count: () =>
-        this.prisma.equipment.count({
-          where: where as Prisma.EquipmentWhereInput,
-        }),
-    });
+    return conditions;
   }
 
   async findOne(
@@ -210,9 +238,7 @@ export class EquipmentService extends BaseService {
         equipmentFilters: {
           // B2C 浏览域（anonymous / b2c）仅看到关联的 enabled 滤清器；
           // 管理域登录用户看全量。
-          ...(isB2c
-            ? { where: { filter: { status: 'enabled' } } }
-            : {}),
+          ...(isB2c ? { where: { filter: { status: 'enabled' } } } : {}),
           include: { filter: true },
         },
       },
@@ -252,7 +278,9 @@ export class EquipmentService extends BaseService {
     }
 
     if (dto.engineEnergy && !isEquipmentEngineEnergy(dto.engineEnergy)) {
-      throw new BadRequestException('EQUIPMENT_EQUIPMENT_ENGINE_ENERGY_INVALID');
+      throw new BadRequestException(
+        'EQUIPMENT_EQUIPMENT_ENGINE_ENERGY_INVALID',
+      );
     }
 
     const newBrandName = await this.resolveBrandNameForUpdate(
@@ -362,9 +390,7 @@ export class EquipmentService extends BaseService {
       where: { equipmentId },
       include: { filter: true },
     });
-    return items
-      .map((ef) => ef.filter)
-      .filter((f): f is Filter => f !== null);
+    return items.map((ef) => ef.filter).filter((f): f is Filter => f !== null);
   }
 
   /**
@@ -493,7 +519,9 @@ export class EquipmentService extends BaseService {
       select: { equipmentId: true },
     });
     if (softDeletedConflict) {
-      throw new ConflictException('EQUIPMENT_EQUIPMENT_DUPLICATED_SOFT_DELETED');
+      throw new ConflictException(
+        'EQUIPMENT_EQUIPMENT_DUPLICATED_SOFT_DELETED',
+      );
     }
   }
 

@@ -3,8 +3,6 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
 import { startOfDay, endOfDay } from '../utils/time.util';
 import { PaginationDto, PaginationSortDto } from '../dtos/pagination.dto';
-import { ResponseUtil } from '../utils/response.util';
-import { PaginationResponse } from '../interfaces/response.interface';
 import { SUPER_ROLE_KEY } from '../constants/role.constant';
 
 /**
@@ -87,10 +85,7 @@ export abstract class BaseService {
     record: { status: string } | null,
     opts?: VisibilityOpts,
   ): void {
-    if (
-      isB2cVisibility(opts) &&
-      record?.status !== 'enabled'
-    ) {
+    if (isB2cVisibility(opts) && record?.status !== 'enabled') {
       throw new NotFoundException('记录不存在');
     }
   }
@@ -217,51 +212,6 @@ export abstract class BaseService {
   }
 
   /**
-   * 执行分页查询并返回统一格式
-   * @param model Prisma模型
-   * @param pagination 分页参数
-   * @param where 查询条件
-   * @param include 关联查询
-   * @param orderBy 排序条件
-   * @param message 响应消息
-   * @param path 请求路径
-   * @returns 分页响应
-   */
-  protected async paginateWithResponse<T>(
-    model: {
-      findMany: (args?: {
-        where?: Record<string, unknown>;
-        include?: Record<string, unknown>;
-        orderBy?: any;
-        skip?: number;
-        take?: number;
-      }) => Promise<T[]>;
-      count: (args?: { where?: Record<string, unknown> }) => Promise<number>;
-    },
-    pagination: PaginationDto,
-    where?: Record<string, unknown>,
-    include?: Record<string, unknown>,
-    orderBy?: any,
-    message?: string,
-  ): Promise<PaginationResponse<T>> {
-    const result = await this.paginate<T>(
-      model,
-      pagination,
-      where,
-      include,
-      orderBy,
-    );
-    const paginationData = {
-      items: result.items,
-      total: result.total,
-      page: result.page,
-      pageSize: result.pageSize,
-    };
-
-    return ResponseUtil.paginated(paginationData, message);
-  }
-
-  /**
    * 执行分页排序查询
    * @param model Prisma模型
    * @param pagination 分页排序参数
@@ -288,51 +238,6 @@ export abstract class BaseService {
   ): Promise<{ items: T[]; total: number; page: number; pageSize: number }> {
     const orderBy = pagination.getOrderBy(defaultSortBy);
     return this.paginate<T>(model, pagination, where, include, orderBy);
-  }
-
-  /**
-   * 执行分页排序查询并返回统一格式
-   * @param model Prisma模型
-   * @param pagination 分页排序参数
-   * @param where 查询条件
-   * @param include 关联查询
-   * @param defaultSortBy 默认排序字段
-   * @param message 响应消息
-   * @param path 请求路径
-   * @returns 分页响应
-   */
-  protected async paginateWithSortAndResponse<T>(
-    model: {
-      findMany: (args: {
-        where?: Record<string, unknown>;
-        include?: Record<string, unknown>;
-        orderBy?: Record<string, unknown>;
-        skip?: number;
-        take?: number;
-      }) => Promise<T[]>;
-      count: (args: { where?: Record<string, unknown> }) => Promise<number>;
-    },
-    pagination: PaginationSortDto,
-    where?: Record<string, unknown>,
-    include?: Record<string, unknown>,
-    defaultSortBy: string = 'createdAt',
-    message?: string,
-  ): Promise<PaginationResponse<T>> {
-    const result = await this.paginateWithSort<T>(
-      model,
-      pagination,
-      where,
-      include,
-      defaultSortBy,
-    );
-    const paginationData = {
-      items: result.items,
-      total: result.total,
-      page: result.page,
-      pageSize: result.pageSize,
-    };
-
-    return ResponseUtil.paginated(paginationData, message);
   }
 
   /**

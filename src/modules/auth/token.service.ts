@@ -4,7 +4,10 @@ import { UAParser } from 'ua-parser-js';
 import { PrismaService } from '@/prisma/prisma.service';
 import { CacheService } from '@/redis/cache.service';
 import { RedisService, RedisUnavailableError } from '@/redis/redis.service';
-import { RedisKeys } from '@/redis/constants/redis-key.constant';
+import {
+  RedisKeys,
+  AUTH_SESSIONS_KEY_PREFIX,
+} from '@/redis/constants/redis-key.constant';
 
 export interface SessionMetadata {
   ipAddress?: string;
@@ -136,45 +139,6 @@ export class TokenService {
       }
     } catch (e) {
       if (e instanceof RedisUnavailableError) return;
-      throw e;
-    }
-  }
-
-  /**
-   * @deprecated 使用 touchSessionByJti 代替
-   */
-  async touchSession(userId: string, token: string): Promise<void> {
-    const tokenHash = this.hashToken(token);
-    const key = RedisKeys.auth.refreshToken(userId, tokenHash);
-    const sessionSetKey = RedisKeys.auth.sessionsSet(userId);
-
-    try {
-      // 先检查 key 是否还存在（被踢/登出/手动清理后不应重建）
-      const exists = await this.redisService.exists(key);
-      if (exists === 0) {
-        return;
-      }
-
-      await this.redisService.hSet(
-        key,
-        'lastActiveAt',
-        new Date().toISOString(),
-      );
-      // 续期 RT Hash TTL（7 天），兼容历史数据中 TTL 为 -1 的残留 key
-      const currentTtl = await this.redisService.ttl(key);
-      if (currentTtl === -1) {
-        await this.redisService.expire(key, 7 * 24 * 60 * 60);
-      }
-      // 同步续期 sessionsSet TTL
-      const setTtl = await this.redisService.ttl(sessionSetKey);
-      if (setTtl === -1) {
-        await this.redisService.expire(sessionSetKey, 7 * 24 * 60 * 60);
-      }
-    } catch (e) {
-      if (e instanceof RedisUnavailableError) {
-        // 静默忽略，不影响请求
-        return;
-      }
       throw e;
     }
   }
@@ -357,7 +321,7 @@ export class TokenService {
     try {
       const userIds = new Set<string>();
       for await (const keys of this.redisService.scanIterator(
-        'auth:sessions:*',
+        `${AUTH_SESSIONS_KEY_PREFIX}*`,
       )) {
         for (const key of keys) {
           const parts = key.split(':');
@@ -370,43 +334,6 @@ export class TokenService {
     } catch (e) {
       if (e instanceof RedisUnavailableError) {
         return [];
-      }
-      throw e;
-    }
-  }
-
-  // ===== 心跳更新 =====
-
-  async heartbeat(userId: string, tokenHash: string): Promise<void> {
-    try {
-      const key = RedisKeys.auth.refreshToken(userId, tokenHash);
-      const sessionSetKey = RedisKeys.auth.sessionsSet(userId);
-
-      // 先检查 key 是否还存在（被踢/登出/手动清理后不应重建）
-      const exists = await this.redisService.exists(key);
-      if (exists === 0) {
-        return;
-      }
-
-      await this.redisService.hSet(
-        key,
-        'lastActiveAt',
-        new Date().toISOString(),
-      );
-      // 续期 RT Hash TTL（7 天），兼容历史数据中 TTL 为 -1 的残留 key
-      const currentTtl = await this.redisService.ttl(key);
-      if (currentTtl === -1) {
-        await this.redisService.expire(key, 7 * 24 * 60 * 60);
-      }
-      // 同步续期 sessionsSet TTL
-      const setTtl = await this.redisService.ttl(sessionSetKey);
-      if (setTtl === -1) {
-        await this.redisService.expire(sessionSetKey, 7 * 24 * 60 * 60);
-      }
-    } catch (e) {
-      if (e instanceof RedisUnavailableError) {
-        // 静默降级
-        return;
       }
       throw e;
     }
