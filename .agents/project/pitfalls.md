@@ -23,6 +23,13 @@
 
 - 重构守卫/校验时，把"数据投影"与"逻辑守卫"两类重复同批收敛（`assertRoleMutationAllowed` 四分支：404 → 改自己 → 超管层级 → roleIds 校验），收益叠加。
 
+## "重复"声称须先 grep 核实
+
+- 当外部断言"某逻辑散落 N 处调用点"时，先 `grep` 归零核实调用方与语义，再谈是否收敛，勿凭名字/相似度直接动手。案例：据称"权限码解析散落 3 处"，grep 后仅 `permissions-scanner.service.ts:254` 一处是真 `module:resource:action` 解析，另 3 处 `.split(':')` 属 `token.service.ts` 的 session/jti 键解析，语义不同。
+- 收敛共享抽象前用"一个消费者 vs 两个消费者"测试：仅 1 处真实消费时（如权限码解析）倾向 YAGNI 就地保留；≥2 处同语义才下沉共享纯函数/常量。
+- 提取共享解析时锁定自洽约束：若契约定义码固定 3 段 `{module}:{resource}:{action}`，解析应显式取段，而非 `parts[len-1]/[len-2]` 端索引（后者对 4+ 段码会把 action 误当 resource）。
+- 归档同一改革的验收门槛同理：先 `prettier` 保证无格式噪音。
+
 ## 纯重构的验证
 
 - 无 spec 级行为变更（`skip_specs`）时，验收全靠：既有单测全绿 + 重灾区接口 e2e 逐字通过 + 交叉 grep 归零。触碰重灾区接口（如 equipment 匿名域 27 例 e2e）时，单测可能覆盖不全，必须把 e2e 逐字通过设为 task 完成门槛。
