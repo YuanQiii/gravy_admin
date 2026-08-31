@@ -746,6 +746,78 @@ describe('Equipment Anonymous Access (e2e)', () => {
       );
     });
   });
+
+  /* ── 5.9: Equipment list model / brandName exact filter ─────────── */
+
+  describe('5.9 Equipment list model & brandName exact filter', () => {
+    beforeEach(() => {
+      const mocks = getRawMocks(harness.prisma);
+      mocks.$queryRaw.mockClear();
+      mocks.equipment.findMany.mockClear();
+      mocks.equipment.count.mockClear();
+      mocks.$queryRaw.mockResolvedValue([makeEnabledEquipment()]);
+      mocks.equipment.count.mockResolvedValue(1);
+      mocks.equipment.findMany.mockResolvedValue([makeEnabledEquipment()]);
+    });
+
+    it('anonymous GET /equipment?model=X200 puts model ILIKE into $queryRaw and equals+insensitive into count', async () => {
+      const mocks = getRawMocks(harness.prisma);
+      await request(harness.app.getHttpServer())
+        .get('/equipment/equipment?page=1&pageSize=10&model=X200')
+        .expect(200);
+
+      // B2C raw SQL 路径：model 精确匹配（大小写不敏感）必须进入 $queryRaw 条件
+      const sqlArg = mocks.$queryRaw.mock.calls[0][0];
+      expect(sqlArg.strings.join(' ')).toContain('"model" ILIKE');
+      // count 与列表同源，携带同一 where
+      expect(mocks.equipment.count).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            model: { equals: 'X200', mode: 'insensitive' },
+          }),
+        }),
+      );
+    });
+
+    it('anonymous GET /equipment?brandName=Bosch puts brandName ILIKE into $queryRaw', async () => {
+      const mocks = getRawMocks(harness.prisma);
+      await request(harness.app.getHttpServer())
+        .get('/equipment/equipment?page=1&pageSize=10&brandName=Bosch')
+        .expect(200);
+
+      const sqlArg = mocks.$queryRaw.mock.calls[0][0];
+      expect(sqlArg.strings.join(' ')).toContain('"brandName" ILIKE');
+      expect(mocks.equipment.count).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            brandName: { equals: 'Bosch', mode: 'insensitive' },
+          }),
+        }),
+      );
+    });
+
+    it('authenticated GET /equipment?model=X200&brandName=Bosch uses findMany with equals+insensitive filters', async () => {
+      const mocks = getRawMocks(harness.prisma);
+      const res = await request(harness.app.getHttpServer())
+        .get(
+          '/equipment/equipment?page=1&pageSize=10&model=X200&brandName=Bosch',
+        )
+        .set('Authorization', `Bearer ${adminToken}`)
+        .expect(200);
+
+      // 管理域走 Prisma findMany，不使用 $queryRaw
+      expect(mocks.equipment.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            model: { equals: 'X200', mode: 'insensitive' },
+            brandName: { equals: 'Bosch', mode: 'insensitive' },
+          }),
+        }),
+      );
+      expect(res.body.data.items).toHaveLength(1);
+      expect(mocks.$queryRaw).not.toHaveBeenCalled();
+    });
+  });
 });
 
 /* ── 5.5: Rate limiting ──────────────────────────────────────────── */

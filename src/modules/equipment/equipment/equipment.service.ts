@@ -126,6 +126,13 @@ export class EquipmentService extends BaseService {
         { brandName: { contains: query.keyword, mode: 'insensitive' } },
       ];
     }
+    // model / brandName 精确匹配（忽略大小写）——与 keyword 模糊搜索 AND 叠加
+    if (query.model) {
+      where.model = { equals: query.model, mode: 'insensitive' };
+    }
+    if (query.brandName) {
+      where.brandName = { equals: query.brandName, mode: 'insensitive' };
+    }
     if (query.brandId) where.brandId = query.brandId;
     if (query.catalogId) where.catalogId = query.catalogId;
     if (query.engineEnergy) where.engineEnergy = query.engineEnergy;
@@ -209,6 +216,15 @@ export class EquipmentService extends BaseService {
         Prisma.sql`"engineEnergy" = ${where.engineEnergy as string}`,
       );
     }
+    // model / brandName 精确匹配（忽略大小写）——与 Prisma 侧 equals+mode:insensitive 语义一致
+    const model = this.readExactFilterValue(where.model);
+    if (model) {
+      conditions.push(Prisma.sql`"model" ILIKE ${model}`);
+    }
+    const brandName = this.readExactFilterValue(where.brandName);
+    if (brandName) {
+      conditions.push(Prisma.sql`"brandName" ILIKE ${brandName}`);
+    }
     if (Array.isArray(where.OR)) {
       const or = where.OR as Array<{
         model?: { contains: string };
@@ -225,6 +241,22 @@ export class EquipmentService extends BaseService {
       }
     }
     return conditions;
+  }
+
+  /**
+   * 从 findAll 归一化的 Prisma where 中读回精确匹配值：
+   * 兼容 `{ equals, mode }` 对象形态（model / brandName）与普通字符串形态。
+   */
+  private readExactFilterValue(value: unknown): string | undefined {
+    if (typeof value === 'string') return value;
+    if (
+      value &&
+      typeof value === 'object' &&
+      typeof (value as { equals?: unknown }).equals === 'string'
+    ) {
+      return (value as { equals: string }).equals;
+    }
+    return undefined;
   }
 
   async findOne(

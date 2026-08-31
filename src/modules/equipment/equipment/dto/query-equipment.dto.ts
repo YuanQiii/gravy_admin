@@ -1,5 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsString } from 'class-validator';
+import { IsOptional, IsString, MaxLength } from 'class-validator';
 import { PaginationSortDto } from '@/shared/dtos/pagination.dto';
 
 export class QueryEquipmentDto extends PaginationSortDto {
@@ -7,6 +7,24 @@ export class QueryEquipmentDto extends PaginationSortDto {
   @IsOptional()
   @IsString()
   keyword?: string;
+
+  @ApiPropertyOptional({
+    description: '设备型号（精确匹配，忽略大小写）',
+    example: 'X200',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(128)
+  model?: string;
+
+  @ApiPropertyOptional({
+    description: '品牌名称快照（精确匹配，忽略大小写）',
+    example: 'Bosch',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(128)
+  brandName?: string;
 
   @ApiPropertyOptional({ description: '品牌ID（UUID）' })
   @IsOptional()
