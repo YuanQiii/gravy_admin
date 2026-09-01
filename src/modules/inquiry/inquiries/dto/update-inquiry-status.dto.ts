@@ -13,7 +13,8 @@ export class UpdateInquiryStatusDto {
   status: string;
 
   @ApiPropertyOptional({
-    description: '过期时间（ISO 8601 日期字符串，仅 submitted→quoted 流转时有效）',
+    description:
+      '过期时间（ISO 8601 日期字符串，仅 submitted→quoted 流转时有效）',
     example: '2026-12-31',
   })
   @IsOptional()

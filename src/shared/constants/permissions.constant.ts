@@ -293,51 +293,101 @@ export const NOTICE_PERMISSIONS = {
 // ==================== 设备品牌权限（业务域）====================
 const EQUIPMENT_BRAND_RESOURCE = 'equipment:brand';
 export const EQUIPMENT_BRAND_PERMISSIONS = {
-  LIST: definePermission(`${EQUIPMENT_BRAND_RESOURCE}:${PERMISSION_ACTIONS.LIST}`),
-  VIEW: definePermission(`${EQUIPMENT_BRAND_RESOURCE}:${PERMISSION_ACTIONS.VIEW}`),
-  CREATE: definePermission(`${EQUIPMENT_BRAND_RESOURCE}:${PERMISSION_ACTIONS.CREATE}`),
-  UPDATE: definePermission(`${EQUIPMENT_BRAND_RESOURCE}:${PERMISSION_ACTIONS.UPDATE}`),
-  DELETE: definePermission(`${EQUIPMENT_BRAND_RESOURCE}:${PERMISSION_ACTIONS.DELETE}`),
+  LIST: definePermission(
+    `${EQUIPMENT_BRAND_RESOURCE}:${PERMISSION_ACTIONS.LIST}`,
+  ),
+  VIEW: definePermission(
+    `${EQUIPMENT_BRAND_RESOURCE}:${PERMISSION_ACTIONS.VIEW}`,
+  ),
+  CREATE: definePermission(
+    `${EQUIPMENT_BRAND_RESOURCE}:${PERMISSION_ACTIONS.CREATE}`,
+  ),
+  UPDATE: definePermission(
+    `${EQUIPMENT_BRAND_RESOURCE}:${PERMISSION_ACTIONS.UPDATE}`,
+  ),
+  DELETE: definePermission(
+    `${EQUIPMENT_BRAND_RESOURCE}:${PERMISSION_ACTIONS.DELETE}`,
+  ),
 } as const;
 
 // ==================== 设备目录权限（业务域）====================
 const EQUIPMENT_CATALOG_RESOURCE = 'equipment:catalog';
 export const EQUIPMENT_CATALOG_PERMISSIONS = {
-  LIST: definePermission(`${EQUIPMENT_CATALOG_RESOURCE}:${PERMISSION_ACTIONS.LIST}`),
-  VIEW: definePermission(`${EQUIPMENT_CATALOG_RESOURCE}:${PERMISSION_ACTIONS.VIEW}`),
-  CREATE: definePermission(`${EQUIPMENT_CATALOG_RESOURCE}:${PERMISSION_ACTIONS.CREATE}`),
-  UPDATE: definePermission(`${EQUIPMENT_CATALOG_RESOURCE}:${PERMISSION_ACTIONS.UPDATE}`),
-  DELETE: definePermission(`${EQUIPMENT_CATALOG_RESOURCE}:${PERMISSION_ACTIONS.DELETE}`),
+  LIST: definePermission(
+    `${EQUIPMENT_CATALOG_RESOURCE}:${PERMISSION_ACTIONS.LIST}`,
+  ),
+  VIEW: definePermission(
+    `${EQUIPMENT_CATALOG_RESOURCE}:${PERMISSION_ACTIONS.VIEW}`,
+  ),
+  CREATE: definePermission(
+    `${EQUIPMENT_CATALOG_RESOURCE}:${PERMISSION_ACTIONS.CREATE}`,
+  ),
+  UPDATE: definePermission(
+    `${EQUIPMENT_CATALOG_RESOURCE}:${PERMISSION_ACTIONS.UPDATE}`,
+  ),
+  DELETE: definePermission(
+    `${EQUIPMENT_CATALOG_RESOURCE}:${PERMISSION_ACTIONS.DELETE}`,
+  ),
 } as const;
 
 // ==================== 滤清器类型权限（业务域）====================
 const EQUIPMENT_FILTER_TYPE_RESOURCE = 'equipment:filter-type';
 export const EQUIPMENT_FILTER_TYPE_PERMISSIONS = {
-  LIST: definePermission(`${EQUIPMENT_FILTER_TYPE_RESOURCE}:${PERMISSION_ACTIONS.LIST}`),
-  VIEW: definePermission(`${EQUIPMENT_FILTER_TYPE_RESOURCE}:${PERMISSION_ACTIONS.VIEW}`),
-  CREATE: definePermission(`${EQUIPMENT_FILTER_TYPE_RESOURCE}:${PERMISSION_ACTIONS.CREATE}`),
-  UPDATE: definePermission(`${EQUIPMENT_FILTER_TYPE_RESOURCE}:${PERMISSION_ACTIONS.UPDATE}`),
-  DELETE: definePermission(`${EQUIPMENT_FILTER_TYPE_RESOURCE}:${PERMISSION_ACTIONS.DELETE}`),
+  LIST: definePermission(
+    `${EQUIPMENT_FILTER_TYPE_RESOURCE}:${PERMISSION_ACTIONS.LIST}`,
+  ),
+  VIEW: definePermission(
+    `${EQUIPMENT_FILTER_TYPE_RESOURCE}:${PERMISSION_ACTIONS.VIEW}`,
+  ),
+  CREATE: definePermission(
+    `${EQUIPMENT_FILTER_TYPE_RESOURCE}:${PERMISSION_ACTIONS.CREATE}`,
+  ),
+  UPDATE: definePermission(
+    `${EQUIPMENT_FILTER_TYPE_RESOURCE}:${PERMISSION_ACTIONS.UPDATE}`,
+  ),
+  DELETE: definePermission(
+    `${EQUIPMENT_FILTER_TYPE_RESOURCE}:${PERMISSION_ACTIONS.DELETE}`,
+  ),
 } as const;
 
 // ==================== 滤清器权限（业务域）====================
 const EQUIPMENT_FILTER_RESOURCE = 'equipment:filter';
 export const EQUIPMENT_FILTER_PERMISSIONS = {
-  LIST: definePermission(`${EQUIPMENT_FILTER_RESOURCE}:${PERMISSION_ACTIONS.LIST}`),
-  VIEW: definePermission(`${EQUIPMENT_FILTER_RESOURCE}:${PERMISSION_ACTIONS.VIEW}`),
-  CREATE: definePermission(`${EQUIPMENT_FILTER_RESOURCE}:${PERMISSION_ACTIONS.CREATE}`),
-  UPDATE: definePermission(`${EQUIPMENT_FILTER_RESOURCE}:${PERMISSION_ACTIONS.UPDATE}`),
-  DELETE: definePermission(`${EQUIPMENT_FILTER_RESOURCE}:${PERMISSION_ACTIONS.DELETE}`),
+  LIST: definePermission(
+    `${EQUIPMENT_FILTER_RESOURCE}:${PERMISSION_ACTIONS.LIST}`,
+  ),
+  VIEW: definePermission(
+    `${EQUIPMENT_FILTER_RESOURCE}:${PERMISSION_ACTIONS.VIEW}`,
+  ),
+  CREATE: definePermission(
+    `${EQUIPMENT_FILTER_RESOURCE}:${PERMISSION_ACTIONS.CREATE}`,
+  ),
+  UPDATE: definePermission(
+    `${EQUIPMENT_FILTER_RESOURCE}:${PERMISSION_ACTIONS.UPDATE}`,
+  ),
+  DELETE: definePermission(
+    `${EQUIPMENT_FILTER_RESOURCE}:${PERMISSION_ACTIONS.DELETE}`,
+  ),
 } as const;
 
 // ==================== 设备档案权限（业务域）====================
 const EQUIPMENT_EQUIPMENT_RESOURCE = 'equipment:equipment';
 export const EQUIPMENT_PERMISSIONS = {
-  LIST: definePermission(`${EQUIPMENT_EQUIPMENT_RESOURCE}:${PERMISSION_ACTIONS.LIST}`),
-  VIEW: definePermission(`${EQUIPMENT_EQUIPMENT_RESOURCE}:${PERMISSION_ACTIONS.VIEW}`),
-  CREATE: definePermission(`${EQUIPMENT_EQUIPMENT_RESOURCE}:${PERMISSION_ACTIONS.CREATE}`),
-  UPDATE: definePermission(`${EQUIPMENT_EQUIPMENT_RESOURCE}:${PERMISSION_ACTIONS.UPDATE}`),
-  DELETE: definePermission(`${EQUIPMENT_EQUIPMENT_RESOURCE}:${PERMISSION_ACTIONS.DELETE}`),
+  LIST: definePermission(
+    `${EQUIPMENT_EQUIPMENT_RESOURCE}:${PERMISSION_ACTIONS.LIST}`,
+  ),
+  VIEW: definePermission(
+    `${EQUIPMENT_EQUIPMENT_RESOURCE}:${PERMISSION_ACTIONS.VIEW}`,
+  ),
+  CREATE: definePermission(
+    `${EQUIPMENT_EQUIPMENT_RESOURCE}:${PERMISSION_ACTIONS.CREATE}`,
+  ),
+  UPDATE: definePermission(
+    `${EQUIPMENT_EQUIPMENT_RESOURCE}:${PERMISSION_ACTIONS.UPDATE}`,
+  ),
+  DELETE: definePermission(
+    `${EQUIPMENT_EQUIPMENT_RESOURCE}:${PERMISSION_ACTIONS.DELETE}`,
+  ),
 } as const;
 
 // ==================== 询价单权限（业务域）====================
@@ -355,9 +405,15 @@ const INQUIRY_LINE_RESOURCE = 'inquiry:inquiry-line';
 export const INQUIRY_LINE_PERMISSIONS = {
   LIST: definePermission(`${INQUIRY_LINE_RESOURCE}:${PERMISSION_ACTIONS.LIST}`),
   VIEW: definePermission(`${INQUIRY_LINE_RESOURCE}:${PERMISSION_ACTIONS.VIEW}`),
-  CREATE: definePermission(`${INQUIRY_LINE_RESOURCE}:${PERMISSION_ACTIONS.CREATE}`),
-  UPDATE: definePermission(`${INQUIRY_LINE_RESOURCE}:${PERMISSION_ACTIONS.UPDATE}`),
-  DELETE: definePermission(`${INQUIRY_LINE_RESOURCE}:${PERMISSION_ACTIONS.DELETE}`),
+  CREATE: definePermission(
+    `${INQUIRY_LINE_RESOURCE}:${PERMISSION_ACTIONS.CREATE}`,
+  ),
+  UPDATE: definePermission(
+    `${INQUIRY_LINE_RESOURCE}:${PERMISSION_ACTIONS.UPDATE}`,
+  ),
+  DELETE: definePermission(
+    `${INQUIRY_LINE_RESOURCE}:${PERMISSION_ACTIONS.DELETE}`,
+  ),
 } as const;
 
 // ==================== 客户权限（业务域）====================
@@ -373,28 +429,52 @@ export const CUSTOMER_PERMISSIONS = {
 // ==================== 客户地址权限（业务域）====================
 const CUSTOMER_ADDRESS_RESOURCE = 'customer:address';
 export const CUSTOMER_ADDRESS_PERMISSIONS = {
-  LIST: definePermission(`${CUSTOMER_ADDRESS_RESOURCE}:${PERMISSION_ACTIONS.LIST}`),
-  VIEW: definePermission(`${CUSTOMER_ADDRESS_RESOURCE}:${PERMISSION_ACTIONS.VIEW}`),
-  CREATE: definePermission(`${CUSTOMER_ADDRESS_RESOURCE}:${PERMISSION_ACTIONS.CREATE}`),
-  UPDATE: definePermission(`${CUSTOMER_ADDRESS_RESOURCE}:${PERMISSION_ACTIONS.UPDATE}`),
-  DELETE: definePermission(`${CUSTOMER_ADDRESS_RESOURCE}:${PERMISSION_ACTIONS.DELETE}`),
+  LIST: definePermission(
+    `${CUSTOMER_ADDRESS_RESOURCE}:${PERMISSION_ACTIONS.LIST}`,
+  ),
+  VIEW: definePermission(
+    `${CUSTOMER_ADDRESS_RESOURCE}:${PERMISSION_ACTIONS.VIEW}`,
+  ),
+  CREATE: definePermission(
+    `${CUSTOMER_ADDRESS_RESOURCE}:${PERMISSION_ACTIONS.CREATE}`,
+  ),
+  UPDATE: definePermission(
+    `${CUSTOMER_ADDRESS_RESOURCE}:${PERMISSION_ACTIONS.UPDATE}`,
+  ),
+  DELETE: definePermission(
+    `${CUSTOMER_ADDRESS_RESOURCE}:${PERMISSION_ACTIONS.DELETE}`,
+  ),
 } as const;
 
 // ==================== 客户收藏权限（业务域）====================
 const CUSTOMER_FAVORITE_RESOURCE = 'customer:favorite';
 export const CUSTOMER_FAVORITE_PERMISSIONS = {
-  LIST: definePermission(`${CUSTOMER_FAVORITE_RESOURCE}:${PERMISSION_ACTIONS.LIST}`),
-  VIEW: definePermission(`${CUSTOMER_FAVORITE_RESOURCE}:${PERMISSION_ACTIONS.VIEW}`),
-  CREATE: definePermission(`${CUSTOMER_FAVORITE_RESOURCE}:${PERMISSION_ACTIONS.CREATE}`),
-  DELETE: definePermission(`${CUSTOMER_FAVORITE_RESOURCE}:${PERMISSION_ACTIONS.DELETE}`),
+  LIST: definePermission(
+    `${CUSTOMER_FAVORITE_RESOURCE}:${PERMISSION_ACTIONS.LIST}`,
+  ),
+  VIEW: definePermission(
+    `${CUSTOMER_FAVORITE_RESOURCE}:${PERMISSION_ACTIONS.VIEW}`,
+  ),
+  CREATE: definePermission(
+    `${CUSTOMER_FAVORITE_RESOURCE}:${PERMISSION_ACTIONS.CREATE}`,
+  ),
+  DELETE: definePermission(
+    `${CUSTOMER_FAVORITE_RESOURCE}:${PERMISSION_ACTIONS.DELETE}`,
+  ),
 } as const;
 
 // ==================== 客户浏览历史权限（业务域）====================
 const CUSTOMER_HISTORY_RESOURCE = 'customer:history';
 export const CUSTOMER_HISTORY_PERMISSIONS = {
-  LIST: definePermission(`${CUSTOMER_HISTORY_RESOURCE}:${PERMISSION_ACTIONS.LIST}`),
-  VIEW: definePermission(`${CUSTOMER_HISTORY_RESOURCE}:${PERMISSION_ACTIONS.VIEW}`),
-  DELETE: definePermission(`${CUSTOMER_HISTORY_RESOURCE}:${PERMISSION_ACTIONS.DELETE}`),
+  LIST: definePermission(
+    `${CUSTOMER_HISTORY_RESOURCE}:${PERMISSION_ACTIONS.LIST}`,
+  ),
+  VIEW: definePermission(
+    `${CUSTOMER_HISTORY_RESOURCE}:${PERMISSION_ACTIONS.VIEW}`,
+  ),
+  DELETE: definePermission(
+    `${CUSTOMER_HISTORY_RESOURCE}:${PERMISSION_ACTIONS.DELETE}`,
+  ),
 } as const;
 
 // ==================== 导出所有权限配置 ====================

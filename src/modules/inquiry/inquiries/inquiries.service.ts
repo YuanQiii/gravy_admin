@@ -188,15 +188,11 @@ export class InquiriesService extends BaseService {
       data: {
         status: newStatus,
         updatedById: updatedById ?? null,
-        ...(newStatus === INQUIRY_STATUS.SUBMITTED
-          ? { submittedAt: now }
-          : {}),
+        ...(newStatus === INQUIRY_STATUS.SUBMITTED ? { submittedAt: now } : {}),
         ...(newStatus === INQUIRY_STATUS.QUOTED
           ? {
               quotedAt: now,
-              ...(dto?.expiresAt
-                ? { expiresAt: new Date(dto.expiresAt) }
-                : {}),
+              ...(dto?.expiresAt ? { expiresAt: new Date(dto.expiresAt) } : {}),
             }
           : {}),
       },

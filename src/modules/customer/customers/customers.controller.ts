@@ -81,10 +81,7 @@ export class CustomersController {
     description: '客户更新成功',
     type: CustomerResponseDto,
   })
-  async update(
-    @Param('id') id: string,
-    @Body() dto: UpdateCustomerDto,
-  ) {
+  async update(@Param('id') id: string, @Body() dto: UpdateCustomerDto) {
     const data = await this.customersService.update(id, dto);
     return ResponseUtil.updated(data, '客户更新成功');
   }

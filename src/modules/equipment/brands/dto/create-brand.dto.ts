@@ -16,7 +16,10 @@ export class CreateBrandDto {
   @MaxLength(128)
   name: string;
 
-  @ApiPropertyOptional({ description: 'slug（URL 友好标识）', example: 'bosch' })
+  @ApiPropertyOptional({
+    description: 'slug（URL 友好标识）',
+    example: 'bosch',
+  })
   @IsOptional()
   @IsString()
   @MaxLength(128)

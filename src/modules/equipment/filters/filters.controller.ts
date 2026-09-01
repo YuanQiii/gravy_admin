@@ -58,7 +58,10 @@ export class FiltersController {
   @Get()
   @Public()
   @Throttle({ default: { limit: 60, ttl: 60000 } })
-  @ApiOperation({ summary: '获取滤清器列表', description: '公开接口，无需认证' })
+  @ApiOperation({
+    summary: '获取滤清器列表',
+    description: '公开接口，无需认证',
+  })
   @ApiResponse({ status: 200, description: '获取滤清器列表成功' })
   async findAll(
     @Query() query: QueryFilterDto,
@@ -74,7 +77,10 @@ export class FiltersController {
   @Get(':id')
   @Public()
   @Throttle({ default: { limit: 60, ttl: 60000 } })
-  @ApiOperation({ summary: '获取滤清器详情', description: '公开接口，无需认证' })
+  @ApiOperation({
+    summary: '获取滤清器详情',
+    description: '公开接口，无需认证',
+  })
   @ApiResponse({
     status: 200,
     description: '获取滤清器详情成功',

@@ -58,7 +58,10 @@ export class CatalogsController {
   @Get()
   @Public()
   @Throttle({ default: { limit: 60, ttl: 60000 } })
-  @ApiOperation({ summary: '获取设备目录列表', description: '公开接口，无需认证' })
+  @ApiOperation({
+    summary: '获取设备目录列表',
+    description: '公开接口，无需认证',
+  })
   @ApiResponse({ status: 200, description: '获取设备目录列表成功' })
   async findAll(
     @Query() query: QueryCatalogDto,
@@ -74,7 +77,10 @@ export class CatalogsController {
   @Get(':id')
   @Public()
   @Throttle({ default: { limit: 60, ttl: 60000 } })
-  @ApiOperation({ summary: '获取设备目录详情', description: '公开接口，无需认证' })
+  @ApiOperation({
+    summary: '获取设备目录详情',
+    description: '公开接口，无需认证',
+  })
   @ApiResponse({
     status: 200,
     description: '获取设备目录详情成功',

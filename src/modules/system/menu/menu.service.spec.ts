@@ -7,7 +7,9 @@ import { PrismaService } from '@/prisma/prisma.service';
 
 describe('MenuService.remove', () => {
   let service: MenuService;
-  let prisma: { menu: { findUnique: jest.Mock; findMany: jest.Mock; delete: jest.Mock } };
+  let prisma: {
+    menu: { findUnique: jest.Mock; findMany: jest.Mock; delete: jest.Mock };
+  };
 
   beforeEach(async () => {
     prisma = {

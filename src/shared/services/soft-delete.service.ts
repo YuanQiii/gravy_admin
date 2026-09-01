@@ -14,7 +14,8 @@ import { PrismaService } from '@/prisma/prisma.service';
 export class SoftDeleteService {
   /** 错误码后缀私有常量（命名规则从约定变代码） */
   private static readonly SUFFIX_DUPLICATED = '_DUPLICATED';
-  private static readonly SUFFIX_DUPLICATED_SOFT_DELETED = '_DUPLICATED_SOFT_DELETED';
+  private static readonly SUFFIX_DUPLICATED_SOFT_DELETED =
+    '_DUPLICATED_SOFT_DELETED';
 
   /** Prisma 唯一约束冲突错误码 */
   private static readonly PRISMA_UNIQUE_CONSTRAINT_VIOLATION = 'P2002';

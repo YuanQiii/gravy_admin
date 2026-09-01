@@ -59,7 +59,10 @@ export class EquipmentController {
   @Get()
   @Public()
   @Throttle({ default: { limit: 60, ttl: 60000 } })
-  @ApiOperation({ summary: '获取设备档案列表', description: '公开接口，无需认证' })
+  @ApiOperation({
+    summary: '获取设备档案列表',
+    description: '公开接口，无需认证',
+  })
   @ApiResponse({ status: 200, description: '获取设备档案列表成功' })
   async findAll(
     @Query() query: QueryEquipmentDto,
@@ -75,7 +78,10 @@ export class EquipmentController {
   @Get(':id')
   @Public()
   @Throttle({ default: { limit: 60, ttl: 60000 } })
-  @ApiOperation({ summary: '获取设备档案详情', description: '公开接口，无需认证' })
+  @ApiOperation({
+    summary: '获取设备档案详情',
+    description: '公开接口，无需认证',
+  })
   @ApiResponse({
     status: 200,
     description: '获取设备档案详情成功',
@@ -137,14 +143,8 @@ export class EquipmentController {
   @ApiOperation({ summary: '设备挂载滤清器' })
   @ApiBody({ type: AttachFiltersDto })
   @ApiResponse({ status: 200, description: '滤清器挂载成功' })
-  async attachFilters(
-    @Param('id') id: string,
-    @Body() dto: AttachFiltersDto,
-  ) {
-    const result = await this.equipmentService.attachFilters(
-      id,
-      dto.filterIds,
-    );
+  async attachFilters(@Param('id') id: string, @Body() dto: AttachFiltersDto) {
+    const result = await this.equipmentService.attachFilters(id, dto.filterIds);
     return ResponseUtil.updated(result, '滤清器挂载成功');
   }
 

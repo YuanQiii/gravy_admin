@@ -8,7 +8,10 @@ import {
 } from 'class-validator';
 
 export class CreateInquiryDto {
-  @ApiProperty({ description: '询价单标题', example: '2026年8月滤清器采购询价' })
+  @ApiProperty({
+    description: '询价单标题',
+    example: '2026年8月滤清器采购询价',
+  })
   @IsString()
   @IsNotEmpty({ message: '询价单标题不能为空' })
   @MaxLength(255)

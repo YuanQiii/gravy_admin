@@ -11,13 +11,17 @@ export const INQUIRY_STATUS = {
   EXPIRED: 'expired',
 } as const;
 
-export type InquiryStatus = (typeof INQUIRY_STATUS)[keyof typeof INQUIRY_STATUS];
+export type InquiryStatus =
+  (typeof INQUIRY_STATUS)[keyof typeof INQUIRY_STATUS];
 
 export const INQUIRY_STATUS_VALUES = Object.values(INQUIRY_STATUS);
 
 // ==================== 状态流转矩阵 ====================
 // key: 当前状态，value: 合法的下一状态集合
-export const INQUIRY_STATUS_TRANSITIONS: Record<InquiryStatus, InquiryStatus[]> = {
+export const INQUIRY_STATUS_TRANSITIONS: Record<
+  InquiryStatus,
+  InquiryStatus[]
+> = {
   [INQUIRY_STATUS.DRAFT]: [INQUIRY_STATUS.SUBMITTED],
   [INQUIRY_STATUS.SUBMITTED]: [INQUIRY_STATUS.QUOTED],
   [INQUIRY_STATUS.QUOTED]: [INQUIRY_STATUS.EXPIRED],
@@ -30,10 +34,7 @@ export const INQUIRY_STATUS_TRANSITIONS: Record<InquiryStatus, InquiryStatus[]> 
  * @param to 目标状态
  * @returns 是否允许流转
  */
-export function isValidStatusTransition(
-  from: string,
-  to: string,
-): boolean {
+export function isValidStatusTransition(from: string, to: string): boolean {
   const allowed = INQUIRY_STATUS_TRANSITIONS[from as InquiryStatus];
   return !!allowed && allowed.includes(to as InquiryStatus);
 }

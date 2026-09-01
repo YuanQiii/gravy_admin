@@ -80,10 +80,7 @@ export class AddressesController {
     description: '地址更新成功',
     type: AddressResponseDto,
   })
-  async update(
-    @Param('id') id: string,
-    @Body() dto: UpdateAddressDto,
-  ) {
+  async update(@Param('id') id: string, @Body() dto: UpdateAddressDto) {
     const data = await this.addressesService.update(id, dto);
     return ResponseUtil.updated(data, '地址更新成功');
   }

@@ -71,8 +71,7 @@ export class CreateEquipmentDto {
   power?: number;
 
   @ApiPropertyOptional({
-    description:
-      '引擎能源类型（diesel/petrol/electric/hybrid/natural_gas）',
+    description: '引擎能源类型（diesel/petrol/electric/hybrid/natural_gas）',
     example: 'diesel',
   })
   @IsOptional()

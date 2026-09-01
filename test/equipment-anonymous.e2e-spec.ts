@@ -284,11 +284,31 @@ describe('Equipment Anonymous Access (e2e)', () => {
 
   describe('5.1 Anonymous GET detail endpoints', () => {
     const cases: Array<[string, string, string, () => any]> = [
-      ['brands', '/equipment/brands/brand-001', 'equipmentBrand', makeEnabledBrand],
-      ['catalogs', '/equipment/catalogs/cat-001', 'equipmentCatalog', makeEnabledCatalog],
-      ['filter-types', '/equipment/filter-types/ft-001', 'filterType', makeEnabledFilterType],
+      [
+        'brands',
+        '/equipment/brands/brand-001',
+        'equipmentBrand',
+        makeEnabledBrand,
+      ],
+      [
+        'catalogs',
+        '/equipment/catalogs/cat-001',
+        'equipmentCatalog',
+        makeEnabledCatalog,
+      ],
+      [
+        'filter-types',
+        '/equipment/filter-types/ft-001',
+        'filterType',
+        makeEnabledFilterType,
+      ],
       ['filters', '/equipment/filters/flt-001', 'filter', makeEnabledFilter],
-      ['equipment', '/equipment/equipment/eq-001', 'equipment', makeEnabledEquipment],
+      [
+        'equipment',
+        '/equipment/equipment/eq-001',
+        'equipment',
+        makeEnabledEquipment,
+      ],
     ];
 
     beforeEach(() => {
@@ -337,11 +357,31 @@ describe('Equipment Anonymous Access (e2e)', () => {
 
   describe('5.2 Anonymous GET disabled record returns 404', () => {
     const cases: Array<[string, string, string, () => any]> = [
-      ['brands', '/equipment/brands/brand-002', 'equipmentBrand', makeDisabledBrand],
-      ['catalogs', '/equipment/catalogs/cat-002', 'equipmentCatalog', makeDisabledCatalog],
-      ['filter-types', '/equipment/filter-types/ft-002', 'filterType', makeDisabledFilterType],
+      [
+        'brands',
+        '/equipment/brands/brand-002',
+        'equipmentBrand',
+        makeDisabledBrand,
+      ],
+      [
+        'catalogs',
+        '/equipment/catalogs/cat-002',
+        'equipmentCatalog',
+        makeDisabledCatalog,
+      ],
+      [
+        'filter-types',
+        '/equipment/filter-types/ft-002',
+        'filterType',
+        makeDisabledFilterType,
+      ],
       ['filters', '/equipment/filters/flt-002', 'filter', makeDisabledFilter],
-      ['equipment', '/equipment/equipment/eq-002', 'equipment', makeDisabledEquipment],
+      [
+        'equipment',
+        '/equipment/equipment/eq-002',
+        'equipment',
+        makeDisabledEquipment,
+      ],
     ];
 
     beforeEach(() => {
@@ -354,9 +394,7 @@ describe('Equipment Anonymous Access (e2e)', () => {
     it.each(cases)(
       'GET /equipment/%s/:id (disabled) returns 404',
       async (_label, path) => {
-        await request(harness.app.getHttpServer())
-          .get(path)
-          .expect(404);
+        await request(harness.app.getHttpServer()).get(path).expect(404);
       },
     );
   });
@@ -467,7 +505,9 @@ describe('Equipment Anonymous Access (e2e)', () => {
     it('anonymous GET /equipment/filters ignores ?sortBy param (weighted sort wins)', async () => {
       const mocks = getRawMocks(harness.prisma);
       const res = await request(harness.app.getHttpServer())
-        .get('/equipment/filters?page=1&pageSize=10&sortBy=model&sortOrder=desc')
+        .get(
+          '/equipment/filters?page=1&pageSize=10&sortBy=model&sortOrder=desc',
+        )
         .expect(200);
 
       // Same weighted order as previous test — sortBy ignored for anonymous
@@ -632,7 +672,9 @@ describe('Equipment Anonymous Access (e2e)', () => {
     it('anonymous GET /equipment ignores ?sortBy param (weighted sort wins)', async () => {
       const mocks = getRawMocks(harness.prisma);
       const res = await request(harness.app.getHttpServer())
-        .get('/equipment/equipment?page=1&pageSize=10&sortBy=model&sortOrder=desc')
+        .get(
+          '/equipment/equipment?page=1&pageSize=10&sortBy=model&sortOrder=desc',
+        )
         .expect(200);
 
       expect(res.body.data.items[0].equipmentId).toBe('eq-A');
@@ -723,7 +765,9 @@ describe('Equipment Anonymous Access (e2e)', () => {
     it('anonymous GET /equipment/catalogs ignores ?sortBy param (weighted sort wins)', async () => {
       const mocks = getRawMocks(harness.prisma);
       const res = await request(harness.app.getHttpServer())
-        .get('/equipment/catalogs?page=1&pageSize=10&sortBy=name&sortOrder=desc')
+        .get(
+          '/equipment/catalogs?page=1&pageSize=10&sortBy=name&sortOrder=desc',
+        )
         .expect(200);
 
       expect(res.body.data.items[0].catalogId).toBe('cat-A');
@@ -841,9 +885,7 @@ describe('Equipment Anonymous Rate Limiting (e2e)', () => {
 
     // First 60 requests should succeed (limit = 60/min)
     for (let i = 0; i < 60; i++) {
-      await request(server)
-        .get(`/equipment/brands${LIST_PARAMS}`)
-        .expect(200);
+      await request(server).get(`/equipment/brands${LIST_PARAMS}`).expect(200);
     }
 
     // 61st request should be rate-limited

@@ -11,11 +11,17 @@ const createContext = (): ExecutionContext =>
     getHandler: jest.fn(),
     getClass: jest.fn(),
     switchToHttp: jest.fn(() => ({
-      getRequest: jest.fn(() => ({ method: 'GET', headers: {}, user: undefined })),
+      getRequest: jest.fn(() => ({
+        method: 'GET',
+        headers: {},
+        user: undefined,
+      })),
     })),
   }) as unknown as ExecutionContext;
 
-const createReflector = ({ isPublic = false }: { isPublic?: boolean } = {}): Reflector =>
+const createReflector = ({
+  isPublic = false,
+}: { isPublic?: boolean } = {}): Reflector =>
   ({
     getAllAndOverride: jest.fn(() => isPublic),
   }) as unknown as Reflector;

@@ -24,7 +24,8 @@ export class CreateInquiryLineDto {
   filterId?: string;
 
   @ApiPropertyOptional({
-    description: '产品名称（filterId 未提供时必填，提供 filterId 时被滤清器型号覆盖）',
+    description:
+      '产品名称（filterId 未提供时必填，提供 filterId 时被滤清器型号覆盖）',
     example: 'OF-100',
   })
   @IsOptional()

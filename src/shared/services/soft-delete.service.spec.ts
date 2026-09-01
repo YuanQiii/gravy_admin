@@ -24,10 +24,7 @@ describe('SoftDeleteService', () => {
     };
 
     const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        SoftDeleteService,
-        { provide: PrismaService, useValue: {} },
-      ],
+      providers: [SoftDeleteService, { provide: PrismaService, useValue: {} }],
     }).compile();
 
     service = module.get<SoftDeleteService>(SoftDeleteService);
@@ -126,10 +123,13 @@ describe('SoftDeleteService', () => {
   // ============ handleUniqueError ============
 
   it('6. handleUniqueError：P2002 应抛 ConflictException({prefix}_DUPLICATED)，非 P2002 透传原错误', () => {
-    const p2002 = new PrismaClientKnownRequestError('Unique constraint failed', {
-      code: 'P2002',
-      clientVersion: '6.19.2',
-    });
+    const p2002 = new PrismaClientKnownRequestError(
+      'Unique constraint failed',
+      {
+        code: 'P2002',
+        clientVersion: '6.19.2',
+      },
+    );
 
     expect(() =>
       service.handleUniqueError(p2002, 'EQUIPMENT_BRAND_NAME'),

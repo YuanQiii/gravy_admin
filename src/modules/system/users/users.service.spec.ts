@@ -55,9 +55,9 @@ describe('UsersService.remove', () => {
       ),
     );
 
-    await expect(
-      service.remove('user-1', 'admin-1'),
-    ).rejects.toBeInstanceOf(ConflictException);
+    await expect(service.remove('user-1', 'admin-1')).rejects.toBeInstanceOf(
+      ConflictException,
+    );
   });
 });
 
@@ -110,16 +110,20 @@ describe('UsersService 角色变更（投影收敛 + 守卫收敛）', () => {
     };
 
     // findUnique 默认返回目标用户（findUserForResponse 形态），isSuperAdmin 形态返回非超管
-    prisma.user.findUnique.mockImplementation(({ select }: { select?: unknown }) => {
-      const sel = select as Record<string, unknown> | undefined;
-      // isSuperAdmin 使用 select: { userRoles }，仅含 userRoles；findUserForResponse 含 username
-      if (sel && !('username' in sel)) {
-        return Promise.resolve({ userRoles: [] });
-      }
-      return Promise.resolve(TARGET_USER);
-    });
+    prisma.user.findUnique.mockImplementation(
+      ({ select }: { select?: unknown }) => {
+        const sel = select as Record<string, unknown> | undefined;
+        // isSuperAdmin 使用 select: { userRoles }，仅含 userRoles；findUserForResponse 含 username
+        if (sel && !('username' in sel)) {
+          return Promise.resolve({ userRoles: [] });
+        }
+        return Promise.resolve(TARGET_USER);
+      },
+    );
 
-    permissionCache = { invalidateUser: jest.fn().mockResolvedValue(undefined) };
+    permissionCache = {
+      invalidateUser: jest.fn().mockResolvedValue(undefined),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -141,7 +145,9 @@ describe('UsersService 角色变更（投影收敛 + 守卫收敛）', () => {
         'admin-1',
       );
       expect(result.description).toBe('目标用户描述');
-      expect(permissionCache.invalidateUser).toHaveBeenCalledWith('user-target');
+      expect(permissionCache.invalidateUser).toHaveBeenCalledWith(
+        'user-target',
+      );
     });
 
     it('removeRoles 返回的 DTO 应包含 description（漂移对齐）', async () => {
@@ -152,7 +158,9 @@ describe('UsersService 角色变更（投影收敛 + 守卫收敛）', () => {
         'admin-1',
       );
       expect(result.description).toBe('目标用户描述');
-      expect(permissionCache.invalidateUser).toHaveBeenCalledWith('user-target');
+      expect(permissionCache.invalidateUser).toHaveBeenCalledWith(
+        'user-target',
+      );
     });
   });
 
