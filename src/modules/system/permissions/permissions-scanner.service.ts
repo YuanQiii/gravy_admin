@@ -9,6 +9,7 @@ import { METHOD_METADATA } from '@nestjs/common/constants';
 import { PrismaService } from '@/prisma/prisma.service';
 import { PERMISSIONS_KEY } from '@/core/decorators/permissions.decorator';
 import { PERMISSION_METADATA_MAP } from '@/shared/constants/permissions.constant';
+import { PermissionCacheService } from '@/redis/permission-cache.service';
 
 interface ScannedPermission {
   code: string;
@@ -27,6 +28,7 @@ export class PermissionsScannerService implements OnApplicationBootstrap {
     private readonly metadataScanner: MetadataScanner,
     private readonly reflector: Reflector,
     private readonly prisma: PrismaService,
+    private readonly permissionCache: PermissionCacheService,
   ) {}
 
   async onApplicationBootstrap() {
@@ -130,6 +132,7 @@ export class PermissionsScannerService implements OnApplicationBootstrap {
     let created = 0;
     let updated = 0;
     const sensitiveSet = new Set<string>();
+    const changedPermissionIds: string[] = [];
 
     const existingPermissions = await this.prisma.permission.findMany({
       where: {
@@ -178,6 +181,7 @@ export class PermissionsScannerService implements OnApplicationBootstrap {
           existing.httpMethod !== perm.httpMethod
         ) {
           updated++;
+          changedPermissionIds.push(existing.permissionId);
         }
       } else {
         created++;
@@ -195,6 +199,17 @@ export class PermissionsScannerService implements OnApplicationBootstrap {
         data: { deletedAt: new Date() },
       });
       deleted++;
+      changedPermissionIds.push(perm.permissionId);
+    }
+
+    // 权限集合/元数据变更后失效所有关联用户的权限缓存，消除"已下线接口仍可访问"的 TTL 窗口
+    const affectedUsers = await this.permissionCache.invalidateUsersByPermissionIds(
+      [...new Set(changedPermissionIds)],
+    );
+    if (affectedUsers > 0) {
+      this.logger.log(
+        `🗑️ 权限同步变更后已失效 ${affectedUsers} 个用户的权限缓存`,
+      );
     }
 
     return { created, updated, deleted, sensitive: Array.from(sensitiveSet) };

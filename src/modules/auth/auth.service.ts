@@ -12,15 +12,18 @@ import { AuthMenuResponseDto } from './dto/menu-response.dto';
 import { plainToInstance } from 'class-transformer';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../../prisma/prisma.service';
-import { Prisma } from '@prisma/client';
 import { UserStatus } from '../../shared/constants/user-status.constant';
-import { SUPER_ROLE_KEY } from '../../shared/constants/role.constant';
 import { UAParser } from 'ua-parser-js';
 import * as crypto from 'crypto';
 import { TokenService } from './token.service';
 import { RateLimiterService } from '@/redis/rate-limiter.service';
 import { PermissionCacheService } from '@/redis/permission-cache.service';
 import { RedisKeys } from '@/redis/constants/redis-key.constant';
+import {
+  extractPermissionCodes,
+  extractRoleKeys,
+  isSuperAdminOf,
+} from '@/shared/utils/permission.util';
 
 interface RequestWithHeaders {
   headers?: Record<string, string | string[]>;
@@ -201,27 +204,9 @@ export class AuthService {
         },
       });
 
-      const roleKeys = Array.from(
-        new Set(
-          (userWithRoles?.userRoles || [])
-            .map((ur) => ur.role?.roleKey)
-            .filter(
-              (key): key is string => typeof key === 'string' && key.length > 0,
-            ),
-        ),
-      );
+      const roleKeys = extractRoleKeys(userWithRoles?.userRoles);
 
-      const permissionCodes = Array.from(
-        new Set(
-          (userWithRoles?.userRoles || [])
-            .flatMap((ur) => ur.role?.rolePermissions || [])
-            .map((rp) => rp.permission?.code)
-            .filter(
-              (code): code is string =>
-                typeof code === 'string' && code.length > 0,
-            ),
-        ),
-      );
+      const permissionCodes = extractPermissionCodes(userWithRoles?.userRoles);
 
       // 预热 Permission Cache
       await this.permissionCache.set(user.userId, permissionCodes);
@@ -364,21 +349,11 @@ export class AuthService {
     const rolesArr: any[] = Array.isArray((user as any).userRoles)
       ? (user as any).userRoles
       : [];
-    const isSuperAdmin = rolesArr.some(
-      (ur: any) => ur.role?.roleKey === SUPER_ROLE_KEY,
-    );
+    const isSuperAdmin = isSuperAdminOf(extractRoleKeys(rolesArr));
 
-    const permissionCodes: string[] = Array.from(
-      new Set(
-        rolesArr
-          .flatMap((ur: any) => ur.role?.rolePermissions || [])
-          .filter((rp: any) => rp?.permission?.type !== 'API')
-          .map((rp: any) => rp?.permission?.code)
-          .filter(
-            (c: any): c is string => typeof c === 'string' && c.length > 0,
-          ),
-      ),
-    );
+    const permissionCodes: string[] = extractPermissionCodes(rolesArr, {
+      excludeTypes: ['API'],
+    });
 
     const payload = {
       userId: user.userId,
@@ -454,12 +429,7 @@ export class AuthService {
 
     // 获取用户拥有的所有权限 code
     const userPermissionCodes = new Set<string>(
-      (user.userRoles || [])
-        .flatMap((ur) => ur.role?.rolePermissions || [])
-        .map((rp) => rp.permission?.code)
-        .filter(
-          (code): code is string => typeof code === 'string' && code.length > 0,
-        ),
+      extractPermissionCodes(user.userRoles),
     );
 
     // 查询所有启用的菜单
@@ -829,30 +799,12 @@ export class AuthService {
       throw new UnauthorizedException('用户已被禁用');
     }
 
-    const permissionCodes = Array.from(
-      new Set(
-        (user.userRoles || [])
-          .flatMap((ur) => ur.role?.rolePermissions || [])
-          .map((rp) => rp.permission?.code)
-          .filter(
-            (code): code is string =>
-              typeof code === 'string' && code.length > 0,
-          ),
-      ),
-    );
+    const permissionCodes = extractPermissionCodes(user.userRoles);
 
     // 刷新 Permission Cache
     await this.permissionCache.set(user.userId, permissionCodes);
 
-    const roleKeys = Array.from(
-      new Set(
-        (user.userRoles || [])
-          .map((ur) => ur.role?.roleKey)
-          .filter(
-            (key): key is string => typeof key === 'string' && key.length > 0,
-          ),
-      ),
-    );
+    const roleKeys = extractRoleKeys(user.userRoles);
 
     // 生成新的自包含 access token（带 user 基本信息 + roleKeys）
     const { token: accessToken, jti: accessTokenJti } =

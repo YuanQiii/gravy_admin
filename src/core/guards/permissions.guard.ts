@@ -8,6 +8,7 @@ import { Reflector } from '@nestjs/core';
 import { PERMISSIONS_KEY } from '../decorators/permissions.decorator';
 import { PermissionCacheService } from '@/redis/permission-cache.service';
 import { PrismaService } from '@/prisma/prisma.service';
+import { extractPermissionCodes, isSuperAdminOf } from '@/shared/utils/permission.util';
 
 @Injectable()
 export class PermissionsGuard implements CanActivate {
@@ -35,6 +36,14 @@ export class PermissionsGuard implements CanActivate {
     if (!userId) {
       this.logger.log('UserId not found in request');
       return false;
+    }
+
+    // Super-admin 运行时旁路：命中 super_admin 角色直接放行，
+    // 不要求角色权限码完整，也不读缓存/DB。信号取自 JWT 的 roleKeys
+    // （request.user.roles），零额外查询；fail-closed：roles 缺失时等同于非超管。
+    const roleKeys = (request.user?.roles ?? []).map((r) => r.roleKey);
+    if (isSuperAdminOf(roleKeys)) {
+      return true;
     }
 
     // 1. 优先从 Redis Permission Cache 取权限
@@ -85,19 +94,7 @@ export class PermissionsGuard implements CanActivate {
 
       if (!user) return null;
 
-      const codes = Array.from(
-        new Set(
-          (user.userRoles || [])
-            .flatMap((ur) => ur.role?.rolePermissions || [])
-            .map((rp) => rp.permission?.code)
-            .filter(
-              (code): code is string =>
-                typeof code === 'string' && code.length > 0,
-            ),
-        ),
-      );
-
-      return codes;
+      return extractPermissionCodes(user.userRoles);
     } catch {
       return null;
     }

@@ -11,7 +11,7 @@ import { UpdateSettingsDto } from './dto/update-settings.dto';
 import { ProfileResponseDto } from './dto/profile-response.dto';
 import { Prisma } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
-import { SUPER_ROLE_KEY } from '@/shared/constants/role.constant';
+import { extractRoleKeys, isSuperAdminOf } from '@/shared/utils/permission.util';
 
 @Injectable()
 export class ProfileService {
@@ -86,9 +86,7 @@ export class ProfileService {
       description: ur.role.description,
     }));
 
-    const isSuperAdmin = user.userRoles.some(
-      (ur) => ur.role.roleKey === SUPER_ROLE_KEY,
-    );
+    const isSuperAdmin = isSuperAdminOf(extractRoleKeys(user.userRoles));
 
     const permissionMap = new Map<
       string,

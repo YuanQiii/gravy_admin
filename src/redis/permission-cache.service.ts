@@ -76,6 +76,41 @@ export class PermissionCacheService {
   }
 
   /**
+   * 按权限反查所有受影响用户并失效其权限缓存。
+   *
+   * 覆盖"权限集合变更（如扫描器软删除/更新权限）"对全部关联用户的生效，
+   * 将 权限 → 角色 → 用户 的反向检索收口到缓存服务（单一来源）。
+   *
+   * fail-closed：permissionIds 为空、Redis 不可用、或无关联角色/用户时均 no-op 返回 0。
+   *
+   * @returns 受影响的用户数（用于日志/观测）
+   */
+  async invalidateUsersByPermissionIds(
+    permissionIds: string[],
+  ): Promise<number> {
+    if (!permissionIds?.length || !this.redisService.isAvailable()) {
+      return 0;
+    }
+    const rolePerms = await this.prisma.rolePermission.findMany({
+      where: { permissionId: { in: permissionIds } },
+      select: { roleId: true },
+    });
+    const roleIds = [...new Set(rolePerms.map((rp) => rp.roleId))];
+    if (roleIds.length === 0) {
+      return 0;
+    }
+    const userRoles = await this.prisma.userRole.findMany({
+      where: { roleId: { in: roleIds } },
+      select: { userId: true },
+    });
+    const userIds = [...new Set(userRoles.map((ur) => ur.userId))];
+    for (const userId of userIds) {
+      await this.del(userId);
+    }
+    return userIds.length;
+  }
+
+  /**
    * 删除用户权限缓存
    */
   private async del(userId: string): Promise<void> {

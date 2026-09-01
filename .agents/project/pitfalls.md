@@ -6,6 +6,7 @@
 
 - 删除前必须 `grep -rn "\.methodName(" src/` 确认调用方归零，而非凭"名字很像"判断。`touchSession`/`heartbeat`/`paginateWithResponse` 曾看似在用，实为零调用。
 - 删除后再次 grep 归零；保留同族现役 API（如 `touchSessionByJti`、`paginateWithSort`）避免误删。
+- "建模了却永不生效"的抽象要分清"管理面"与"执行面"：`DataScopeService` 的分配/查询方法真实在用，但其强制执行方法（`getUserDataScope`/`buildDataScopeQuery` 等）grep 核实为零调用、且业务表无 `departmentId` 可过滤——属自包含死代码，直接删除而非标注保留，并在 CONTEXT.md 声明"记录型元数据、未接入查询"为显式边界，防再次误判为已生效。
 
 ## 硬编码重复
 
@@ -22,6 +23,15 @@
 ## 收敛共享判断
 
 - 重构守卫/校验时，把"数据投影"与"逻辑守卫"两类重复同批收敛（`assertRoleMutationAllowed` 四分支：404 → 改自己 → 超管层级 → roleIds 校验），收益叠加。
+- 特权判定（super-admin）散落多处内联 `roleKey === SUPER_ROLE_KEY` 时，先 grep 核实调用点清单（5 处），再收敛为纯函数 `isSuperAdminOf(roleKeys)`，杜绝语义漂移。其输入约定为"角色码数组"，由 `extractRoleKeys(userRoles)` 从嵌套结构生成，或取自 JWT 的 `request.user.roles`；语义 fail-closed（空/缺省返回 false），超管角色未配置时无法被误放行。
+- 守卫内"运行时旁路"（super-admin 直放）信号必须取自已验签的 JWT 角色码而非 DB/缓存，才能做到**零额外查询 + 不要求权限码完整**；且旁路判定必须放在任何缓存/DB 访问之前，否则缺失权限码会被缓存空值/DB 结果短路。测试需补"super-admin 缺失权限码仍放行"且断言 cache/DB 零访问。
+
+## 缓存失效窗口
+
+- 权限/资源缓存失效若只手动散落在各变更方法内，新增变更路径极易漏：`permissions-scanner` 软删除权限后不失效缓存，已登录用户会在 TTL(1h) 内继续持有已下线权限码 → 已下线接口仍可访问。
+- 收口做法：在缓存服务提供统一的"按权限反查受影响用户"入口（权限 → 角色 → 用户，`invalidateUsersByPermissionIds`），并在**所有**权限集变更点（含扫描器）调用；角色/用户级已有精确失效（`invalidateRole`/`invalidateUser`）则保留。
+- 反查入口要 fail-closed：空输入、Redis 不可用、无关联角色/用户时均 no-op 返回 0，不抛异常；返回受影响数量供日志观测。
+- 明确失效边界：缓存只存权限码，`permissions.service.update` 仅改 `name`/`description` 不改 `code`，故不产生守卫失效窗口——需显式代码注释声明，防止后续被误判为"新的失效遗漏"而盲目补失效。
 
 ## "重复"声称须先 grep 核实
 

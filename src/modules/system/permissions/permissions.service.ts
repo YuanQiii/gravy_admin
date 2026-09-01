@@ -169,6 +169,9 @@ export class PermissionsService extends BaseService {
       },
     });
 
+    // 权限缓存只存权限码（守卫据此校验），不存 name/description；
+    // 此处不改 code，故不产生守卫失效窗口，刻意跳过失效调用（勿误判为遗漏）。
+
     return plainToInstance(PermissionResponseDto, updatedPermission, {
       excludeExtraneousValues: true,
     });
