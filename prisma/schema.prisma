@@ -447,6 +447,9 @@ model OperationLog {
   message   String?
   latencyMs Int
 
+  // 观测关联：同一请求的关联 ID（经 logging module 写入，可空）
+  requestId String?
+
   createdAt DateTime @default(now())
 
   @@index([createdAt])
@@ -454,6 +457,7 @@ model OperationLog {
   @@index([module])
   @@index([action])
   @@index([result])
+  @@index([requestId])
   @@map("operation_logs")
 }
 

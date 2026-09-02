@@ -32,6 +32,8 @@ import { HttpExceptionFilter } from '@/core/filters/http-exception.filter';
 import { OperationLogInterceptor } from '@/core/interceptors/operation-log.interceptor';
 // import { SessionHeartbeatInterceptor } from '@/core/interceptors/session-heartbeat.interceptor';
 import { FeatureFlagGuard } from '@/core/guards/feature-flag.guard';
+import { LoggingModule } from '@/logging/logging.module';
+import { RequestLogInterceptor } from '@/logging/request-log.interceptor';
 
 @Module({
   controllers: [AppController],
@@ -62,9 +64,17 @@ import { FeatureFlagGuard } from '@/core/guards/feature-flag.guard';
     ProfileModule,
     OperationLogsModule,
     DiscoveryModule,
+    // 深日志模块：接入 pino（prod JSON / dev pretty）、全局请求关联 ID 中间件
+    LoggingModule,
   ],
   providers: [
     AppService,
+    {
+      // 最外层请求日志拦截器：包裹 ResponseInterceptor / OperationLogInterceptor，
+      // 度量完整调用链耗时并捕捉所有异常，失败只记一次
+      provide: APP_INTERCEPTOR,
+      useClass: RequestLogInterceptor,
+    },
     {
       provide: APP_INTERCEPTOR,
       useClass: ResponseInterceptor,

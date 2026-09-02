@@ -1,6 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { Logger, ValidationPipe } from '@nestjs/common';
+import { Logger as PinoLogger } from 'nestjs-pino';
 import { ConfigService } from '@nestjs/config';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { EmptyStringTransformPipe } from './core/pipes/empty-string-transform.pipe';
@@ -12,6 +13,8 @@ async function bootstrap() {
       ? ['warn', 'error']
       : ['log', 'warn', 'error', 'debug', 'verbose'],
   });
+  // 让 pino 接管 NestJS 日志输出：prod 为单行 JSON，dev 为 pino-pretty
+  app.useLogger(app.get(PinoLogger));
   const configService = app.get(ConfigService);
 
   // CORS 配置

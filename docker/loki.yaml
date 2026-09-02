@@ -1,0 +1,42 @@
+# Loki 单机配置（最小可用，含保留策略）
+# 结构化日志由 promtail 从 app stdout 采集推到 /loki/api/v1/push。
+auth_enabled: false
+
+server:
+  http_listen_port: 3100
+
+common:
+  instance_addr: 127.0.0.1
+  path_prefix: /loki
+  storage:
+    filesystem:
+      chunks_directory: /loki/chunks
+      rules_directory: /loki/rules
+  replication_factor: 1
+  ring:
+    kvstore:
+      store: inmemory
+
+schema_config:
+  configs:
+    - from: 2024-01-01
+      store: tsdb
+      object_store: filesystem
+      schema: v13
+      index:
+        prefix: index_
+        period: 24h
+
+limits_config:
+  # 全局保留时长，由 LOG_RETENTION 注入（默认 168h）
+  retention_period: ${LOG_RETENTION}
+
+compactor:
+  working_directory: /loki/compactor
+  compaction_interval: 10m
+  retention_enabled: true
+  delete_request_store: filesystem
+
+storage_config:
+  filesystem:
+    directory: /loki/chunks

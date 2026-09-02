@@ -15,6 +15,8 @@ import {
   OperationLogOptions,
 } from '@/core/decorators/operation-log.decorator';
 import { OPLOG_SKIP } from '@/core/decorators/no-operation-log.decorator';
+import { SENSITIVE_KEYS } from '@/shared/constants/sensitive-keys.constant';
+import { REQUEST_ID_PROP } from '@/logging/logging.constants';
 
 function maskSensitive(input: unknown, maskFields: string[]): unknown {
   const fields = new Set(maskFields.map((f) => f.toLowerCase()));
@@ -92,7 +94,9 @@ export class OperationLogInterceptor implements NestInterceptor {
     const ua = (req.headers['user-agent'] || '') as string;
     const path = req.originalUrl || req.url || '';
 
-    const maskFields = this.configService
+    // 脱敏名单单一来源：SENSITIVE_KEYS 为基座，OPLOG_MASK_FIELDS 仅追加"仅DB生效"字段。
+    // pino redact（LOG_REDACT）负责 stdout 掩码，二者链路分开，互不影响。
+    const configured = this.configService
       .get<string>(
         'app.oLogMaskFields',
         'password,oldPassword,newPassword,token,authorization,secret,captcha',
@@ -100,9 +104,14 @@ export class OperationLogInterceptor implements NestInterceptor {
       .split(',')
       .map((s) => s.trim())
       .filter(Boolean);
+    const maskFields = [...new Set([...SENSITIVE_KEYS, ...configured])];
 
     const maskedQuery = maskSensitive(req.query, maskFields);
     const maskedBody = maskSensitive(req.body, maskFields);
+
+    // 请求关联 ID：经 logging module 写入的稳定属性，不触碰 pino 内部
+    const requestId: string | null =
+      typeof req[REQUEST_ID_PROP] === 'string' ? req[REQUEST_ID_PROP] : null;
 
     const finish = async (status: number, message?: string) => {
       const resultStr =
@@ -136,6 +145,7 @@ export class OperationLogInterceptor implements NestInterceptor {
             result: resultStr,
             message: message?.slice(0, 500),
             latencyMs,
+            requestId,
           },
         });
       } catch (e) {

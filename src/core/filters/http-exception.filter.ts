@@ -4,9 +4,8 @@ import {
   ArgumentsHost,
   HttpException,
   HttpStatus,
-  Logger,
 } from '@nestjs/common';
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import { ResponseUtil } from '../../shared/utils/response.util';
 import {
   ResponseCode,
@@ -15,16 +14,15 @@ import {
 
 /**
  * HTTP异常过滤器
- * 统一处理HTTP异常并返回统一格式的错误响应
+ * 统一处理HTTP异常并返回统一格式的错误响应。
+ * 失败请求的日志由最外层 RequestLogInterceptor 的错误分支统一产出（仅一次），
+ * 此处不再记录，避免重复。
  */
 @Catch()
 export class HttpExceptionFilter implements ExceptionFilter {
-  private readonly logger = new Logger(HttpExceptionFilter.name);
-
   catch(exception: unknown, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
-    const request = ctx.getRequest<Request>();
 
     let status: number;
     let message: string;
@@ -55,18 +53,6 @@ export class HttpExceptionFilter implements ExceptionFilter {
     } else {
       status = HttpStatus.INTERNAL_SERVER_ERROR;
       message = '未知错误';
-    }
-
-    // 记录错误日志：5xx 用 error，4xx 用 warn
-    const logContext = `${request.method} ${request.url}`;
-    if (status >= 500) {
-      this.logger.error(
-        `HTTP Exception: ${status} - ${message}`,
-        exception instanceof Error ? exception.stack : exception,
-        logContext,
-      );
-    } else {
-      this.logger.warn(`HTTP Exception: ${status} - ${message}`, logContext);
     }
 
     // 获取错误展示类型

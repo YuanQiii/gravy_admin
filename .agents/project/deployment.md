@@ -17,12 +17,21 @@ pnpm docker:deploy
 - **开发**：`docker-compose.dev.yml`，挂载 `./src`，build 目标 `dev`，端口 `3000`。
 - **测试 / 生产**：`docker-compose.yml`，pull 镜像 + `.env` 注入，端口 `3000`。
 
+## 集中日志采集（可选）
+
+- 结构化日志由 pino 输出到 app 容器 stdout（生产为单行 JSON）。
+- 可选观测栈为独立 `docker-compose.observability.yml`（`loki` + `promtail` + `grafana`），**默认不随主栈启动**。
+- 与主栈叠加启动：`docker compose -f docker-compose.yml -f docker-compose.observability.yml up -d`；promtail 经 Docker socket 采集 app 容器 stdout，按 `env`/`service`/`level` 打 label 推往 Loki。
+- Grafana 默认 `http://localhost:3001`（`GRAFANA_PORT` 可改），已预置 Loki 数据源；登录见 `GRAFANA_ADMIN_USER` / `GRAFANA_ADMIN_PASSWORD`（默认 admin/admin，请务必修改）。
+- 日志保留时长由 `LOG_RETENTION` 控制（Loki 语法，默认 `168h`，可如 `30d`）。
+
 ## 环境变量注意点
 
 - `docker-compose.yml` 中 `DATABASE_URL` 由 `POSTGRES_USER` + `POSTGRES_PASSWORD` + `POSTGRES_DB` 自动组装为 `postgresql://...@postgres:5432/...`，直接修改 `.env` 中的 `DATABASE_URL` 对 compose 模式不生效。
 - `CORS_ORIGINS` 在生产环境（`NODE_ENV !== development`）下必须配置，否则 CORS origin 为 `undefined`。
 - `JWT_ACCESS_TOKEN_EXPIRES_IN` / `JWT_REFRESH_TOKEN_EXPIRES_IN` 控制 token 过期，默认 `2h` / `7d`。
 - `docker-compose.yml` 的 app healthcheck 使用 `node -e "fetch(...)"`，不依赖 wget/curl。
+- 结构化日志相关：`LOG_LEVEL`（级别，默认 info）、`LOG_REDACT`（追加 stdout 脱敏字段，逗号分隔）、`LOG_SLOW_MS`（慢请求阈值，默认 1000）、`LOG_REQ_ID_HEADER`（请求关联 ID 头名，默认 `x-request-id`）；`LOG_RETENTION` 仅用于观测栈的 Loki 保留时长。
 
 ## 数据库迁移策略
 

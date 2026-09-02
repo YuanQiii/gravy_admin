@@ -24,6 +24,7 @@ GVRAY Admin 是 NestJS 11 + TypeScript 后端，使用 Prisma 6 + PostgreSQL（�
 - 路径使用 tsconfig alias（`@/*`），避免深层相对路径。
 - 系统管理模块路由使用 `system/...` 前缀；受保护接口显式使用 `JwtAuthGuard`，配合 `RolesGuard` / `PermissionsGuard`，读取类监控接口可省略 `RolesGuard`。`FeatureFlagGuard` 是全局守卫，仅对标记 `@FeatureFlag(...)` 的路由生效。
 - 获取当前用户统一使用 `@CurrentUser()`；跳过操作日志用 `@NoOperationLog()`。
+- 结构化日志收敛在 `src/logging/`：访问日志由最外层 `RequestLogInterceptor` 统一产出（成功 info / 慢附 body / 失败 error 只记一次），`HttpExceptionFilter` 不记日志；关联 ID 读 `req.id`（`LOG_REQ_ID_HEADER`，缺失生成 UUID），敏感字段脱敏名单用 `src/shared/constants/sensitive-keys.constant.ts` 单一来源。
 - 改动涉及接口/权限/配置/响应/部署时，同步更新对应文档。
 - 未经确认不运行数据库重置/迁移/seed、权限导入、部署发布等破坏性命令。
 - 不确定文件位置时先 `grep` / `glob`，不假设路径。

@@ -1,0 +1,70 @@
+# 集中日志采集栈（可选启用，独立于主应用分发）
+#
+# 用法：
+#   与主栈叠加：  docker compose -f docker-compose.yml -f docker-compose.observability.yml up -d
+#   独立启动：    docker compose -f docker-compose.observability.yml up -d
+#
+# 说明：
+#   - promtail 通过挂载 Docker socket 采集 app 容器（gvray-admin-app）的 stdout 日志，
+#     解析 JSON 并按 env/service/level 打 label，无需与主栈共享网络。
+#   - loki 与 grafana 走私有 observability-net 通信；grafana 8000 端口映射到宿主机 3001。
+#   - 保留策略由 LOG_RETENTION 控制（默认 168h = 7 天，Loki 语法如 48h / 30d / 1w）。
+services:
+  loki:
+    image: grafana/loki:3.1.1
+    container_name: gvray-admin-loki
+    restart: unless-stopped
+    command: -config.file=/etc/loki/local-config.yaml -config.expand-env=true
+    ports:
+      - "3100:3100"
+    volumes:
+      - loki-data:/loki
+      - ./docker/loki.yaml:/etc/loki/local-config.yaml:ro
+    networks:
+      - observability-net
+
+  promtail:
+    image: grafana/promtail:3.1.1
+    container_name: gvray-admin-promtail
+    restart: unless-stopped
+    command: -config.file=/etc/promtail/promtail.yaml
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - promtail-positions:/tmp
+      - ./docker/promtail.yaml:/etc/promtail/promtail.yaml:ro
+      # 宿主机直跑生产模式应用时，将其 stdout 重定向到 ./logs/app.log 以接入观测
+      - ./logs:/logs
+    environment:
+      LOG_RETENTION: ${LOG_RETENTION:-168h}
+    depends_on:
+      - loki
+    networks:
+      - observability-net
+
+  grafana:
+    image: grafana/grafana:11.1.0
+    container_name: gvray-admin-grafana
+    restart: unless-stopped
+    ports:
+      # 宿主 3001 → 容器 3000（避免与本机 grafana/其它服务冲突）
+      - "${GRAFANA_PORT:-3001}:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./docker/grafana/datasource.yaml:/etc/grafana/provisioning/datasources/loki.yaml:ro
+    environment:
+      # 默认 admin/admin，生产环境请务必修改
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+    depends_on:
+      - loki
+    networks:
+      - observability-net
+
+volumes:
+  loki-data:
+  promtail-positions:
+  grafana-data:
+
+networks:
+  observability-net:
+    driver: bridge
