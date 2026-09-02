@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "diagram_type": "lifecycle",
+  "meta": {
+    "title": "请求完整生命周期",
+    "locale": "zh-CN",
+    "output": "gvray-request-lifecycle.html",
+    "quality_profile": "showcase",
+    "viewBox": [1085, 620],
+    "views": [
+      { "id": "main-flow", "label": "请求主线", "focus": ["request", "global", "route", "dto", "business", "response"], "note": "从 HTTP 请求到统一响应：全局守卫、路由鉴权、DTO 校验、业务处理与统一出口。" },
+      { "id": "guard-chain", "label": "守卫链", "focus": ["global", "route", "exception"], "note": "FeatureFlag/Throttler 全局守卫先跑，AccessGuard 编排 JwtAuth·Roles·Permissions，鉴权失败走异常。" },
+      { "id": "data-cache", "label": "数据访问", "focus": ["business", "data"], "note": "业务层访问 CacheService(Redis) 优先，未命中回源 Prisma(Postgres) 并回填。" }
+    ]
+  },
+  "lanes": [
+    { "id": "main", "label": "请求主线" },
+    { "id": "event", "label": "处理分支 · 出口" }
+  ],
+  "states": [
+    { "id": "request", "type": "start", "label": "HTTP 请求到达", "sublabel": "CORS · Express 管线", "width": 110, "lane": "main", "col": 0, "step": "01", "tag": "ingress" },
+    { "id": "global", "type": "active", "label": "全局守卫", "sublabel": "FeatureFlag · Throttler", "width": 120, "lane": "main", "col": 1, "step": "02", "tag": "gate" },
+    { "id": "route", "type": "decision", "label": "路由守卫 · 鉴权", "sublabel": "AccessGuard · Jwt", "width": 110, "lane": "main", "col": 2, "step": "03", "tag": "auth" },
+    { "id": "dto", "type": "active", "label": "DTO 校验", "sublabel": "Validation · Transform", "width": 110, "lane": "main", "col": 3, "step": "04", "tag": "validate" },
+    { "id": "business", "type": "active", "label": "业务处理", "sublabel": "Controller · Service", "width": 110, "lane": "main", "col": 4, "step": "05", "tag": "run" },
+    { "id": "exception", "type": "failure", "label": "异常捕获", "sublabel": "HttpExceptionFilter", "width": 110, "lane": "event", "col": 0, "tag": "error" },
+    { "id": "response", "type": "success", "label": "统一响应", "sublabel": "ResponseInterceptor", "width": 110, "lane": "event", "col": 1, "tag": "done" },
+    { "id": "data", "type": "active", "label": "数据访问", "sublabel": "CacheService · Prisma", "width": 110, "lane": "event", "col": 2, "tag": "io" }
+  ],
+  "transitions": [
+    { "from": "route", "to": "exception", "variant": "security", "label": "鉴权失败 · 无权限", "labelDy": 24 },
+    { "from": "business", "to": "data", "variant": "emphasis", "label": "读写 · Cache→Prisma", "labelDy": 24 },
+    { "from": "business", "to": "response", "variant": "default", "label": "统一成功响应" },
+    { "from": "exception", "to": "response", "variant": "security", "label": "统一错误响应", "labelDy": 53 }
+  ],
+  "cards": [
+    { "dot": "cyan", "title": "三层守卫链", "items": ["全局：FeatureFlagGuard → ThrottlerGuard", "路由：AccessGuard 编排 JwtAuth · Roles · Permissions", "鉴权失败即抛错，fail-closed 放行"] },
+    { "dot": "emerald", "title": "数据访问与缓存", "items": ["CacheService(Redis) 优先，命中直接返回", "未命中回源 PrismaService(Postgres) 并回填", "Redis 不可用 fail-open 降级直查 DB"] },
+    { "dot": "amber", "title": "统一异常与响应", "items": ["HttpExceptionFilter 归一错误（4xx warn / 5xx error）", "ResponseInterceptor 按方法包装成功响应", "OperationLogInterceptor 记录变更操作(POST/PUT/PATCH/DELETE)"] }
+  ]
+}

@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "GVRAY Admin — 后端架构",
+    "locale": "zh-CN",
+    "output": "gvray-architecture.html",
+    "quality_profile": "showcase",
+    "viewBox": [1240, 620],
+    "views": [
+      { "id": "request-flow", "label": "请求主链路", "focus": ["b2c", "admin", "api", "auth", "system", "business", "db"], "note": "客户端请求经全局守卫/Pipeline 后进入业务模块并落库。" },
+      { "id": "data-access", "label": "数据访问与缓存", "focus": ["system", "business", "prisma", "db", "redis"], "note": "业务模块经由 Prisma 事务访问 PostgreSQL，并经 Redis 缓存。" }
+    ]
+  },
+  "components": [
+    { "id": "b2c", "type": "external", "label": "B2C 访客", "sublabel": "浏览器 / 移动端", "pos": [40, 140], "size": [140, 64] },
+    { "id": "admin", "type": "external", "label": "管理员", "sublabel": "后台管理用户", "pos": [40, 310], "size": [140, 64] },
+    { "id": "api", "type": "backend", "label": "NestJS API", "sublabel": "AppModule · 全局管线", "pos": [300, 220], "size": [150, 70] },
+    { "id": "auth", "type": "security", "label": "认证 / 授权", "sublabel": "JWT 策略 · TokenService", "pos": [600, 50], "size": [150, 64], "tag": "super-admin 旁路" },
+    { "id": "system", "type": "backend", "label": "System 模块", "sublabel": "用户/角色/菜单/权限/日志", "pos": [600, 150], "size": [150, 60] },
+    { "id": "business", "type": "backend", "label": "业务模块", "sublabel": "设备/询盘/客户/仪表盘", "pos": [600, 320], "size": [150, 60] },
+    { "id": "prisma", "type": "backend", "label": "Prisma", "sublabel": "数据访问 · 事务", "pos": [820, 190], "size": [150, 60] },
+    { "id": "db", "type": "database", "label": "PostgreSQL 17", "sublabel": "原生外键约束", "pos": [1040, 300], "size": [150, 64] },
+    { "id": "redis", "type": "database", "label": "Redis", "sublabel": "缓存/锁/权限缓存/限流", "pos": [820, 380], "size": [150, 64] }
+  ],
+  "boundaries": [
+    { "kind": "region", "label": "客户端", "wraps": ["b2c", "admin"] },
+    { "kind": "region", "label": "应用层 · NestJS Admin", "wraps": ["api", "auth", "system", "business"] },
+    { "kind": "region", "label": "数据与缓存层", "wraps": ["prisma", "db", "redis"] }
+  ],
+  "connections": [
+    { "id": "b2c-api", "from": "b2c", "to": "api", "label": "HTTPS", "variant": "emphasis" },
+    { "id": "admin-api", "from": "admin", "to": "api", "label": "HTTPS", "variant": "emphasis" },
+    { "id": "api-auth", "from": "api", "to": "auth", "label": "校验 JWT · 权限", "variant": "security", "fromSide": "top", "toSide": "bottom" },
+    { "id": "api-system", "from": "api", "to": "system", "label": "system/ 路由", "fromSide": "right", "toSide": "left" },
+    { "id": "api-business", "from": "api", "to": "business", "label": "业务路由", "fromSide": "right", "toSide": "left" },
+    { "id": "api-redis", "from": "api", "to": "redis", "label": "会话 / 缓存", "variant": "dashed", "fromSide": "bottom", "toSide": "bottom" },
+    { "id": "system-prisma", "from": "system", "to": "prisma", "label": "SQL / 事务", "fromSide": "right", "toSide": "left", "labelAt": [758, 246] },
+    { "id": "business-prisma", "from": "business", "to": "prisma", "label": "SQL / 事务", "fromSide": "right", "toSide": "bottom" },
+    { "id": "prisma-db", "from": "prisma", "to": "db", "label": "SQL", "fromSide": "right", "toSide": "left" }
+  ],
+  "cards": [
+    { "dot": "cyan", "title": "客户端", "items": ["前后台共用同一套 NestJS 后端", "Swagger/OpenAPI 文档挂载于 /api"] },
+    { "dot": "emerald", "title": "应用层", "items": ["NestJS 11 + TypeScript", "全局：Response/OperationLog 拦截器、HttpException 过滤器、Throttler/FeatureFlag 守卫", "RBAC：JWT 策略 + RolesGuard/PermissionsGuard，super-admin 运行时旁路"] },
+    { "dot": "rose", "title": "数据层", "items": ["Prisma 6 + PostgreSQL 17（原生外键）", "Redis：缓存 / 分布式锁 / 权限缓存 / 限流", "业务覆盖：设备、询盘、客户、系统管理、仪表盘"] }
+  ]
+}

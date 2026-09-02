@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "JWT 校验 · 权限认证",
+    "locale": "zh-CN",
+    "output": "gvray-auth-flow.html",
+    "quality_profile": "showcase",
+    "column_fit": "spread",
+    "viewBox": [1080, 780],
+    "views": [
+      { "id": "jwt-auth", "label": "JWT 认证", "focus": ["user", "api", "jwt"], "note": "请求经 AccessGuard 编排，先由 JwtAuthGuard 验签并还原用户。" },
+      { "id": "rbac-check", "label": "RBAC 权限", "focus": ["api", "roles", "perm", "cache", "db"], "note": "RolesGuard 校验角色，PermissionsGuard 走权限缓存，未命中回填 DB。" },
+      { "id": "super-admin", "label": "超管旁路", "focus": ["api", "perm"], "note": "命中 super_admin 角色时运行时直接放行，零缓存/DB 读取。" }
+    ]
+  },
+  "participants": [
+    { "id": "user", "type": "external", "label": "客户端", "sublabel": "浏览器/调用方" },
+    { "id": "api", "type": "backend", "label": "NestJS API", "sublabel": "AccessGuard 编排" },
+    { "id": "jwt", "type": "security", "label": "JwtAuthGuard", "sublabel": "Passport 策略" },
+    { "id": "roles", "type": "security", "label": "RolesGuard", "sublabel": "角色校验" },
+    { "id": "perm", "type": "security", "label": "PermissionsGuard", "sublabel": "权限码校验" },
+    { "id": "cache", "type": "database", "label": "Redis", "sublabel": "权限缓存" },
+    { "id": "db", "type": "database", "label": "PostgreSQL", "sublabel": "角色/权限" }
+  ],
+  "segments": [
+    { "from": 210, "to": 315, "label": "JWT 认证" },
+    { "from": 345, "to": 470, "label": "角色 · 权限校验" },
+    { "from": 495, "to": 625, "label": "权限缓存 fallback" }
+  ],
+  "messages": [
+    { "id": "req", "from": "user", "to": "api", "y": 224, "label": "GET /protected (Bearer JWT)", "variant": "emphasis", "note": "公开路由：仅尝试认证填充 req.user，失败按匿名放行（isPublic 分支）" },
+    { "id": "verify", "from": "api", "to": "jwt", "y": 280, "label": "验签 · 过期 · status", "variant": "security" },
+    { "id": "claims", "from": "jwt", "to": "api", "y": 309, "label": "还原 user (userId/roleKeys)", "variant": "return" },
+    { "id": "role-check", "from": "api", "to": "roles", "y": 358, "label": "校验 @Roles / @DenyRoles", "variant": "security" },
+    { "id": "role-ok", "from": "roles", "to": "api", "y": 390, "label": "角色命中", "variant": "return" },
+    { "id": "perm-check", "from": "api", "to": "perm", "y": 424, "label": "校验 @Permissions", "variant": "security", "note": "super_admin 命中则直接放行（零缓存/DB）" },
+    { "id": "cache-get", "from": "perm", "to": "cache", "y": 456, "label": "get(userId)" },
+    { "id": "cache-miss", "from": "cache", "to": "perm", "y": 486, "label": "miss", "variant": "return" },
+    { "id": "db-load", "from": "perm", "to": "db", "y": 525, "label": "按用户角色查权限码", "variant": "emphasis" },
+    { "id": "codes", "from": "db", "to": "perm", "y": 560, "label": "permissionCodes", "variant": "return" },
+    { "id": "cache-set", "from": "perm", "to": "cache", "y": 592, "label": "set 回填缓存", "variant": "dashed" },
+    { "id": "allow", "from": "perm", "to": "api", "y": 620, "label": "权限全部命中 → 放行", "variant": "return", "note": "任一 missing → 403" }
+  ],
+  "activations": [
+    { "participant": "api", "from": 224, "to": 628, "type": "backend" },
+    { "participant": "jwt", "from": 278, "to": 310, "type": "security" },
+    { "participant": "roles", "from": 356, "to": 392, "type": "security" },
+    { "participant": "perm", "from": 422, "to": 622, "type": "security" },
+    { "participant": "cache", "from": 452, "to": 488, "type": "database" },
+    { "participant": "cache", "from": 588, "to": 600, "type": "database" },
+    { "participant": "db", "from": 523, "to": 562, "type": "database" }
+  ],
+  "cards": [
+    { "dot": "rose", "title": "JWT 认证", "items": ["JwtAuthGuard 调 Passport 策略：解析 Bearer、验签、查过期与用户状态", "公开路由仅填充 req.user，无效 token 按匿名放行"] },
+    { "dot": "cyan", "title": "超管旁路", "items": ["命中 super_admin 角色（取自 JWT roleKeys）运行时直接放行", "不读缓存/DB，零额外查询，fail-closed"] },
+    { "dot": "emerald", "title": "权限缓存 fallback", "items": ["PermissionsGuard 优先读 Redis 权限缓存", "未命中查 DB（user→role→permission）并回填缓存", "Super-admin 之外要求命中全部所需权限码"] }
+  ]
+}

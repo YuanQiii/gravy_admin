@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "数据访问与缓存",
+    "locale": "zh-CN",
+    "output": "gvray-data-cache.html",
+    "quality_profile": "showcase",
+    "column_fit": "spread",
+    "viewBox": [1080, 480],
+    "views": [
+      { "id": "read-cache", "label": "尝试读缓存", "focus": ["svc", "cache", "redis"], "note": "Service 优先读缓存，Redis 不可用抛 RedisUnavailableError 走降级。" },
+      { "id": "hit", "label": "缓存命中", "focus": ["cache", "redis", "svc"], "note": "命中即反序列化返回，零 DB 查询。" },
+      { "id": "backfill", "label": "未命中回填", "focus": ["svc", "db", "cache"], "note": "未命中回源 PostgreSQL，成功后按 TTL 回填缓存。" }
+    ]
+  },
+  "participants": [
+    { "id": "client", "type": "external", "label": "客户端", "sublabel": "Controller 调用" },
+    { "id": "svc", "type": "backend", "label": "数据服务", "sublabel": "Service / Repository" },
+    { "id": "cache", "type": "backend", "label": "CacheService", "sublabel": "JSON 序列化" },
+    { "id": "redis", "type": "database", "label": "Redis", "sublabel": "缓存存储" },
+    { "id": "db", "type": "database", "label": "PostgreSQL · Prisma", "sublabel": "数据落库 / ORM" }
+  ],
+  "segments": [
+    { "from": 186, "to": 244, "label": "尝试读缓存" },
+    { "from": 248, "to": 330, "label": "命中 · 分流" },
+    { "from": 332, "to": 414, "label": "回源回填" }
+  ],
+  "messages": [
+    { "id": "req", "from": "client", "to": "svc", "y": 172, "label": "查询实体数据", "variant": "emphasis", "note": "缓存未命中或 Redis 不可用时回源 DB（fail-open 降级）" },
+    { "id": "get-key", "from": "svc", "to": "cache", "y": 200, "label": "get(key)" },
+    { "id": "get-redis", "from": "cache", "to": "redis", "y": 228, "label": "GET key", "variant": "dashed", "note": "Redis 不可用抛 RedisUnavailableError" },
+    { "id": "hit", "from": "redis", "to": "cache", "y": 256, "label": "命中 JSON", "variant": "return" },
+    { "id": "parse", "from": "cache", "to": "svc", "y": 284, "label": "反序列化 → 返回", "variant": "return" },
+    { "id": "miss", "from": "cache", "to": "svc", "y": 312, "label": "miss · 回源", "variant": "return" },
+    { "id": "query", "from": "svc", "to": "db", "y": 340, "label": "prisma 查询 → SQL", "variant": "emphasis" },
+    { "id": "entity", "from": "db", "to": "svc", "y": 368, "label": "实体", "variant": "return" },
+    { "id": "backfill", "from": "svc", "to": "cache", "y": 396, "label": "set(key, JSON, TTL)", "variant": "dashed", "note": "写缓存失败静默降级，不影响业务" }
+  ],
+  "activations": [
+    { "participant": "svc", "from": 172, "to": 398, "type": "backend" },
+    { "participant": "cache", "from": 198, "to": 398, "type": "backend" },
+    { "participant": "redis", "from": 226, "to": 260, "type": "database" },
+    { "participant": "db", "from": 338, "to": 372, "type": "database" }
+  ],
+  "cards": [
+    { "dot": "cyan", "title": "缓存命中", "items": ["命中即反序列化直接返回，跳过 DB 查询"] },
+    { "dot": "emerald", "title": "回源回填", "items": ["未命中回源 PostgreSQL（Prisma 查询）", "成功后按 TTL 回填缓存", "写缓存失败静默降级，不影响业务响应"] },
+    { "dot": "amber", "title": "降级兜底 (fail-open)", "items": ["Redis 不可用抛 RedisUnavailableError", "业务层忽略缓存直查 DB，保证可用性"] }
+  ]
+}
