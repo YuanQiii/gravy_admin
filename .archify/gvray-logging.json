@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "diagram_type": "dataflow",
+  "meta": {
+    "title": "GVRAY 日志系统",
+    "locale": "zh-CN",
+    "output": "gvray-logging.html",
+    "quality_profile": "showcase",
+    "viewBox": [1080, 584],
+    "views": [
+      { "id": "structure-log-path", "label": "结构化日志链路", "focus": ["client", "reqid", "reqlog", "redact", "stdout", "promtail", "loki", "grafana"], "note": "访问日志由最外层 RequestLogInterceptor 统一产出，经 pino redact 输出 JSON 到 stdout，由 promtail 采集进 Loki。" },
+      { "id": "audit-log-path", "label": "审计链路", "focus": ["client", "reqid", "oplog", "db"], "note": "OperationLog 拦截器对写操作落审计记录进 PostgreSQL operation_logs，与结构化日志共用 req.id 关联。" },
+      { "id": "corr-redact", "label": "关联与脱敏", "focus": ["reqid", "redact", "reqlog", "oplog"], "note": "req.id 由中间件与 genReqId 写入，脱敏名单以 sensitive-keys.constant.ts 为单一来源。" }
+    ]
+  },
+  "stages": [
+    { "label": "请求来源" },
+    { "label": "关联与拦截" },
+    { "label": "脱敏输出" },
+    { "label": "集中采集" },
+    { "label": "存储查询" }
+  ],
+  "nodes": [
+    { "id": "client", "type": "frontend", "label": "客户端请求", "sublabel": "req-id", "tag": "来源", "stage": 0, "row": 0 },
+    { "id": "oplog", "type": "backend", "label": "操作日志拦截器", "sublabel": "operation-log.ts", "tag": "审计", "stage": 1, "row": 0 },
+    { "id": "reqid", "type": "backend", "label": "关联ID链路", "sublabel": "中间件 · genReqId", "tag": "corr-id", "stage": 1, "row": 1, "width": 150 },
+    { "id": "reqlog", "type": "backend", "label": "访问日志拦截器", "sublabel": "request-log.ts", "tag": "成功/慢/失败", "stage": 1, "row": 2 },
+    { "id": "db", "type": "database", "label": "PostgreSQL", "sublabel": "operation_logs · prisma", "tag": "落库", "stage": 2, "row": 0, "brand": "postgresql" },
+    { "id": "redact", "type": "security", "label": "敏感字段掩码", "sublabel": "sensitive-keys.ts", "tag": "SENSITIVE_KEYS", "stage": 2, "row": 1, "width": 140 },
+    { "id": "stdout", "type": "backend", "label": "stdout 结构化日志", "sublabel": "单行 JSON", "tag": "输出", "stage": 2, "row": 2 },
+    { "id": "promtail", "type": "cloud", "label": "promtail 采集", "sublabel": "stdout → Loki", "tag": "推送", "stage": 3, "row": 2 },
+    { "id": "loki", "type": "cloud", "label": "Loki", "sublabel": "标签查询", "tag": "3100", "stage": 4, "row": 1 },
+    { "id": "grafana", "type": "cloud", "label": "Grafana", "sublabel": "日志检索", "tag": "3001", "stage": 4, "row": 2, "brand": "grafana" }
+  ],
+  "flows": [
+    { "id": "req", "from": "client", "to": "reqid", "label": "HTTP 请求", "classification": "入站", "variant": "emphasis" },
+    { "id": "corr-oplog", "from": "reqid", "to": "oplog", "label": "读取 requestId", "classification": "correlation", "variant": "dashed" },
+    { "id": "corr-reqlog", "from": "reqid", "to": "reqlog", "label": "req.id 关联", "classification": "correlation" },
+    { "id": "log", "from": "reqlog", "to": "redact", "label": "日志对象", "classification": "structured", "variant": "emphasis" },
+    { "id": "masked", "from": "redact", "to": "stdout", "label": "脱敏 JSON", "classification": "structured" },
+    { "id": "write", "from": "oplog", "to": "db", "label": "审计写入", "classification": "audit", "variant": "emphasis" },
+    { "id": "collect", "from": "stdout", "to": "promtail", "label": "stdout 流", "classification": "collect", "variant": "emphasis" },
+    { "id": "push", "from": "promtail", "to": "loki", "label": "JSON 日志推送", "classification": "collect", "variant": "emphasis" },
+    { "id": "query", "from": "loki", "to": "grafana", "label": "LogQL 查询", "classification": "observe" }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "结构化日志主链路",
+      "items": [
+        "RequestLogInterceptor 统一产出成功 info / 慢请求附加 body / 失败 error 三分支",
+        "失败仅记一次（error + stack），HttpExceptionFilter 不再记录以免重复",
+        "pino redact 在输出层统一掩码敏感字段"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "审计链路 (OperationLog)",
+      "items": [
+        "仅拦截 POST / PUT / PATCH / DELETE 写操作",
+        "经 maskSensitive 与 SENSITIVE_KEYS 掩码后落 PostgreSQL operation_logs",
+        "写库失败静默降级，不影响业务响应"
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "关联与脱敏",
+      "items": [
+        "req.id 由 RequestIdMiddleware 与 pino genReqId 写入（x-request-id 缺失则 UUID）",
+        "访问日志与审计记录共用同一 req.id 实现跨系统关联",
+        "sensitive-keys.constant.ts 为日志 redact 与 DB mask 双方单一来源"
+      ]
+    }
+  ]
+}
