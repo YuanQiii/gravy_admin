@@ -15,6 +15,7 @@ import { SystemModule } from '@/modules/system/system.module';
 import { EquipmentModule } from '@/modules/equipment/equipment.module';
 import { InquiryModule } from '@/modules/inquiry/inquiry.module';
 import { CustomerModule } from '@/modules/customer/customer.module';
+import { B2cModule } from '@/modules/b2c/b2c.module';
 import { PrismaModule } from '@/prisma/prisma.module';
 import { SoftDeleteModule } from '@/shared/services/soft-delete.module';
 import { DashboardModule } from '@/modules/dashboard/dashboard.module';
@@ -60,6 +61,7 @@ import { RequestLogInterceptor } from '@/logging/request-log.interceptor';
     EquipmentModule,
     InquiryModule,
     CustomerModule,
+    B2cModule,
     DashboardModule,
     ProfileModule,
     OperationLogsModule,

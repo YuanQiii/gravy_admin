@@ -245,10 +245,10 @@ describe('Equipment Anonymous Access (e2e)', () => {
     // so the shared `findMany was called` assertion no longer applies.
     // Only dictionary-ish tables (brands / filter-types) remain here.
     const cases: Array<[string, string, string, () => any]> = [
-      ['brands', '/equipment/brands', 'equipmentBrand', makeEnabledBrand],
+      ['brands', '/b2c/brands', 'equipmentBrand', makeEnabledBrand],
       [
         'filter-types',
-        '/equipment/filter-types',
+        '/b2c/filter-types',
         'filterType',
         makeEnabledFilterType,
       ],
@@ -263,7 +263,7 @@ describe('Equipment Anonymous Access (e2e)', () => {
     });
 
     it.each(cases)(
-      'GET /equipment/%s returns 200, items all enabled, where.status=enabled',
+      'GET /b2c/%s returns 200, items all enabled, where.status=enabled',
       async (_label, path, modelKey) => {
         const res = await request(harness.app.getHttpServer())
           .get(`${path}${LIST_PARAMS}`)
@@ -286,26 +286,26 @@ describe('Equipment Anonymous Access (e2e)', () => {
     const cases: Array<[string, string, string, () => any]> = [
       [
         'brands',
-        '/equipment/brands/brand-001',
+        '/b2c/brands/brand-001',
         'equipmentBrand',
         makeEnabledBrand,
       ],
       [
         'catalogs',
-        '/equipment/catalogs/cat-001',
+        '/b2c/catalogs/cat-001',
         'equipmentCatalog',
         makeEnabledCatalog,
       ],
       [
         'filter-types',
-        '/equipment/filter-types/ft-001',
+        '/b2c/filter-types/ft-001',
         'filterType',
         makeEnabledFilterType,
       ],
-      ['filters', '/equipment/filters/flt-001', 'filter', makeEnabledFilter],
+      ['filters', '/b2c/filters/flt-001', 'filter', makeEnabledFilter],
       [
         'equipment',
-        '/equipment/equipment/eq-001',
+        '/b2c/equipment/eq-001',
         'equipment',
         makeEnabledEquipment,
       ],
@@ -319,7 +319,7 @@ describe('Equipment Anonymous Access (e2e)', () => {
     });
 
     it.each(cases)(
-      'GET /equipment/%s/:id returns 200 with enabled record',
+      'GET /b2c/%s/:id returns 200 with enabled record',
       async (_label, path, _modelKey) => {
         const res = await request(harness.app.getHttpServer())
           .get(path)
@@ -345,7 +345,7 @@ describe('Equipment Anonymous Access (e2e)', () => {
 
     it('returns 200 with enabled options', async () => {
       const res = await request(harness.app.getHttpServer())
-        .get('/equipment/filter-types/options')
+        .get('/b2c/filter-types/options')
         .expect(200);
 
       expect(res.body.data).toBeInstanceOf(Array);
@@ -359,26 +359,26 @@ describe('Equipment Anonymous Access (e2e)', () => {
     const cases: Array<[string, string, string, () => any]> = [
       [
         'brands',
-        '/equipment/brands/brand-002',
+        '/b2c/brands/brand-002',
         'equipmentBrand',
         makeDisabledBrand,
       ],
       [
         'catalogs',
-        '/equipment/catalogs/cat-002',
+        '/b2c/catalogs/cat-002',
         'equipmentCatalog',
         makeDisabledCatalog,
       ],
       [
         'filter-types',
-        '/equipment/filter-types/ft-002',
+        '/b2c/filter-types/ft-002',
         'filterType',
         makeDisabledFilterType,
       ],
-      ['filters', '/equipment/filters/flt-002', 'filter', makeDisabledFilter],
+      ['filters', '/b2c/filters/flt-002', 'filter', makeDisabledFilter],
       [
         'equipment',
-        '/equipment/equipment/eq-002',
+        '/b2c/equipment/eq-002',
         'equipment',
         makeDisabledEquipment,
       ],
@@ -392,7 +392,7 @@ describe('Equipment Anonymous Access (e2e)', () => {
     });
 
     it.each(cases)(
-      'GET /equipment/%s/:id (disabled) returns 404',
+      'GET /b2c/%s/:id (disabled) returns 404',
       async (_label, path) => {
         await request(harness.app.getHttpServer()).get(path).expect(404);
       },
@@ -481,10 +481,10 @@ describe('Equipment Anonymous Access (e2e)', () => {
       mocks.filter.findMany.mockResolvedValue([]);
     });
 
-    it('anonymous GET /equipment/filters returns items in $queryRaw weighted order', async () => {
+    it('anonymous GET /b2c/filters returns items in $queryRaw weighted order', async () => {
       const mocks = getRawMocks(harness.prisma);
       const res = await request(harness.app.getHttpServer())
-        .get('/equipment/filters?page=1&pageSize=10')
+        .get('/b2c/filters?page=1&pageSize=10')
         .expect(200);
 
       expect(res.body.data.items).toHaveLength(3);
@@ -502,11 +502,11 @@ describe('Equipment Anonymous Access (e2e)', () => {
       expect(mocks.filter.findMany).not.toHaveBeenCalled();
     });
 
-    it('anonymous GET /equipment/filters ignores ?sortBy param (weighted sort wins)', async () => {
+    it('anonymous GET /b2c/filters ignores ?sortBy param (weighted sort wins)', async () => {
       const mocks = getRawMocks(harness.prisma);
       const res = await request(harness.app.getHttpServer())
         .get(
-          '/equipment/filters?page=1&pageSize=10&sortBy=model&sortOrder=desc',
+          '/b2c/filters?page=1&pageSize=10&sortBy=model&sortOrder=desc',
         )
         .expect(200);
 
@@ -518,10 +518,10 @@ describe('Equipment Anonymous Access (e2e)', () => {
       expect(mocks.filter.findMany).not.toHaveBeenCalled();
     });
 
-    it('anonymous GET /equipment/filters passes status=enabled to count query', async () => {
+    it('anonymous GET /b2c/filters passes status=enabled to count query', async () => {
       const mocks = getRawMocks(harness.prisma);
       await request(harness.app.getHttpServer())
-        .get('/equipment/filters?page=1&pageSize=10')
+        .get('/b2c/filters?page=1&pageSize=10')
         .expect(200);
 
       // count is shared between paths; visibility filter must still apply
@@ -550,7 +550,7 @@ describe('Equipment Anonymous Access (e2e)', () => {
       expect(mocks.$queryRaw).not.toHaveBeenCalled();
     });
 
-    it('anonymous GET /equipment/filters preserves $queryRaw order for tiebreaker (createdAt DESC)', async () => {
+    it('anonymous GET /b2c/filters preserves $queryRaw order for tiebreaker (createdAt DESC)', async () => {
       // Spec testing case 4: two records with same weighted score (0) and
       // same sortOrder (0) but different createdAt — DB returns newer first
       // (createdAt DESC third-level sort). Mock simulates that pre-sorted
@@ -573,7 +573,7 @@ describe('Equipment Anonymous Access (e2e)', () => {
       mocks.filter.count.mockResolvedValue(2);
 
       const res = await request(harness.app.getHttpServer())
-        .get('/equipment/filters?page=1&pageSize=10')
+        .get('/b2c/filters?page=1&pageSize=10')
         .expect(200);
 
       expect(res.body.data.items).toHaveLength(2);
@@ -644,10 +644,10 @@ describe('Equipment Anonymous Access (e2e)', () => {
       mocks.equipment.findMany.mockResolvedValue([]);
     });
 
-    it('anonymous GET /equipment returns items in $queryRaw weighted order', async () => {
+    it('anonymous GET /b2c/equipment returns items in $queryRaw weighted order', async () => {
       const mocks = getRawMocks(harness.prisma);
       const res = await request(harness.app.getHttpServer())
-        .get('/equipment/equipment?page=1&pageSize=10')
+        .get('/b2c/equipment?page=1&pageSize=10')
         .expect(200);
 
       expect(res.body.data.items).toHaveLength(3);
@@ -669,11 +669,11 @@ describe('Equipment Anonymous Access (e2e)', () => {
       expect(mocks.equipment.findMany).not.toHaveBeenCalled();
     });
 
-    it('anonymous GET /equipment ignores ?sortBy param (weighted sort wins)', async () => {
+    it('anonymous GET /b2c/equipment ignores ?sortBy param (weighted sort wins)', async () => {
       const mocks = getRawMocks(harness.prisma);
       const res = await request(harness.app.getHttpServer())
         .get(
-          '/equipment/equipment?page=1&pageSize=10&sortBy=model&sortOrder=desc',
+          '/b2c/equipment?page=1&pageSize=10&sortBy=model&sortOrder=desc',
         )
         .expect(200);
 
@@ -684,10 +684,10 @@ describe('Equipment Anonymous Access (e2e)', () => {
       expect(mocks.equipment.findMany).not.toHaveBeenCalled();
     });
 
-    it('anonymous GET /equipment passes status=enabled to count query', async () => {
+    it('anonymous GET /b2c/equipment passes status=enabled to count query', async () => {
       const mocks = getRawMocks(harness.prisma);
       await request(harness.app.getHttpServer())
-        .get('/equipment/equipment?page=1&pageSize=10')
+        .get('/b2c/equipment?page=1&pageSize=10')
         .expect(200);
 
       expect(mocks.equipment.count).toHaveBeenCalledWith(
@@ -737,10 +737,10 @@ describe('Equipment Anonymous Access (e2e)', () => {
       mocks.catalog.findMany.mockResolvedValue([]);
     });
 
-    it('anonymous GET /equipment/catalogs returns items in $queryRaw weighted order', async () => {
+    it('anonymous GET /b2c/catalogs returns items in $queryRaw weighted order', async () => {
       const mocks = getRawMocks(harness.prisma);
       const res = await request(harness.app.getHttpServer())
-        .get('/equipment/catalogs?page=1&pageSize=10')
+        .get('/b2c/catalogs?page=1&pageSize=10')
         .expect(200);
 
       expect(res.body.data.items).toHaveLength(3);
@@ -762,11 +762,11 @@ describe('Equipment Anonymous Access (e2e)', () => {
       expect(mocks.catalog.findMany).not.toHaveBeenCalled();
     });
 
-    it('anonymous GET /equipment/catalogs ignores ?sortBy param (weighted sort wins)', async () => {
+    it('anonymous GET /b2c/catalogs ignores ?sortBy param (weighted sort wins)', async () => {
       const mocks = getRawMocks(harness.prisma);
       const res = await request(harness.app.getHttpServer())
         .get(
-          '/equipment/catalogs?page=1&pageSize=10&sortBy=name&sortOrder=desc',
+          '/b2c/catalogs?page=1&pageSize=10&sortBy=name&sortOrder=desc',
         )
         .expect(200);
 
@@ -777,10 +777,10 @@ describe('Equipment Anonymous Access (e2e)', () => {
       expect(mocks.catalog.findMany).not.toHaveBeenCalled();
     });
 
-    it('anonymous GET /equipment/catalogs passes status=enabled to count query', async () => {
+    it('anonymous GET /b2c/catalogs passes status=enabled to count query', async () => {
       const mocks = getRawMocks(harness.prisma);
       await request(harness.app.getHttpServer())
-        .get('/equipment/catalogs?page=1&pageSize=10')
+        .get('/b2c/catalogs?page=1&pageSize=10')
         .expect(200);
 
       expect(mocks.catalog.count).toHaveBeenCalledWith(
@@ -804,10 +804,10 @@ describe('Equipment Anonymous Access (e2e)', () => {
       mocks.equipment.findMany.mockResolvedValue([makeEnabledEquipment()]);
     });
 
-    it('anonymous GET /equipment?model=X200 puts model ILIKE into $queryRaw and equals+insensitive into count', async () => {
+    it('anonymous GET /b2c/equipment?model=X200 puts model ILIKE into $queryRaw and equals+insensitive into count', async () => {
       const mocks = getRawMocks(harness.prisma);
       await request(harness.app.getHttpServer())
-        .get('/equipment/equipment?page=1&pageSize=10&model=X200')
+        .get('/b2c/equipment?page=1&pageSize=10&model=X200')
         .expect(200);
 
       // B2C raw SQL 路径：model 精确匹配（大小写不敏感）必须进入 $queryRaw 条件
@@ -823,10 +823,10 @@ describe('Equipment Anonymous Access (e2e)', () => {
       );
     });
 
-    it('anonymous GET /equipment?brandName=Bosch puts brandName ILIKE into $queryRaw', async () => {
+    it('anonymous GET /b2c/equipment?brandName=Bosch puts brandName ILIKE into $queryRaw', async () => {
       const mocks = getRawMocks(harness.prisma);
       await request(harness.app.getHttpServer())
-        .get('/equipment/equipment?page=1&pageSize=10&brandName=Bosch')
+        .get('/b2c/equipment?page=1&pageSize=10&brandName=Bosch')
         .expect(200);
 
       const sqlArg = mocks.$queryRaw.mock.calls[0][0];
@@ -885,12 +885,12 @@ describe('Equipment Anonymous Rate Limiting (e2e)', () => {
 
     // First 60 requests should succeed (limit = 60/min)
     for (let i = 0; i < 60; i++) {
-      await request(server).get(`/equipment/brands${LIST_PARAMS}`).expect(200);
+      await request(server).get(`/b2c/brands${LIST_PARAMS}`).expect(200);
     }
 
     // 61st request should be rate-limited
     const res = await request(server)
-      .get(`/equipment/brands${LIST_PARAMS}`)
+      .get(`/b2c/brands${LIST_PARAMS}`)
       .expect(429);
 
     expect(res.headers['retry-after']).toBeDefined();

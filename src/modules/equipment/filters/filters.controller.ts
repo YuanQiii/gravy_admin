@@ -28,8 +28,6 @@ import { CurrentUser } from '@/core/decorators/current-user.decorator';
 import { ResponseUtil } from '@/shared/utils/response.util';
 import { EQUIPMENT_FILTER_PERMISSIONS } from '@/shared/constants/permissions.constant';
 import { AccessGuard } from '@/core/guards/access.guard';
-import { Public } from '@/core/decorators/public.decorator';
-import { Throttle } from '@nestjs/throttler';
 
 @ApiTags('滤清器管理')
 @ApiBearerAuth('JWT-auth')
@@ -56,44 +54,26 @@ export class FiltersController {
   }
 
   @Get()
-  @Public()
-  @Throttle({ default: { limit: 60, ttl: 60000 } })
-  @ApiOperation({
-    summary: '获取滤清器列表',
-    description: '公开接口，无需认证',
-  })
+  @RequirePermissions(EQUIPMENT_FILTER_PERMISSIONS.VIEW)
+  @OperationLog({ module: '滤清器管理', action: 'view' })
+  @ApiOperation({ summary: '获取滤清器列表' })
   @ApiResponse({ status: 200, description: '获取滤清器列表成功' })
-  async findAll(
-    @Query() query: QueryFilterDto,
-    @CurrentUser() user?: { userId?: string },
-  ) {
-    const pageData = await this.filtersService.findAll(
-      query,
-      user ? undefined : { visibility: 'anonymous' },
-    );
+  async findAll(@Query() query: QueryFilterDto) {
+    const pageData = await this.filtersService.findAll(query);
     return ResponseUtil.paginated(pageData, '获取滤清器列表成功');
   }
 
   @Get(':id')
-  @Public()
-  @Throttle({ default: { limit: 60, ttl: 60000 } })
-  @ApiOperation({
-    summary: '获取滤清器详情',
-    description: '公开接口，无需认证',
-  })
+  @RequirePermissions(EQUIPMENT_FILTER_PERMISSIONS.VIEW)
+  @OperationLog({ module: '滤清器管理', action: 'view' })
+  @ApiOperation({ summary: '获取滤清器详情' })
   @ApiResponse({
     status: 200,
     description: '获取滤清器详情成功',
     type: FilterResponseDto,
   })
-  async findOne(
-    @Param('id') id: string,
-    @CurrentUser() user?: { userId?: string },
-  ) {
-    const data = await this.filtersService.findOne(
-      id,
-      user ? undefined : { visibility: 'anonymous' },
-    );
+  async findOne(@Param('id') id: string) {
+    const data = await this.filtersService.findOne(id);
     return ResponseUtil.found(data, '获取滤清器详情成功');
   }
 

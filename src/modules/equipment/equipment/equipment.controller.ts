@@ -29,8 +29,6 @@ import { CurrentUser } from '@/core/decorators/current-user.decorator';
 import { ResponseUtil } from '@/shared/utils/response.util';
 import { EQUIPMENT_PERMISSIONS } from '@/shared/constants/permissions.constant';
 import { AccessGuard } from '@/core/guards/access.guard';
-import { Public } from '@/core/decorators/public.decorator';
-import { Throttle } from '@nestjs/throttler';
 
 @ApiTags('设备档案管理')
 @ApiBearerAuth('JWT-auth')
@@ -57,44 +55,26 @@ export class EquipmentController {
   }
 
   @Get()
-  @Public()
-  @Throttle({ default: { limit: 60, ttl: 60000 } })
-  @ApiOperation({
-    summary: '获取设备档案列表',
-    description: '公开接口，无需认证',
-  })
+  @RequirePermissions(EQUIPMENT_PERMISSIONS.VIEW)
+  @OperationLog({ module: '设备档案管理', action: 'view' })
+  @ApiOperation({ summary: '获取设备档案列表' })
   @ApiResponse({ status: 200, description: '获取设备档案列表成功' })
-  async findAll(
-    @Query() query: QueryEquipmentDto,
-    @CurrentUser() user?: { userId?: string },
-  ) {
-    const pageData = await this.equipmentService.findAll(
-      query,
-      user ? undefined : { visibility: 'anonymous' },
-    );
+  async findAll(@Query() query: QueryEquipmentDto) {
+    const pageData = await this.equipmentService.findAll(query);
     return ResponseUtil.paginated(pageData, '获取设备档案列表成功');
   }
 
   @Get(':id')
-  @Public()
-  @Throttle({ default: { limit: 60, ttl: 60000 } })
-  @ApiOperation({
-    summary: '获取设备档案详情',
-    description: '公开接口，无需认证',
-  })
+  @RequirePermissions(EQUIPMENT_PERMISSIONS.VIEW)
+  @OperationLog({ module: '设备档案管理', action: 'view' })
+  @ApiOperation({ summary: '获取设备档案详情' })
   @ApiResponse({
     status: 200,
     description: '获取设备档案详情成功',
     type: EquipmentResponseDto,
   })
-  async findOne(
-    @Param('id') id: string,
-    @CurrentUser() user?: { userId?: string },
-  ) {
-    const data = await this.equipmentService.findOne(
-      id,
-      user ? undefined : { visibility: 'anonymous' },
-    );
+  async findOne(@Param('id') id: string) {
+    const data = await this.equipmentService.findOne(id);
     return ResponseUtil.found(data, '获取设备档案详情成功');
   }
 

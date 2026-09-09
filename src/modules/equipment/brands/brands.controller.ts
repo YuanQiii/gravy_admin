@@ -33,8 +33,6 @@ import {
   EQUIPMENT_HOT_BRAND_PERMISSIONS,
 } from '@/shared/constants/permissions.constant';
 import { AccessGuard } from '@/core/guards/access.guard';
-import { Public } from '@/core/decorators/public.decorator';
-import { Throttle } from '@nestjs/throttler';
 
 @ApiTags('设备品牌管理')
 @ApiBearerAuth('JWT-auth')
@@ -61,30 +59,24 @@ export class BrandsController {
   }
 
   @Get()
-  @Public()
-  @Throttle({ default: { limit: 60, ttl: 60000 } })
-  @ApiOperation({ summary: '获取品牌列表', description: '公开接口，无需认证' })
+  @RequirePermissions(EQUIPMENT_BRAND_PERMISSIONS.VIEW)
+  @OperationLog({ module: '设备品牌管理', action: 'view' })
+  @ApiOperation({ summary: '获取品牌列表' })
   @ApiResponse({ status: 200, description: '获取品牌列表成功' })
-  async findAll(
-    @Query() query: QueryBrandDto,
-    @CurrentUser() user?: { userId?: string },
-  ) {
-    const pageData = await this.brandsService.findAll(
-      query,
-      user ? undefined : { visibility: 'anonymous' },
-    );
+  async findAll(@Query() query: QueryBrandDto) {
+    const pageData = await this.brandsService.findAll(query);
     return ResponseUtil.paginated(pageData, '获取品牌列表成功');
   }
 
   /**
-   * 公开热门品牌列表。声明在 `@Get(':id')` 之前，避免被 `:id` 路由吞掉。
+   * 热门品牌列表（B2C 已迁至 GET /b2c/brands/hot，本端点保留给后台）。
    */
   @Get('hot')
-  @Public()
-  @Throttle({ default: { limit: 60, ttl: 60000 } })
+  @RequirePermissions(EQUIPMENT_BRAND_PERMISSIONS.VIEW)
+  @OperationLog({ module: '设备品牌管理', action: 'view' })
   @ApiOperation({
     summary: '获取热门品牌列表',
-    description: '公开接口，无需认证；运营标记优先、未标记按生效设备数补足',
+    description: '运营标记优先、未标记按生效设备数补足',
   })
   @ApiResponse({ status: 200, description: '获取热门品牌列表成功' })
   async findHot(@Query() query: HotBrandQueryDto) {
@@ -93,22 +85,16 @@ export class BrandsController {
   }
 
   @Get(':id')
-  @Public()
-  @Throttle({ default: { limit: 60, ttl: 60000 } })
-  @ApiOperation({ summary: '获取品牌详情', description: '公开接口，无需认证' })
+  @RequirePermissions(EQUIPMENT_BRAND_PERMISSIONS.VIEW)
+  @OperationLog({ module: '设备品牌管理', action: 'view' })
+  @ApiOperation({ summary: '获取品牌详情' })
   @ApiResponse({
     status: 200,
     description: '获取品牌详情成功',
     type: BrandResponseDto,
   })
-  async findOne(
-    @Param('id') id: string,
-    @CurrentUser() user?: { userId?: string },
-  ) {
-    const data = await this.brandsService.findOne(
-      id,
-      user ? undefined : { visibility: 'anonymous' },
-    );
+  async findOne(@Param('id') id: string) {
+    const data = await this.brandsService.findOne(id);
     return ResponseUtil.found(data, '获取品牌详情成功');
   }
 

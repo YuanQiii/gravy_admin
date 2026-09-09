@@ -145,3 +145,24 @@ ADR 0005 上线后，B2C 转化反馈：anonymous 列表中信息残缺（多字
 - 管理后台路径（传 `undefined`）仍走 `paginateWithSort`，完全不感知；B2C 三分流语义逐字保留（'anonymous' | 'b2c' | 'admin'）。
 - 跨模块消费者暂不存在（brands / filter-types 经 schema 核实几乎无业务 nullable 字段），模块置于 equipment 内而非 shared；未来出现跨模块 B2C 消费者时 `git mv` 提升。
 - 语义零变更：排序规则、权重数值、参数化策略、B2C 忽略 sortBy、count 复用 status='enabled' 全部沿用上一条增补，未做任何改动。
+
+---
+
+## B2C 路由独立前缀 supersede Decision 5（ADR 增补，2026-09-09）
+
+### 背景
+随 B2C 能力扩张，公开浏览接口与后台权限接口若继续同 URL 分流，后台 `equipment/*` 路径将长期携带匿名入口，隔离不彻底，也不符合 CONTEXT.md"Customer 与 User 明确分离"的既有边界。同时 B2C 公开浏览的实际消费方已是独立商城进程（不是 same-origin 前端），Decision 5 当初"同 URL 避免前端/Swagger 维护两套 URL"的论据，在消费方进程分隔的语境下已不再适用。
+
+本次变更（OpenSpec change `separate-filter-b2c-and-close-loop`）将公开浏览路由迁移到独立 `b2c/` 前缀，后台 `equipment/*` 只保留鉴权接口。
+
+### 决策
+1. **supersede Decision 5**（"URL is reused in place — no `/public/` prefix"）与被拒 Alternative C（独立前缀路由）：公开只读路由迁移到 `b2c/` 前缀。理由——消费方已进程分隔，公开路由归属 `b2c/` 前缀是更清晰的接缝；后台 `equipment/*` 路径与契约零改动。
+2. **公开浏览统一 `B2C_OPTS`**：`b2c/browse` 五个控制器统一传 `Object.freeze({ visibility: 'anonymous' })`，enabled-only + 加权排序触发器单点定义，不靠调用方记忆。`VisibilityOpts` 三分流（anonymous/b2c/admin）与 `isB2cVisibility` 保留，后台路径传 undefined 走 admin，无死代码。
+3. **热门品牌路由同步迁移**：`GET /equipment/brands/hot` → `GET /b2c/brands/hot`（复用 BrandsService.findHot），避免后台路径残留公开入口。
+4. **后台只读路由加权限码**：后台 `equipment/*` 的 GET list/detail/options 原为 `@Public()`，现改为 `@RequirePermissions(...VIEW)`，与既有 `AccessGuard`/RBAC 一致。
+
+### 后果
+- 公开浏览只存在于 `b2c/*`，后台 `equipment/*` 仅鉴权，B2C/后台接缝清晰。
+- **BREAKING**：匿名访问路径从 `equipment/*` 变 `b2c/*`，商城进程需同步改调用点（与本次 change 部署同版本发布）。
+- 既有 `test/equipment-anonymous.e2e-spec.ts` 匿名路径断言更新为 `b2c/*`，认证路径保持 `equipment/*`（回归网全绿）。
+- Customer 与 User 分离边界进一步落实：B2C 浏览 `b2c/*`，B2C 客户写端点 `b2c/inquiries`、`b2c/addresses`（皆 `CustomerJwtGuard`），后台 `equipment/inquiry/customer` 保持 RBAC。

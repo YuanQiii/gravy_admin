@@ -28,8 +28,6 @@ import { CurrentUser } from '@/core/decorators/current-user.decorator';
 import { ResponseUtil } from '@/shared/utils/response.util';
 import { EQUIPMENT_CATALOG_PERMISSIONS } from '@/shared/constants/permissions.constant';
 import { AccessGuard } from '@/core/guards/access.guard';
-import { Public } from '@/core/decorators/public.decorator';
-import { Throttle } from '@nestjs/throttler';
 
 @ApiTags('设备目录管理')
 @ApiBearerAuth('JWT-auth')
@@ -56,44 +54,26 @@ export class CatalogsController {
   }
 
   @Get()
-  @Public()
-  @Throttle({ default: { limit: 60, ttl: 60000 } })
-  @ApiOperation({
-    summary: '获取设备目录列表',
-    description: '公开接口，无需认证',
-  })
+  @RequirePermissions(EQUIPMENT_CATALOG_PERMISSIONS.VIEW)
+  @OperationLog({ module: '设备目录管理', action: 'view' })
+  @ApiOperation({ summary: '获取设备目录列表' })
   @ApiResponse({ status: 200, description: '获取设备目录列表成功' })
-  async findAll(
-    @Query() query: QueryCatalogDto,
-    @CurrentUser() user?: { userId?: string },
-  ) {
-    const pageData = await this.catalogsService.findAll(
-      query,
-      user ? undefined : { visibility: 'anonymous' },
-    );
+  async findAll(@Query() query: QueryCatalogDto) {
+    const pageData = await this.catalogsService.findAll(query);
     return ResponseUtil.paginated(pageData, '获取设备目录列表成功');
   }
 
   @Get(':id')
-  @Public()
-  @Throttle({ default: { limit: 60, ttl: 60000 } })
-  @ApiOperation({
-    summary: '获取设备目录详情',
-    description: '公开接口，无需认证',
-  })
+  @RequirePermissions(EQUIPMENT_CATALOG_PERMISSIONS.VIEW)
+  @OperationLog({ module: '设备目录管理', action: 'view' })
+  @ApiOperation({ summary: '获取设备目录详情' })
   @ApiResponse({
     status: 200,
     description: '获取设备目录详情成功',
     type: CatalogResponseDto,
   })
-  async findOne(
-    @Param('id') id: string,
-    @CurrentUser() user?: { userId?: string },
-  ) {
-    const data = await this.catalogsService.findOne(
-      id,
-      user ? undefined : { visibility: 'anonymous' },
-    );
+  async findOne(@Param('id') id: string) {
+    const data = await this.catalogsService.findOne(id);
     return ResponseUtil.found(data, '获取设备目录详情成功');
   }
 

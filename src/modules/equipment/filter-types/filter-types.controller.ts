@@ -28,8 +28,6 @@ import { CurrentUser } from '@/core/decorators/current-user.decorator';
 import { ResponseUtil } from '@/shared/utils/response.util';
 import { EQUIPMENT_FILTER_TYPE_PERMISSIONS } from '@/shared/constants/permissions.constant';
 import { AccessGuard } from '@/core/guards/access.guard';
-import { Public } from '@/core/decorators/public.decorator';
-import { Throttle } from '@nestjs/throttler';
 
 @ApiTags('滤清器类型管理')
 @ApiBearerAuth('JWT-auth')
@@ -56,31 +54,19 @@ export class FilterTypesController {
   }
 
   @Get()
-  @Public()
-  @Throttle({ default: { limit: 60, ttl: 60000 } })
-  @ApiOperation({
-    summary: '获取滤清器类型列表',
-    description: '公开接口，无需认证',
-  })
+  @RequirePermissions(EQUIPMENT_FILTER_TYPE_PERMISSIONS.VIEW)
+  @OperationLog({ module: '滤清器类型管理', action: 'view' })
+  @ApiOperation({ summary: '获取滤清器类型列表' })
   @ApiResponse({ status: 200, description: '获取滤清器类型列表成功' })
-  async findAll(
-    @Query() query: QueryFilterTypeDto,
-    @CurrentUser() user?: { userId?: string },
-  ) {
-    const pageData = await this.filterTypesService.findAll(
-      query,
-      user ? undefined : { visibility: 'anonymous' },
-    );
+  async findAll(@Query() query: QueryFilterTypeDto) {
+    const pageData = await this.filterTypesService.findAll(query);
     return ResponseUtil.paginated(pageData, '获取滤清器类型列表成功');
   }
 
   @Get('options')
-  @Public()
-  @Throttle({ default: { limit: 60, ttl: 60000 } })
-  @ApiOperation({
-    summary: '获取启用的滤清器类型下拉选项',
-    description: '公开接口，无需认证',
-  })
+  @RequirePermissions(EQUIPMENT_FILTER_TYPE_PERMISSIONS.VIEW)
+  @OperationLog({ module: '滤清器类型管理', action: 'view' })
+  @ApiOperation({ summary: '获取启用的滤清器类型下拉选项' })
   @ApiResponse({ status: 200, description: '获取下拉选项成功' })
   async findOptions() {
     const data = await this.filterTypesService.findAllEnabled();
@@ -88,25 +74,16 @@ export class FilterTypesController {
   }
 
   @Get(':id')
-  @Public()
-  @Throttle({ default: { limit: 60, ttl: 60000 } })
-  @ApiOperation({
-    summary: '获取滤清器类型详情',
-    description: '公开接口，无需认证',
-  })
+  @RequirePermissions(EQUIPMENT_FILTER_TYPE_PERMISSIONS.VIEW)
+  @OperationLog({ module: '滤清器类型管理', action: 'view' })
+  @ApiOperation({ summary: '获取滤清器类型详情' })
   @ApiResponse({
     status: 200,
     description: '获取滤清器类型详情成功',
     type: FilterTypeResponseDto,
   })
-  async findOne(
-    @Param('id') id: string,
-    @CurrentUser() user?: { userId?: string },
-  ) {
-    const data = await this.filterTypesService.findOne(
-      id,
-      user ? undefined : { visibility: 'anonymous' },
-    );
+  async findOne(@Param('id') id: string) {
+    const data = await this.filterTypesService.findOne(id);
     return ResponseUtil.found(data, '获取滤清器类型详情成功');
   }
 

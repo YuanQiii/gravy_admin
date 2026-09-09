@@ -16,7 +16,7 @@
 ### Anonymous access
 
 **Anonymous Visitor**:
-A B2C site visitor who has not authenticated. Has no identity in the system (no userId, no roles, no audit归属). Can browse designated public catalog endpoints (equipment/\* GET only). Converts to `Customer` upon future self-registration or WeChat OAuth.
+A B2C site visitor who has not authenticated. Has no identity in the system (no userId, no roles, no audit归属). Can browse designated public catalog endpoints (`b2c/*` GET only, since ADR 0005 supersede 2026-09-09; previously `equipment/*`). Converts to `Customer` upon future self-registration or WeChat OAuth.
 _Avoid_: guest,游客 (those refer to the logged-in demo User account `guest/123456` — see `guest` role in seed), unauthenticated user, anonymous user.
 
 > ⚠️ Distinguish from `guest` role: `guest` is a *logged-in* `User` (backend staff demo account, full RBAC, writes blocked by `GuestWriteGuard`). `Anonymous Visitor` is *not logged in at all* — no JWT, no RBAC, no `request.user`. The two are different axes and must not share terminology.
