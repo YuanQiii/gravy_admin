@@ -102,6 +102,11 @@ COPY --from=builder /app/node_modules         ./node_modules
 # node_modules/@gvray/* 是 pnpm workspace symlink → /app/packages，runner 需保留该落点，
 # 运行时 `require('@gvray/core')` 经包 main 解析到 dist/packages/core（db-bootstrap 依赖）。
 COPY --from=builder /app/packages             ./packages
+# pnpm 不会为 workspace 包建 node_modules 链接（无依赖声明），db-bootstrap 的
+# require('@gvray/core') 走 node_modules 解析。这里把 @gvray 指到已编译的 dist 产物。
+RUN mkdir -p node_modules/@gvray \
+ && ln -s /app/dist/packages/core node_modules/@gvray/core \
+ && ln -s /app/dist/packages/domain/domain/src node_modules/@gvray/domain
 # Whitelist the prisma payload (ADR 0008): only what the runtime needs enters
 # the image. migrations + schema.prisma feed `prisma migrate deploy`; one-time
 # products under prisma/scripts and prisma/backups never ship (see .dockerignore).
