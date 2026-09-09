@@ -14,28 +14,29 @@ import { AuthModule } from '@/modules/auth/auth.module';
 import { SystemModule } from '@/modules/system/system.module';
 import { EquipmentModule } from '@/modules/equipment/equipment.module';
 import { InquiryModule } from '@/modules/inquiry/inquiry.module';
-import { CustomerModule } from '@/modules/customer/customer.module';
-import { B2cModule } from '@/modules/b2c/b2c.module';
-import { PrismaModule, SoftDeleteModule, RedisModule, ResponseInterceptor, HttpExceptionFilter, OperationLogInterceptor, FeatureFlagGuard, LoggingModule, RequestLogInterceptor } from '@gvray/core';
-
+import { CustomersModule } from '@/modules/customers/customers.module';
+import { AddressesModule } from '@/modules/addresses/addresses.module';
+import {
+  PrismaModule,
+  SoftDeleteModule,
+  RedisModule,
+  ResponseInterceptor,
+  HttpExceptionFilter,
+  OperationLogInterceptor,
+  LoggingModule,
+  RequestLogInterceptor,
+  appConfig,
+  databaseConfig,
+  jwtConfig,
+  corsConfig,
+  redisConfig,
+  validateEnv,
+} from '@gvray/core';
+import { FeatureFlagGuard } from '@/core/guards/feature-flag.guard';
 
 import { DashboardModule } from '@/modules/dashboard/dashboard.module';
 import { ProfileModule } from '@/modules/profile/profile.module';
 import { OperationLogsModule } from '@/modules/system/operation-logs/operation-logs.module';
-import appConfig from '@/config/app.config';
-import databaseConfig from '@/config/database.config';
-import jwtConfig from '@/config/jwt.config';
-import corsConfig from '@/config/cors.config';
-import redisConfig from '@/config/redis.config';
-import { validate } from '@/config/env.validation';
-
-
-
-
-// import { SessionHeartbeatInterceptor } from '@gvray/core'; // 依赖 @/modules/auth/token.service，暂未纳入 barrel
-
-
-
 
 @Module({
   controllers: [AppController],
@@ -44,7 +45,7 @@ import { validate } from '@/config/env.validation';
       isGlobal: true,
       envFilePath: [`.env.${process.env.NODE_ENV}`, '.env'],
       load: [appConfig, databaseConfig, jwtConfig, corsConfig, redisConfig],
-      validate,
+      validate: validateEnv,
       expandVariables: true,
       cache: true,
       ignoreEnvFile: false,
@@ -61,8 +62,8 @@ import { validate } from '@/config/env.validation';
     SystemModule,
     EquipmentModule,
     InquiryModule,
-    CustomerModule,
-    B2cModule,
+    CustomersModule,
+    AddressesModule,
     DashboardModule,
     ProfileModule,
     OperationLogsModule,
@@ -82,10 +83,6 @@ import { validate } from '@/config/env.validation';
       provide: APP_INTERCEPTOR,
       useClass: ResponseInterceptor,
     },
-    // {
-    //   provide: APP_INTERCEPTOR,
-    //   useClass: SessionHeartbeatInterceptor,
-    // },
     {
       provide: APP_INTERCEPTOR,
       useClass: OperationLogInterceptor,
@@ -107,4 +104,4 @@ import { validate } from '@/config/env.validation';
     Reflector,
   ],
 })
-export class AppModule {}
+export class AdminAppModule {}

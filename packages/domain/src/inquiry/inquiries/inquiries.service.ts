@@ -21,8 +21,8 @@ import { UpdateInquiryStatusDto } from './dto/update-inquiry-status.dto';
 import { QueryInquiryDto } from './dto/query-inquiry.dto';
 import { InquiryResponseDto } from './dto/inquiry-response.dto';
 // 类型仅在编译期引用（creates no runtime module edge），避免 b2c → inquiry → b2c 环
-import type { CreateCustomerInquiryDto } from '@/modules/b2c/inquiries/dto/create-customer-inquiry.dto';
-import type { CreateInquiryLineItemDto } from '@/modules/b2c/inquiries/dto/create-inquiry-line-item.dto';
+import type { CreateCustomerInquiryDto } from './dto/customer-b2c/create-customer-inquiry.dto';
+import type { CreateInquiryLineItemDto } from './dto/customer-b2c/create-inquiry-line-item.dto';
 
 @Injectable()
 export class InquiriesService extends BaseService {

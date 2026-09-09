@@ -2,7 +2,12 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "outDir": "../../dist/apps/mall",
-    "baseUrl": "./"
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"],
+      "@gvray/core": ["../../packages/core/src/index"],
+      "@gvray/domain": ["../../packages/domain/src/index"]
+    }
   },
   "include": ["src/**/*.ts"]
 }

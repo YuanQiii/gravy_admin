@@ -157,6 +157,7 @@ export { REQUEST_ID_PROP } from './logging/logging.constants';
 export { RequestIdMiddleware } from './logging/request-id.middleware';
 
 // ── bootstrap ────────────────────────────────────────────────────
+export { configureApp } from './bootstrap/configure-app';
 export {
   bootstrapDatabase,
   BootstrapDeps,
@@ -171,5 +172,20 @@ export {
   defaultMigrationsRoot,
 } from './bootstrap/baseline';
 
+// ── config ────────────────────────────────────────────────────────
+export { default as appConfig } from './config/app.config';
+export { AppConfig } from './config/app.config';
+export { default as corsConfig } from './config/cors.config';
+export { CorsConfig } from './config/cors.config';
+export { default as databaseConfig } from './config/database.config';
+export { DatabaseConfig } from './config/database.config';
+export { default as jwtConfig } from './config/jwt.config';
+export { JwtConfig } from './config/jwt.config';
+export { default as redisConfig } from './config/redis.config';
+export { RedisConfig } from './config/redis.config';
+export { validate as validateEnv } from './config/env.validation';
+
 // ── core / guards（依赖 src 应用模块，置于文件末尾避免循环初始化）──
-export { FeatureFlagGuard } from './core/guards/feature-flag.guard';
+//  FeatureFlagGuard 已移至 apps/admin/src/core/guards (admin-only crosscutting), 不从此 barrel 导出。
+// 依赖 admin ConfigsService 才能工作，mall-app 挂载不导入。
+export { FEATURE_FLAG_KEY, FeatureFlagOptions } from './core/decorators/feature-flag.decorator';

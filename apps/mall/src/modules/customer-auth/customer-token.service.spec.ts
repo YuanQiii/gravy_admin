@@ -1,7 +1,9 @@
 import { CustomerTokenService } from './customer-token.service';
-import { SessionStore, AUTH_REALM_CUSTOMER } from '@gvray/core';
-
-import { TokenService } from '@/modules/auth/token.service';
+import {
+  SessionStore,
+  AUTH_REALM_CUSTOMER,
+  AUTH_REALM_USER,
+} from '@gvray/core';
 
 
 function createFakeRedis() {
@@ -100,17 +102,16 @@ describe('CustomerTokenService', () => {
     const fake = createFakeRedis();
     const sessionStore = new SessionStore(fake.redis as any);
 
-    // 后台 TokenService 写入 user 命名空间
-    const backend = new TokenService(sessionStore, {
-      refreshToken: { updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
-    } as any);
-    await backend.storeRefreshToken(
-      customerId,
-      'backend-refresh-token',
-      { ipAddress: '127.0.0.1', userAgent: 'ua' },
-      3600,
-      'backend-at-jti',
-    );
+    // 直接通过共享 SessionStore 写入 user（后台）命名空间，模拟后台会话
+    //（不 import admin 的 TokenService，域间解耦）
+    await sessionStore.store({
+      ns: AUTH_REALM_USER,
+      subjectId: customerId,
+      token: 'backend-refresh-token',
+      meta: { ipAddress: '127.0.0.1', userAgent: 'ua' },
+      expiresInSeconds: 3600,
+      accessTokenJti: 'backend-at-jti',
+    });
 
     // CustomerTokenService 写入 customer 命名空间（同一 subjectId）
     const customer = new CustomerTokenService(sessionStore);
@@ -122,11 +123,19 @@ describe('CustomerTokenService', () => {
       'customer-at-jti',
     );
 
-    // 互不串域
+    // 互不串域：customer 服务只能看到 customer 命名空间
     expect(await customer.verifyRefreshToken('backend-refresh-token')).toBeNull();
     expect(await customer.verifyRefreshToken('customer-refresh-token')).not.toBeNull();
-    expect(await backend.verifyRefreshToken('customer-refresh-token')).toBeNull();
-    expect(await backend.verifyRefreshToken('backend-refresh-token')).not.toBeNull();
+
+    // user 命名空间只能经共享 SessionStore 直接读到，且读不到 customer 的内容
+    const userBackend = await sessionStore.verify(
+      AUTH_REALM_USER,
+      'backend-refresh-token',
+    );
+    const userCustomer =
+      await sessionStore.verify(AUTH_REALM_USER, 'customer-refresh-token');
+    expect(userBackend?.subjectId).toBe(customerId);
+    expect(userCustomer).toBeNull();
   });
 
   it('customer 会话无 DB 归档（不依赖 Prisma，撤销为纯 Redis 操作）', async () => {

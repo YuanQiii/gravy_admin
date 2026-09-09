@@ -7,14 +7,6 @@ import { UsersModule } from '@/modules/system/users/users.module';
 import { LoginLogsModule } from '@/modules/system/login-logs/login-logs.module';
 import { JwtStrategy, JwtAuthGuard, GuestWriteGuard, RolesGuard, PermissionsGuard, AccessGuard, SessionStore } from '@gvray/core';
 
-
-
-
-
-
-import { CustomerJwtGuard } from '@/core/guards/customer-jwt.guard';
-import { CustomerJwtStrategy } from '@/core/strategies/customer-jwt.strategy';
-
 import { TokenService } from './token.service';
 
 @Global()
@@ -44,8 +36,6 @@ import { TokenService } from './token.service';
     RolesGuard,
     PermissionsGuard,
     AccessGuard,
-    CustomerJwtStrategy,
-    CustomerJwtGuard,
   ],
   exports: [
     AuthService,
@@ -58,8 +48,6 @@ import { TokenService } from './token.service';
     RolesGuard,
     PermissionsGuard,
     AccessGuard,
-    CustomerJwtStrategy,
-    CustomerJwtGuard,
   ],
 })
 export class AuthModule {}

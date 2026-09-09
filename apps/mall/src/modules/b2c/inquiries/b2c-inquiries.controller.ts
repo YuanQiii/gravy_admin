@@ -8,13 +8,11 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
-import { InquiriesService, QueryInquiryDto, InquiryResponseDto } from '@gvray/domain';
+import { InquiriesService, QueryInquiryDto, InquiryResponseDto, CreateCustomerInquiryDto } from '@gvray/domain';
 import { CustomerJwtGuard } from '@/core/guards/customer-jwt.guard';
 import { CurrentCustomer } from '@/core/decorators/current-customer.decorator';
 import { ICustomer } from '@/core/interfaces/customer.interface';
 import { ResponseUtil } from '@gvray/core';
-
-import { CreateCustomerInquiryDto } from './dto/create-customer-inquiry.dto';
 
 /**
  * B2C 客户自助询价。身份仅来自 `@CurrentCustomer()`（CustomerJwtGuard 注入），

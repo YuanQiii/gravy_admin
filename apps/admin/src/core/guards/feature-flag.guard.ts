@@ -9,7 +9,7 @@ import { ConfigsService } from '@/modules/system/configs/configs.service';
 import {
   FEATURE_FLAG_KEY,
   FeatureFlagOptions,
-} from '../decorators/feature-flag.decorator';
+} from '@gvray/core';
 
 /**
  * 功能开关守卫

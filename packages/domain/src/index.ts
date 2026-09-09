@@ -80,6 +80,8 @@ export { UpdateInquiryStatusDto } from './inquiry/inquiries/dto/update-inquiry-s
 export { QueryInquiryDto } from './inquiry/inquiries/dto/query-inquiry.dto';
 export { InquiryResponseDto } from './inquiry/inquiries/dto/inquiry-response.dto';
 export { BatchDeleteInquiriesDto } from './inquiry/inquiries/dto/batch-delete-inquiries.dto';
+export { CreateCustomerInquiryDto } from './inquiry/inquiries/dto/customer-b2c/create-customer-inquiry.dto';
+export { CreateInquiryLineItemDto } from './inquiry/inquiries/dto/customer-b2c/create-inquiry-line-item.dto';
 
 // ── inquiry / 询价单明细 ───────────────────────────────────────────
 export { InquiryLinesService } from './inquiry/inquiry-lines/inquiry-lines.service';

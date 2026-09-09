@@ -5,8 +5,8 @@ import { plainToInstance } from 'class-transformer';
 import { PrismaService, BaseService } from '@gvray/core';
 
 
-import { AddressResponseDto } from '@/modules/customer/addresses/dto/address-response.dto';
-import { QueryAddressDto } from '@/modules/customer/addresses/dto/query-address.dto';
+import { AddressResponseDto } from './dto/address-response.dto';
+import { QueryAddressDto } from './dto/query-address.dto';
 import { CreateCustomerAddressDto } from './dto/create-customer-address.dto';
 import { UpdateCustomerAddressDto } from './dto/update-customer-address.dto';
 
