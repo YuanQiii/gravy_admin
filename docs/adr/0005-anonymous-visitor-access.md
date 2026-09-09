@@ -166,3 +166,5 @@ ADR 0005 上线后，B2C 转化反馈：anonymous 列表中信息残缺（多字
 - **BREAKING**：匿名访问路径从 `equipment/*` 变 `b2c/*`，商城进程需同步改调用点（与本次 change 部署同版本发布）。
 - 既有 `test/equipment-anonymous.e2e-spec.ts` 匿名路径断言更新为 `b2c/*`，认证路径保持 `equipment/*`（回归网全绿）。
 - Customer 与 User 分离边界进一步落实：B2C 浏览 `b2c/*`，B2C 客户写端点 `b2c/inquiries`、`b2c/addresses`（皆 `CustomerJwtGuard`），后台 `equipment/inquiry/customer` 保持 RBAC。
+
+> **2026-09-09 supersede 注记**：本增补的 `b2c/` 路由前缀已被 ADR 0010 决策 10 supersede——B2C 拆独立 mall app（独立端口）后前缀语义冗余，全部剥除（`b2c/filters` → mall 的 `/filters`，`customer/auth` → `/auth`，依此类推）。本 ADR 其余决策（VisibilityOpts 三分流、加权排序、`B2C_OPTS`（→ `MALL_OPTS` 改名）、AccessGuard、权限码）不受影响。
