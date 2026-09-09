@@ -506,6 +506,8 @@ model EquipmentBrand {
   slug      String?   @unique
   sortOrder Int       @default(0)
   status    String    @default("enabled") @db.VarChar(16)
+  isHot     Boolean   @default(false) // 是否热门品牌
+  hotOrder  Int?      // 热门排序（可空，未设则按生效设备数/入库时间兜底）
   deletedAt DateTime?
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt

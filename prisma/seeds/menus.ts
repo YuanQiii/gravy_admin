@@ -191,6 +191,15 @@ export async function seedMenus(prisma: PrismaClient) {
         },
         {
           type: 'MENU',
+          name: '热门品牌',
+          code: 'menu.equipment.hotBrand',
+          permissionCode: 'equipment:hotBrand:view',
+          path: '/equipment/hot-brands',
+          icon: 'FireOutlined',
+          sort: 1,
+        },
+        {
+          type: 'MENU',
           name: '设备目录',
           code: 'menu.equipment.catalog',
           permissionCode: 'equipment:catalog:list',

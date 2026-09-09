@@ -310,6 +310,17 @@ export const EQUIPMENT_BRAND_PERMISSIONS = {
   ),
 } as const;
 
+// ==================== 热门品牌权限（业务域）====================
+const EQUIPMENT_HOT_BRAND_RESOURCE = 'equipment:hotBrand';
+export const EQUIPMENT_HOT_BRAND_PERMISSIONS = {
+  VIEW: definePermission(
+    `${EQUIPMENT_HOT_BRAND_RESOURCE}:${PERMISSION_ACTIONS.VIEW}`,
+  ),
+  UPDATE: definePermission(
+    `${EQUIPMENT_HOT_BRAND_RESOURCE}:${PERMISSION_ACTIONS.UPDATE}`,
+  ),
+} as const;
+
 // ==================== 设备目录权限（业务域）====================
 const EQUIPMENT_CATALOG_RESOURCE = 'equipment:catalog';
 export const EQUIPMENT_CATALOG_PERMISSIONS = {

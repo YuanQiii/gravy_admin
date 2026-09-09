@@ -10,6 +10,10 @@ import { CreateBrandDto } from './dto/create-brand.dto';
 import { UpdateBrandDto } from './dto/update-brand.dto';
 import { QueryBrandDto } from './dto/query-brand.dto';
 import { BrandResponseDto } from './dto/brand-response.dto';
+import { HotStatusBrandsDto } from './dto/hot-status-brands.dto';
+import { HotBrandQueryDto } from './dto/hot-brand-query.dto';
+import { HotBrandResponseDto } from './dto/hot-brand-response.dto';
+import { rankHotBrands } from './hot-ranking';
 
 /**
  * 品牌-字段错误码前缀映射，用于 P2002 兜底时按 meta.target 选前缀。
@@ -170,6 +174,81 @@ export class BrandsService extends BaseService {
     await this.prisma.equipmentBrand.updateMany({
       where: { brandId: { in: ids }, deletedAt: null },
       data: { deletedAt: new Date() },
+    });
+  }
+
+  /**
+   * 配置热门品牌状态：对 `brandId in ids` 写 `isHot`（及可选 `hotOrder`）。
+   * 单条与批量同接口，`ids=[id]` 表达单条。事务内批量更新，普通品牌更新
+   * 接口不承载热门字段（见 controller）。
+   */
+  async updateHotStatus(dto: HotStatusBrandsDto): Promise<{ affected: number }> {
+    const data: Prisma.EquipmentBrandUpdateManyMutationInput = {
+      isHot: dto.isHot,
+    };
+    if (dto.hotOrder !== undefined) {
+      data.hotOrder = dto.hotOrder;
+    }
+
+    const [result] = await this.prisma.$transaction([
+      this.prisma.equipmentBrand.updateMany({
+        where: {
+          brandId: { in: dto.ids },
+          deletedAt: null,
+        },
+        data,
+      }),
+    ]);
+    return { affected: result.count };
+  }
+
+  /**
+   * 公开热门品牌列表：候选品牌（经 applyVisibility 强制 status='enabled'）
+   * + equipment 生效设备数聚合，随后交由纯函数 rankHotBrands 合并排序。
+   * 排序不变量只存在于 hot-ranking.ts，本方法不复述排序逻辑。
+   */
+  async findHot(query: HotBrandQueryDto): Promise<HotBrandResponseDto[]> {
+    const limit = query.limit ?? 8;
+    const anonymous: VisibilityOpts = { visibility: 'anonymous' };
+
+    const brandWhere: Record<string, unknown> = { deletedAt: null };
+    this.applyVisibility(brandWhere, anonymous);
+
+    const [brands, grouped] = await Promise.all([
+      this.prisma.equipmentBrand.findMany({
+        where: brandWhere,
+        select: {
+          brandId: true,
+          name: true,
+          slug: true,
+          isHot: true,
+          hotOrder: true,
+          createdAt: true,
+        },
+      }),
+      (async () => {
+        const equipmentWhere: Record<string, unknown> = {
+          deletedAt: null,
+          brandId: { not: null },
+        };
+        this.applyVisibility(equipmentWhere, anonymous);
+        return this.prisma.equipment.groupBy({
+          by: ['brandId'],
+          where: equipmentWhere,
+          _count: { _all: true },
+        });
+      })(),
+    ]);
+
+    const deviceCounts = new Map<string, number>(
+      grouped
+        .filter((g): g is typeof g & { brandId: string } => g.brandId !== null)
+        .map((g) => [g.brandId, g._count._all]),
+    );
+
+    const ranked = rankHotBrands(brands, deviceCounts, limit);
+    return plainToInstance(HotBrandResponseDto, ranked, {
+      excludeExtraneousValues: true,
     });
   }
 

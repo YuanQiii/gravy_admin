@@ -22,11 +22,16 @@ import { UpdateBrandDto } from './dto/update-brand.dto';
 import { QueryBrandDto } from './dto/query-brand.dto';
 import { BrandResponseDto } from './dto/brand-response.dto';
 import { BatchDeleteBrandsDto } from './dto/batch-delete-brands.dto';
+import { HotBrandQueryDto } from './dto/hot-brand-query.dto';
+import { HotStatusBrandsDto } from './dto/hot-status-brands.dto';
 import { RequirePermissions } from '@/core/decorators/permissions.decorator';
 import { OperationLog } from '@/core/decorators/operation-log.decorator';
 import { CurrentUser } from '@/core/decorators/current-user.decorator';
 import { ResponseUtil } from '@/shared/utils/response.util';
-import { EQUIPMENT_BRAND_PERMISSIONS } from '@/shared/constants/permissions.constant';
+import {
+  EQUIPMENT_BRAND_PERMISSIONS,
+  EQUIPMENT_HOT_BRAND_PERMISSIONS,
+} from '@/shared/constants/permissions.constant';
 import { AccessGuard } from '@/core/guards/access.guard';
 import { Public } from '@/core/decorators/public.decorator';
 import { Throttle } from '@nestjs/throttler';
@@ -71,6 +76,22 @@ export class BrandsController {
     return ResponseUtil.paginated(pageData, '获取品牌列表成功');
   }
 
+  /**
+   * 公开热门品牌列表。声明在 `@Get(':id')` 之前，避免被 `:id` 路由吞掉。
+   */
+  @Get('hot')
+  @Public()
+  @Throttle({ default: { limit: 60, ttl: 60000 } })
+  @ApiOperation({
+    summary: '获取热门品牌列表',
+    description: '公开接口，无需认证；运营标记优先、未标记按生效设备数补足',
+  })
+  @ApiResponse({ status: 200, description: '获取热门品牌列表成功' })
+  async findHot(@Query() query: HotBrandQueryDto) {
+    const data = await this.brandsService.findHot(query);
+    return ResponseUtil.found(data, '获取热门品牌列表成功');
+  }
+
   @Get(':id')
   @Public()
   @Throttle({ default: { limit: 60, ttl: 60000 } })
@@ -107,6 +128,21 @@ export class BrandsController {
   ) {
     const data = await this.brandsService.update(id, dto, user?.userId);
     return ResponseUtil.updated(data, '品牌更新成功');
+  }
+
+  /**
+   * 配置热门品牌状态（单条 ids=[id] 与批量同接口）。热门字段仅经此端点维护，
+   * 普通品牌更新（PATCH /:id）不承载 isHot/hotOrder。
+   */
+  @Post('hot-status')
+  @RequirePermissions(EQUIPMENT_HOT_BRAND_PERMISSIONS.UPDATE)
+  @OperationLog({ module: '设备品牌管理', action: 'update' })
+  @ApiOperation({ summary: '配置热门品牌状态' })
+  @ApiBody({ type: HotStatusBrandsDto })
+  @ApiResponse({ status: 200, description: '热门品牌状态配置成功' })
+  async updateHotStatus(@Body() dto: HotStatusBrandsDto) {
+    const data = await this.brandsService.updateHotStatus(dto);
+    return ResponseUtil.updated(data, '热门品牌状态配置成功');
   }
 
   @Delete(':id')

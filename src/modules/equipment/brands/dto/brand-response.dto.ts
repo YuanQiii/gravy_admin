@@ -30,6 +30,18 @@ export class BrandResponseDto {
   @Expose()
   status: string;
 
+  @ApiProperty({ description: '是否热门品牌', type: 'boolean' })
+  @Expose()
+  isHot: boolean;
+
+  @ApiPropertyOptional({
+    description: '热门排序（可空，未设则按生效设备数/入库时间兜底）',
+    type: 'integer',
+  })
+  @Expose()
+  @Transform(({ value }): number | null => value ?? null)
+  hotOrder?: number;
+
   @ApiProperty({ description: '创建时间', type: 'string', format: 'date-time' })
   @Expose()
   createdAt: Date;
