@@ -58,7 +58,7 @@ GVRAY 后端为 Monorepo 双应用 + 共享内核：NestJS 11 + TypeScript，Pri
 
 - 多表写入或强一致场景使用 `this.prisma.$transaction(...)`。
 
-- **生产禁跑 `prisma db push`**；一切 schema 变更走 migration——开发用 `prisma migrate dev`（生成 + 应用），admin 容器启动经脚本 [db-bootstrap](scripts/db-bootstrap.ts)（薄 CLI，调用 `@gvray/core` 的共享 `bootstrapDatabase`，见 ADR 0007）执行 `migrate deploy`，`prisma/migrations/` 缺失即 fail-closed 退出，绝不 fallback 到 `db push`；mall 容器不执行任何 schema 同步。常用命令见下方。
+- **生产禁跑** **`prisma db push`**；一切 schema 变更走 migration——开发用 `prisma migrate dev`（生成 + 应用），admin 容器启动经脚本 [db-bootstrap](scripts/db-bootstrap.ts)（薄 CLI，调用 `@gvray/core` 的共享 `bootstrapDatabase`，见 ADR 0007）执行 `migrate deploy`，`prisma/migrations/` 缺失即 fail-closed 退出，绝不 fallback 到 `db push`；mall 容器不执行任何 schema 同步。常用命令见下方。
 
 - 容器入口 [docker/entrypoint.sh](docker/entrypoint.sh) 是薄 adapter：dev 不做 schema 同步（本机跑 `migrate dev`），生产调用 `node dist/scripts/db-bootstrap.js` 后 `exec CMD`。
 
@@ -83,7 +83,10 @@ GVRAY 后端为 Monorepo 双应用 + 共享内核：NestJS 11 + TypeScript，Pri
 ## 常用命令
 
 ```bash
-pnpm start:dev          # 本地开发（watch）
+pnpm start:admin:dev    # admin · 本地开发（watch 热重载）
+pnpm start:mall:dev     # mall · 本地开发（watch 热重载）
+pnpm start:admin        # admin · 跑已构建产物（生产）
+pnpm start:mall         # mall · 跑已构建产物（生产）
 pnpm build              # 构建
 pnpm test               # 单元测试
 pnpm prisma:generate    # 生成 Prisma Client

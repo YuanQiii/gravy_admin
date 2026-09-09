@@ -685,7 +685,7 @@ A：安全。项目硬规则：**永远不要把密码、token 返回给前端**
 A：避免和其他应用共用同一 Redis 时的 key 冲突（看到 `gvr:xxx`、`perm:user:xxx` 就是加了前缀）。
 
 **Q5：我改了代码，怎么跑起来看效果？**
-A：开发环境 `pnpm start:dev`（自动监听改代码重启）。改 schema 先 `pnpm prisma:generate`。
+A：开发环境 `pnpm start:admin:dev`（自动监听改代码重启）。改 schema 先 `pnpm prisma:generate`。
 （注意：改数据库结构/迁移这类破坏性命令要经过确认才能跑。）
 
 ***
@@ -695,5 +695,5 @@ A：开发环境 `pnpm start:dev`（自动监听改代码重启）。改 schema 
 > 1. 打开 [gvray-request-lifecycle.html](file:///c:/Project/gvray/.archify/gvray-request-lifecycle.html)，
 >    对照本文第 2 章再"过一遍电影"。
 > 2. 打开另外三张图（架构 / 认证 / 缓存），对照第 1、3、4、5 章。
-> 3. 挑一个真的接口，自己 `pnpm start:dev` 起来用 Postman 打一下，看日志一步步走。
+> 3. 挑一个真的接口，自己 `pnpm start:admin:dev` 起来用 Postman 打一下，看日志一步步走。
 

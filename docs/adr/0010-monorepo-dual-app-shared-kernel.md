@@ -69,7 +69,7 @@ ADR 0009 已预言「阶段二独立商城服务」。本 ADR 把演进落定为
 
 - 共享包发版触发双镜像重建，CI 变重。
 
-- dist 结构变化波及 `entrypoint.sh` / `start:prod` 路径（注意：entrypoint 必须 LF；迁移步骤 ⑥ 需回归容器冒烟，记忆中有 CRLF→exit 127 先例）。
+- dist 结构变化波及 `entrypoint.sh` / `start:admin`、`start:mall` 路径（注意：entrypoint 必须 LF；迁移步骤 ⑥ 需回归容器冒烟，记忆中有 CRLF→exit 127 先例）。
 
 - 路由剥前缀是 BREAKING：mall 调用点需同版本更新（同 ADR 0005 supersede 先例）。
 

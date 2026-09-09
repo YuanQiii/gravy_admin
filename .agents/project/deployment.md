@@ -6,7 +6,7 @@
 
 ```bash
 pnpm build
-pnpm start:prod
+pnpm start:admin
 pnpm docker:dev:up
 pnpm docker:up
 pnpm docker:deploy

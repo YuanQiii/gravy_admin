@@ -51,7 +51,8 @@ docker compose -f docker-compose.dev.yml up -d postgres redis
 
 pnpm prisma db push
 pnpm prisma db seed
-pnpm start:dev
+pnpm start:admin:dev
+# 需要商城端时另开终端：pnpm start:mall:dev
 ```
 
 - 应用：`http://localhost:3000`
