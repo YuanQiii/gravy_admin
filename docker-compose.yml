@@ -21,7 +21,7 @@ services:
       retries: 12
       start_period: 30s
 
-  app:
+  admin:
     image: ${IMAGE:-gvray/gvray-admin:latest}
     container_name: gvray-admin-app
     restart: unless-stopped
@@ -41,8 +41,40 @@ services:
       SUPER_ADMIN_INITIAL_PASSWORD: ${SUPER_ADMIN_INITIAL_PASSWORD:-123456}
       ENABLE_CORS: ${ENABLE_CORS:-true}
       CORS_ORIGINS: ${CORS_ORIGINS:-}
+      REDIS_HOST: redis
     ports:
       - "${PORT:-3000}:${PORT:-3000}"
+    networks:
+      - nest-net
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://localhost:' + (process.env.PORT||3000) + '/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  mall:
+    image: ${MALL_IMAGE:-gvray/gvray-mall:latest}
+    container_name: gvray-mall-app
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - path: .env.${ENV:-production}
+        required: false
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-password}@postgres:5432/${POSTGRES_DB:-gvray_admin}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      JWT_ACCESS_TOKEN_EXPIRES_IN: ${JWT_ACCESS_TOKEN_EXPIRES_IN:-2h}
+      JWT_REFRESH_TOKEN_EXPIRES_IN: ${JWT_REFRESH_TOKEN_EXPIRES_IN:-7d}
+      PORT: ${MALL_PORT:-3001}
+      ENABLE_CORS: ${ENABLE_CORS:-true}
+      CORS_ORIGINS: ${CORS_ORIGINS:-}
+      REDIS_HOST: redis
+    ports:
+      - "${MALL_PORT:-3001}:${MALL_PORT:-3001}"
     networks:
       - nest-net
     healthcheck:
@@ -57,7 +89,7 @@ services:
     container_name: gvray-admin-web
     restart: unless-stopped
     depends_on:
-      app:
+      admin:
         condition: service_healthy
     ports:
       - "${WEB_PORT:-80}:80"

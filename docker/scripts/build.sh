@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build, tag, and optionally push/scan the production Docker image.
+# Build, tag, and optionally push/scan the production Docker images (admin + mall).
 #
 # Usage:
 #   ./docker/scripts/build.sh [options]
@@ -14,7 +14,7 @@
 
 set -euo pipefail
 
-# ── Colors ($'...' embeds the ESC byte directly — no echo/printf interpretation needed) ──
+# ── Colors ────────────────────────────────────────────────────────────────────
 RED=$'\033[0;31m'; GREEN=$'\033[0;32m'; YELLOW=$'\033[1;33m'
 CYAN=$'\033[0;36m'; BOLD=$'\033[1m'; NC=$'\033[0m'
 info()  { printf "${CYAN}${BOLD}[build]${NC} %s\n" "$*"; }
@@ -23,12 +23,16 @@ warn()  { printf "${YELLOW}${BOLD}[build]${NC} %s\n" "$*"; }
 fatal() { printf "${RED}${BOLD}[build]${NC} %b\n" "$*" >&2; exit 1; }
 
 # ── Config ────────────────────────────────────────────────────────────────────
-IMAGE_NAME="gvray-admin"
+# "name:dockerfile:runner-target" — two production images from a shared repo root.
+IMAGES=(
+  "gvray-admin:Dockerfile:runner"
+  "gvray-mall:Dockerfile.mall:runner"
+)
 REGISTRY="${DOCKER_REGISTRY:-docker.io}"
 NAMESPACE="${DOCKER_NAMESPACE:-gvray}"
 VERSION="${VERSION:-}"
 PLATFORM="${PLATFORM:-linux/amd64}"
-BUILDER="${BUILDER:-gvray-admin-builder}"
+BUILDER="${BUILDER:-gvray-buildx-builder}"
 
 # Flags — overridden by getopts below
 MULTI_ARCH=false
@@ -66,30 +70,6 @@ if $MULTI_ARCH && ! $PUSH; then
 fi
 
 $MULTI_ARCH && PLATFORM="linux/amd64,linux/arm64"
-FULL_IMAGE="${REGISTRY}/${NAMESPACE}/${IMAGE_NAME}"
-
-# ── Collect tags ──────────────────────────────────────────────────────────────
-# Always: :<git-sha>  +  :latest
-# If -v given: also :<version>  → 3 tags total
-TAG_FLAGS=(
-  "--tag" "${FULL_IMAGE}:${GIT_COMMIT}"
-  "--tag" "${FULL_IMAGE}:latest"
-)
-BUILT_TAGS=(
-  "${FULL_IMAGE}:${GIT_COMMIT}"
-  "${FULL_IMAGE}:latest"
-)
-if [[ -n "$VERSION" ]]; then
-  TAG_FLAGS+=("--tag" "${FULL_IMAGE}:${VERSION}")
-  BUILT_TAGS+=("${FULL_IMAGE}:${VERSION}")
-fi
-
-# ── Summary ───────────────────────────────────────────────────────────────────
-printf "\n"
-printf "  ${BOLD}Image    ${NC} %s\n"      "${FULL_IMAGE}"
-printf "  ${BOLD}Platform ${NC} %s\n"      "${PLATFORM}"
-printf "  ${BOLD}Commit   ${NC} %s (%s)\n" "${GIT_COMMIT}" "${GIT_BRANCH}"
-printf "\n"
 
 # ── Clean cache ───────────────────────────────────────────────────────────────
 if $CLEAN; then
@@ -104,58 +84,76 @@ if ! docker buildx inspect "$BUILDER" &>/dev/null; then
 fi
 docker buildx use "$BUILDER"
 
-# ── Build ─────────────────────────────────────────────────────────────────────
-info "Building ${#BUILT_TAGS[@]} tags (${PLATFORM})..."
+PUSH_FLAG_LOAD="--load"
+$PUSH && PUSH_FLAG_LOAD="--push"
 
-# --load: single-arch local load; --push: registry (required for multi-arch)
-PUSH_FLAG="--load"
-$PUSH && PUSH_FLAG="--push"
+# ── Build each image ──────────────────────────────────────────────────────────
+for entry in "${IMAGES[@]}"; do
+  IFS=':' read -r NAME DOCKERFILE TARGET <<< "$entry"
+  FULL_IMAGE="${REGISTRY}/${NAMESPACE}/${NAME}"
 
-# Assemble build args array to avoid word-splitting with conditional flags
-BUILD_ARGS=(
-  --platform "$PLATFORM"
-  --target   runner
-  "${TAG_FLAGS[@]}"
-  --build-arg "BUILD_DATE=$BUILD_DATE"
-  --build-arg "GIT_SHA=$GIT_COMMIT"
-  --build-arg "VERSION=${VERSION:-$GIT_COMMIT}"
-  --cache-from "type=registry,ref=${FULL_IMAGE}:buildcache"
-)
-
-# Attestations and cache-to require registry access — only when pushing
-if $PUSH; then
-  BUILD_ARGS+=(--provenance=true --sbom=true)
-  # Docker Hub rejects cache blobs for multi-arch (too large); skip cache-to in that case
-  if ! $MULTI_ARCH; then
-    BUILD_ARGS+=(--cache-to "type=registry,ref=${FULL_IMAGE}:buildcache,mode=min")
+  # Tags: :<git-sha> + :latest (+ :<version> if -v)
+  TAG_FLAGS=(
+    "--tag" "${FULL_IMAGE}:${GIT_COMMIT}"
+    "--tag" "${FULL_IMAGE}:latest"
+  )
+  BUILT_TAGS=(
+    "${FULL_IMAGE}:${GIT_COMMIT}"
+    "${FULL_IMAGE}:latest"
+  )
+  if [[ -n "$VERSION" ]]; then
+    TAG_FLAGS+=("--tag" "${FULL_IMAGE}:${VERSION}")
+    BUILT_TAGS+=("${FULL_IMAGE}:${VERSION}")
   fi
-fi
 
-BUILD_ARGS+=("$PUSH_FLAG")
+  printf "\n"
+  printf "  ${BOLD}Image    ${NC} %s\n"      "${FULL_IMAGE}"
+  printf "  ${BOLD}Docker   ${NC} %s (target %s)\n" "$DOCKERFILE" "$TARGET"
+  printf "  ${BOLD}Platform ${NC} %s\n"      "${PLATFORM}"
+  printf "  ${BOLD}Commit   ${NC} %s (%s)\n" "${GIT_COMMIT}" "${GIT_BRANCH}"
+  printf "\n"
 
-docker buildx build "${BUILD_ARGS[@]}" .
+  BUILD_ARGS+=(--platform "$PLATFORM")
+  BUILD_ARGS+=(--target   "$TARGET")
+  BUILD_ARGS+=("${TAG_FLAGS[@]}")
+  BUILD_ARGS+=(--build-arg "BUILD_DATE=$BUILD_DATE")
+  BUILD_ARGS+=(--build-arg "GIT_SHA=$GIT_COMMIT")
+  BUILD_ARGS+=(--build-arg "VERSION=${VERSION:-$GIT_COMMIT}")
+  BUILD_ARGS+=(--cache-from "type=registry,ref=${FULL_IMAGE}:buildcache")
 
-# ── Security scan ─────────────────────────────────────────────────────────────
-if $SCAN; then
-  info "Running Trivy scan on ${FULL_IMAGE}:${GIT_COMMIT}..."
-  if command -v trivy &>/dev/null; then
-    trivy image --exit-code 1 --severity HIGH,CRITICAL "${FULL_IMAGE}:${GIT_COMMIT}"
+  if $PUSH; then
+    BUILD_ARGS+=(--provenance=true --sbom=true)
+    if ! $MULTI_ARCH; then
+      BUILD_ARGS+=(--cache-to "type=registry,ref=${FULL_IMAGE}:buildcache,mode=min")
+    fi
+  fi
+
+  BUILD_ARGS+=("$PUSH_FLAG_LOAD")
+  BUILD_ARGS+=("-f" "$DOCKERFILE")
+
+  info "Building ${#BUILT_TAGS[@]} tags (${PLATFORM})..."
+  docker buildx build "${BUILD_ARGS[@]}" .
+
+  # ── Security scan ───────────────────────────────────────────────────────────
+  if $SCAN; then
+    info "Running Trivy scan on ${FULL_IMAGE}:${GIT_COMMIT}..."
+    if command -v trivy &>/dev/null; then
+      trivy image --exit-code 1 --severity HIGH,CRITICAL "${FULL_IMAGE}:${GIT_COMMIT}"
+    else
+      warn "Trivy not found — https://aquasecurity.github.io/trivy"
+    fi
+  fi
+
+  if $PUSH; then
+    ok "Pushed ${#BUILT_TAGS[@]} images to registry:"
   else
-    warn "Trivy not found — https://aquasecurity.github.io/trivy"
+    ok "Loaded ${#BUILT_TAGS[@]} images locally:"
   fi
-fi
-
-# Write most-specific tag for deploy script to pick up automatically
-printf "%s" "${FULL_IMAGE}:${VERSION:-$GIT_COMMIT}" > .image-tag
-
-# ── Result ────────────────────────────────────────────────────────────────────
-printf "\n"
-if $PUSH; then
-  ok "Pushed ${#BUILT_TAGS[@]} images to registry:"
-else
-  ok "Loaded ${#BUILT_TAGS[@]} images locally:"
-fi
-for tag in "${BUILT_TAGS[@]}"; do
-  printf "  ${BOLD}→${NC} %s\n" "$tag"
+  for tag in "${BUILT_TAGS[@]}"; do
+    printf "  ${BOLD}→${NC} %s\n" "$tag"
+  done
+  printf "\n"
 done
-printf "\n"
+
+# Write most-specific tag for deploy script to pick up automatically (last image)
+printf "%s" "${REGISTRY}/${NAMESPACE}/gvray-mall:${VERSION:-$GIT_COMMIT}" > .image-tag

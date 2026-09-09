@@ -23,7 +23,7 @@ services:
       retries: 12
       start_period: 30s
 
-  app:
+  admin:
     build:
       context: .
       dockerfile: Dockerfile
@@ -50,7 +50,39 @@ services:
     ports:
       - "${PORT:-3000}:${PORT:-3000}"
     volumes:
-      - ./src:/app/src
+      - ./apps:/app/apps
+      - ./packages:/app/packages
+    networks:
+      - nest-dev
+
+  mall:
+    build:
+      context: .
+      dockerfile: Dockerfile.mall
+      target: dev
+    container_name: gvray-mall-app-dev
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - path: .env.${ENV:-development}
+        required: false
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-password}@postgres:5432/${POSTGRES_DB:-gvray_admin}
+      JWT_SECRET: ${JWT_SECRET:-dev-jwt-secret-local-only}
+      JWT_ACCESS_TOKEN_EXPIRES_IN: ${JWT_ACCESS_TOKEN_EXPIRES_IN:-2h}
+      JWT_REFRESH_TOKEN_EXPIRES_IN: ${JWT_REFRESH_TOKEN_EXPIRES_IN:-7d}
+      PORT: ${MALL_PORT:-3001}
+      REDIS_HOST: redis
+      ENABLE_CORS: ${ENABLE_CORS:-true}
+      CORS_ORIGINS: ${CORS_ORIGINS:-}
+    ports:
+      - "${MALL_PORT:-3001}:${MALL_PORT:-3001}"
+    volumes:
+      - ./apps:/app/apps
+      - ./packages:/app/packages
     networks:
       - nest-dev
 

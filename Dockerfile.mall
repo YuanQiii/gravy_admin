@@ -1,0 +1,96 @@
+ARG NODE_VERSION=20
+ARG ALPINE_VERSION=3.20
+
+# ─── Base: shared toolchain ───────────────────────────────────────────────────
+FROM node:${NODE_VERSION}-alpine${ALPINE_VERSION} AS base
+
+RUN apk add --no-cache libc6-compat tini
+
+RUN corepack enable && corepack prepare pnpm@latest --activate
+
+WORKDIR /app
+
+
+# ─── Deps: install all dependencies ───────────────────────────────────────────
+FROM base AS deps
+
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY apps/ ./apps/
+COPY packages/ ./packages/
+
+RUN --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store \
+    pnpm install --frozen-lockfile
+
+
+# ─── Dev: hot-reload development (no full compile) ────────────────────────────
+FROM base AS dev
+
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+
+ENV DATABASE_URL="postgresql://build:build@build:5432/build"
+
+RUN pnpm prisma generate
+
+EXPOSE 3000
+
+CMD ["pnpm", "start:mall"]
+
+
+# ─── Builder: compile TypeScript API + prisma seed ────────────────────────────
+FROM base AS builder
+
+COPY --from=deps /app/node_modules ./node_modules
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY apps/ ./apps/
+COPY packages/ ./packages/
+COPY prisma/ ./prisma/
+COPY scripts/ ./scripts/
+COPY tsconfig*.json ./
+
+ENV DATABASE_URL="postgresql://build:build@build:5432/build"
+
+RUN pnpm prisma generate
+RUN pnpm build
+
+
+# ─── Runner: lean production mall image ───────────────────────────────────────
+# mall 不跑迁移：不 COPY migrations/schema、不 COPY db-bootstrap、不挂 entrypoint。
+FROM node:${NODE_VERSION}-alpine${ALPINE_VERSION} AS runner
+
+RUN apk add --no-cache libc6-compat tini
+
+WORKDIR /app
+
+ARG BUILD_DATE
+ARG GIT_SHA
+ARG VERSION="0.0.0"
+LABEL org.opencontainers.image.title="gvray-mall" \
+      org.opencontainers.image.description="GVRAY Mall 商城公开接口（匿名浏览 + 客户自助）" \
+      org.opencontainers.image.licenses="MIT" \
+      org.opencontainers.image.created="${BUILD_DATE}" \
+      org.opencontainers.image.revision="${GIT_SHA}" \
+      org.opencontainers.image.version="${VERSION}"
+
+ENV NODE_ENV=production \
+    PORT=3000 \
+    TZ=Asia/Shanghai
+
+COPY --from=builder /app/dist/apps/mall      ./dist/apps/mall
+COPY --from=builder /app/dist/packages       ./dist/packages
+COPY --from=builder /app/node_modules        ./node_modules
+
+RUN addgroup --system --gid 1001 nodejs \
+ && adduser  --system --uid 1001 nestjs \
+ && chown -R nestjs:nodejs /app
+
+USER nestjs
+
+EXPOSE 3000
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+  CMD node -e \
+    "require('http').get('http://localhost:' + (process.env.PORT||3000) + '/health', r => { process.exit(r.statusCode === 200 ? 0 : 1) }).on('error', () => process.exit(1))"
+
+ENTRYPOINT ["/sbin/tini", "--"]
+CMD ["node", "dist/apps/mall/apps/mall/src/main.js"]

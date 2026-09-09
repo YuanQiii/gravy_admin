@@ -6,8 +6,9 @@
   "license": "MIT",
   "private": true,
   "scripts": {
-    "build": "pnpm build:packages && pnpm build:admin && pnpm build:mall",
+    "build": "pnpm build:packages && pnpm build:scripts && pnpm build:admin && pnpm build:mall",
     "build:packages": "tsc -p packages/core/tsconfig.json && tsc -p packages/domain/tsconfig.json",
+    "build:scripts": "tsc -p scripts/tsconfig.build.json",
     "build:admin": "nest build --config apps/admin/nest-cli.json",
     "build:mall": "nest build --config apps/mall/nest-cli.json",
     "format": "prettier --write \"apps/**/*.ts\" \"packages/**/*.ts\" \"test/**/*.ts\"",
