@@ -43,7 +43,10 @@ import { OperationLogsModule } from '@/modules/system/operation-logs/operation-l
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: [`.env.${process.env.NODE_ENV}`, '.env'],
+      envFilePath: [
+        `apps/admin/.env.${process.env.NODE_ENV}`,
+        'apps/admin/.env',
+      ],
       load: [appConfig, databaseConfig, jwtConfig, corsConfig, redisConfig],
       validate: validateEnv,
       expandVariables: true,

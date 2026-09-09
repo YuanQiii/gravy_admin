@@ -41,7 +41,10 @@ import {
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: [`.env.${process.env.NODE_ENV}`, '.env'],
+      envFilePath: [
+        `apps/mall/.env.${process.env.NODE_ENV}`,
+        'apps/mall/.env',
+      ],
       load: [appConfig, databaseConfig, jwtConfig, corsConfig, redisConfig],
       validate: validateEnv,
       expandVariables: true,

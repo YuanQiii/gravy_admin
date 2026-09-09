@@ -60,8 +60,8 @@ export { FeatureFlag } from './core/decorators/feature-flag.decorator';
 export { AllowGuestWrite } from './core/decorators/allow-guest-write.decorator';
 
 // ── core / interceptors ──────────────────────────────────────────
-// 注：SessionHeartbeatInterceptor 依赖 @/modules/auth/token.service，
-// 本迁移步骤暂不从 barrel 导出（见迁移 ADR，后续步骤再迁出）。
+// 注：SessionHeartbeatInterceptor 依赖 admin 的 TokenService，属 admin 侧横切，
+// 已迁至 apps/admin/src/core/interceptors/（不占用 @gvray/core barrel 面）。
 export { ResponseInterceptor } from './core/interceptors/response.interceptor';
 export { OperationLogInterceptor } from './core/interceptors/operation-log.interceptor';
 
