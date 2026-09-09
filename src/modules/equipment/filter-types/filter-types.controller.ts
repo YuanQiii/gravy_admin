@@ -16,12 +16,14 @@ import {
   ApiBearerAuth,
   ApiBody,
 } from '@nestjs/swagger';
-import { FilterTypesService } from './filter-types.service';
-import { CreateFilterTypeDto } from './dto/create-filter-type.dto';
-import { UpdateFilterTypeDto } from './dto/update-filter-type.dto';
-import { QueryFilterTypeDto } from './dto/query-filter-type.dto';
-import { FilterTypeResponseDto } from './dto/filter-type-response.dto';
-import { BatchDeleteFilterTypesDto } from './dto/batch-delete-filter-types.dto';
+import {
+  FilterTypesService,
+  CreateFilterTypeDto,
+  UpdateFilterTypeDto,
+  QueryFilterTypeDto,
+  FilterTypeResponseDto,
+  BatchDeleteFilterTypesDto,
+} from '@gvray/domain';
 import { RequirePermissions, OperationLog, CurrentUser, ResponseUtil, EQUIPMENT_FILTER_TYPE_PERMISSIONS, AccessGuard } from '@gvray/core';
 
 

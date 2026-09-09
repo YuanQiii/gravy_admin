@@ -16,14 +16,16 @@ import {
   ApiBearerAuth,
   ApiBody,
 } from '@nestjs/swagger';
-import { BrandsService } from './brands.service';
-import { CreateBrandDto } from './dto/create-brand.dto';
-import { UpdateBrandDto } from './dto/update-brand.dto';
-import { QueryBrandDto } from './dto/query-brand.dto';
-import { BrandResponseDto } from './dto/brand-response.dto';
-import { BatchDeleteBrandsDto } from './dto/batch-delete-brands.dto';
-import { HotBrandQueryDto } from './dto/hot-brand-query.dto';
-import { HotStatusBrandsDto } from './dto/hot-status-brands.dto';
+import {
+  BrandsService,
+  CreateBrandDto,
+  UpdateBrandDto,
+  QueryBrandDto,
+  BrandResponseDto,
+  BatchDeleteBrandsDto,
+  HotBrandQueryDto,
+  HotStatusBrandsDto,
+} from '@gvray/domain';
 import { RequirePermissions, OperationLog, CurrentUser, ResponseUtil, EQUIPMENT_BRAND_PERMISSIONS, EQUIPMENT_HOT_BRAND_PERMISSIONS, AccessGuard } from '@gvray/core';
 
 

@@ -1,9 +1,7 @@
 import { Controller, Get, Param, Query } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
-import { CatalogsService } from '@/modules/equipment/catalogs/catalogs.service';
-import { QueryCatalogDto } from '@/modules/equipment/catalogs/dto/query-catalog.dto';
-import { CatalogResponseDto } from '@/modules/equipment/catalogs/dto/catalog-response.dto';
+import { CatalogsService, QueryCatalogDto, CatalogResponseDto } from '@gvray/domain';
 import { Public, ResponseUtil } from '@gvray/core';
 
 

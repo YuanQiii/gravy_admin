@@ -8,9 +8,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
-import { InquiriesService } from '@/modules/inquiry/inquiries/inquiries.service';
-import { QueryInquiryDto } from '@/modules/inquiry/inquiries/dto/query-inquiry.dto';
-import { InquiryResponseDto } from '@/modules/inquiry/inquiries/dto/inquiry-response.dto';
+import { InquiriesService, QueryInquiryDto, InquiryResponseDto } from '@gvray/domain';
 import { CustomerJwtGuard } from '@/core/guards/customer-jwt.guard';
 import { CurrentCustomer } from '@/core/decorators/current-customer.decorator';
 import { ICustomer } from '@/core/interfaces/customer.interface';

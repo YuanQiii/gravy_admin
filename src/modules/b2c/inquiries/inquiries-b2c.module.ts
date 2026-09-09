@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { InquiriesModule } from '@/modules/inquiry/inquiries/inquiries.module';
+import { InquiriesModule } from '@gvray/domain';
 import { B2CInquiriesController } from './b2c-inquiries.controller';
 
 /**

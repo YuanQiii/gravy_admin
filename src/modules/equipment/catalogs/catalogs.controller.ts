@@ -16,12 +16,14 @@ import {
   ApiBearerAuth,
   ApiBody,
 } from '@nestjs/swagger';
-import { CatalogsService } from './catalogs.service';
-import { CreateCatalogDto } from './dto/create-catalog.dto';
-import { UpdateCatalogDto } from './dto/update-catalog.dto';
-import { QueryCatalogDto } from './dto/query-catalog.dto';
-import { CatalogResponseDto } from './dto/catalog-response.dto';
-import { BatchDeleteCatalogsDto } from './dto/batch-delete-catalogs.dto';
+import {
+  CatalogsService,
+  CreateCatalogDto,
+  UpdateCatalogDto,
+  QueryCatalogDto,
+  CatalogResponseDto,
+  BatchDeleteCatalogsDto,
+} from '@gvray/domain';
 import { RequirePermissions, OperationLog, CurrentUser, ResponseUtil, EQUIPMENT_CATALOG_PERMISSIONS, AccessGuard } from '@gvray/core';
 
 

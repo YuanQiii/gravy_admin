@@ -16,13 +16,15 @@ import {
   ApiBearerAuth,
   ApiBody,
 } from '@nestjs/swagger';
-import { EquipmentService } from './equipment.service';
-import { CreateEquipmentDto } from './dto/create-equipment.dto';
-import { UpdateEquipmentDto } from './dto/update-equipment.dto';
-import { QueryEquipmentDto } from './dto/query-equipment.dto';
-import { EquipmentResponseDto } from './dto/equipment-response.dto';
-import { BatchDeleteEquipmentDto } from './dto/batch-delete-equipment.dto';
-import { AttachFiltersDto } from './dto/attach-filters.dto';
+import {
+  EquipmentService,
+  CreateEquipmentDto,
+  UpdateEquipmentDto,
+  QueryEquipmentDto,
+  EquipmentResponseDto,
+  BatchDeleteEquipmentDto,
+  AttachFiltersDto,
+} from '@gvray/domain';
 import { RequirePermissions, OperationLog, CurrentUser, ResponseUtil, EQUIPMENT_PERMISSIONS, AccessGuard } from '@gvray/core';
 
 

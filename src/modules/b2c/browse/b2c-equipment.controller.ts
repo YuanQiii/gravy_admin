@@ -1,9 +1,7 @@
 import { Controller, Get, Param, Query } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
-import { EquipmentService } from '@/modules/equipment/equipment/equipment.service';
-import { QueryEquipmentDto } from '@/modules/equipment/equipment/dto/query-equipment.dto';
-import { EquipmentResponseDto } from '@/modules/equipment/equipment/dto/equipment-response.dto';
+import { EquipmentService, QueryEquipmentDto, EquipmentResponseDto } from '@gvray/domain';
 import { Public, ResponseUtil } from '@gvray/core';
 
 

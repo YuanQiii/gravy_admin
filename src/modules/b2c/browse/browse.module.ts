@@ -1,9 +1,11 @@
 import { Module } from '@nestjs/common';
-import { FiltersModule } from '@/modules/equipment/filters/filters.module';
-import { EquipmentServiceModule } from '@/modules/equipment/equipment/equipment.module';
-import { CatalogsModule } from '@/modules/equipment/catalogs/catalogs.module';
-import { BrandsModule } from '@/modules/equipment/brands/brands.module';
-import { FilterTypesModule } from '@/modules/equipment/filter-types/filter-types.module';
+import {
+  BrandsModule,
+  CatalogsModule,
+  FilterTypesModule,
+  FiltersModule,
+  EquipmentServiceModule,
+} from '@gvray/domain';
 import { B2CFiltersController } from './b2c-filters.controller';
 import { B2CEquipmentController } from './b2c-equipment.controller';
 import { B2CCatalogsController } from './b2c-catalogs.controller';

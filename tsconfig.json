@@ -10,7 +10,8 @@
       "@/prisma/*": ["src/prisma/*"],
       "@/modules/*": ["src/modules/*"],
       "@/config/*": ["src/config/*"],
-      "@gvray/core": ["packages/core/src/index"]
+      "@gvray/core": ["packages/core/src/index"],
+      "@gvray/domain": ["packages/domain/src/index"]
     }
   }
 }

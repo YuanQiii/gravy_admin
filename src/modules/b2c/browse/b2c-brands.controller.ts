@@ -1,10 +1,7 @@
 import { Controller, Get, Param, Query } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
-import { BrandsService } from '@/modules/equipment/brands/brands.service';
-import { QueryBrandDto } from '@/modules/equipment/brands/dto/query-brand.dto';
-import { BrandResponseDto } from '@/modules/equipment/brands/dto/brand-response.dto';
-import { HotBrandQueryDto } from '@/modules/equipment/brands/dto/hot-brand-query.dto';
+import { BrandsService, QueryBrandDto, BrandResponseDto, HotBrandQueryDto } from '@gvray/domain';
 import { Public, ResponseUtil } from '@gvray/core';
 
 

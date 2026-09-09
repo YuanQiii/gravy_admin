@@ -16,12 +16,14 @@ import {
   ApiBearerAuth,
   ApiBody,
 } from '@nestjs/swagger';
-import { InquiryLinesService } from './inquiry-lines.service';
-import { CreateInquiryLineDto } from './dto/create-inquiry-line.dto';
-import { UpdateInquiryLineDto } from './dto/update-inquiry-line.dto';
-import { QueryInquiryLineDto } from './dto/query-inquiry-line.dto';
-import { InquiryLineResponseDto } from './dto/inquiry-line-response.dto';
-import { BatchDeleteInquiryLinesDto } from './dto/batch-delete-inquiry-lines.dto';
+import {
+  InquiryLinesService,
+  CreateInquiryLineDto,
+  UpdateInquiryLineDto,
+  QueryInquiryLineDto,
+  InquiryLineResponseDto,
+  BatchDeleteInquiryLinesDto,
+} from '@gvray/domain';
 import { RequirePermissions, OperationLog, CurrentUser, ResponseUtil, INQUIRY_LINE_PERMISSIONS, AccessGuard } from '@gvray/core';
 
 
