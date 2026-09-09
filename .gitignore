@@ -148,3 +148,7 @@ prisma/backups/
 
 # CodeGraph index artifacts
 .codegraph/
+
+# Local tooling artifacts (understand index / agent review reports)
+.ua/
+.arch-*.html
