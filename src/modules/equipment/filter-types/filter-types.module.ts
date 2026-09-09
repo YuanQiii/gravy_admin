@@ -1,7 +1,8 @@
 import { Module } from '@nestjs/common';
 import { FilterTypesService } from './filter-types.service';
 import { FilterTypesController } from './filter-types.controller';
-import { PrismaModule } from '@/prisma/prisma.module';
+import { PrismaModule } from '@gvray/core';
+
 
 @Module({
   imports: [PrismaModule],

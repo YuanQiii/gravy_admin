@@ -5,13 +5,14 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { plainToInstance } from 'class-transformer';
-import { PrismaService } from '@/prisma/prisma.service';
+import { PrismaService, BaseService, PaginationData } from '@gvray/core';
+
 import { CreatePositionDto } from './dto/create-position.dto';
 import { UpdatePositionDto } from './dto/update-position.dto';
 import { QueryPositionDto } from './dto/query-position.dto';
 import { PositionResponseDto } from './dto/position-response.dto';
-import { BaseService } from '@/shared/services/base.service';
-import { PaginationData } from '@/shared/interfaces/response.interface';
+
+
 
 @Injectable()
 export class PositionsService extends BaseService {

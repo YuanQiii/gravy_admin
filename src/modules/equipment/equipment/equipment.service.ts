@@ -7,15 +7,12 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { plainToInstance } from 'class-transformer';
 import { Prisma, Filter } from '@prisma/client';
-import { PrismaService } from '@/prisma/prisma.service';
-import {
-  BaseService,
-  VisibilityOpts,
-  isB2cVisibility,
-} from '@/shared/services/base.service';
-import { SoftDeleteService } from '@/shared/services/soft-delete.service';
-import { PaginationData } from '@/shared/interfaces/response.interface';
-import { isEquipmentEngineEnergy } from '@/shared/constants/equipment.constant';
+import { PrismaService, BaseService, VisibilityOpts, isB2cVisibility, SoftDeleteService, PaginationData, isEquipmentEngineEnergy } from '@gvray/core';
+
+
+
+
+
 import { runWeightedSort, WeightedField } from '../weighted-sort';
 import { CreateEquipmentDto } from './dto/create-equipment.dto';
 import { UpdateEquipmentDto } from './dto/update-equipment.dto';

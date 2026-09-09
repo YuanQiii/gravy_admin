@@ -5,10 +5,11 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { plainToInstance } from 'class-transformer';
-import { PrismaService } from '@/prisma/prisma.service';
-import { BaseService } from '@/shared/services/base.service';
-import { SoftDeleteService } from '@/shared/services/soft-delete.service';
-import { PaginationData } from '@/shared/interfaces/response.interface';
+import { PrismaService, BaseService, SoftDeleteService, PaginationData } from '@gvray/core';
+
+
+
+
 import { CreateInquiryLineDto } from './dto/create-inquiry-line.dto';
 import { UpdateInquiryLineDto } from './dto/update-inquiry-line.dto';
 import { QueryInquiryLineDto } from './dto/query-inquiry-line.dto';

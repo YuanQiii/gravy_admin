@@ -5,7 +5,8 @@ import { UnauthorizedException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { CustomerAuthService } from './customer-auth.service';
 import { CustomerTokenService } from './customer-token.service';
-import { PrismaService } from '@/prisma/prisma.service';
+import { PrismaService } from '@gvray/core';
+
 
 const configs: Record<string, string> = {
   'jwt.accessTokenExpiresIn': '5m',

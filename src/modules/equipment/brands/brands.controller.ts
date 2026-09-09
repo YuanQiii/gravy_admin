@@ -24,15 +24,13 @@ import { BrandResponseDto } from './dto/brand-response.dto';
 import { BatchDeleteBrandsDto } from './dto/batch-delete-brands.dto';
 import { HotBrandQueryDto } from './dto/hot-brand-query.dto';
 import { HotStatusBrandsDto } from './dto/hot-status-brands.dto';
-import { RequirePermissions } from '@/core/decorators/permissions.decorator';
-import { OperationLog } from '@/core/decorators/operation-log.decorator';
-import { CurrentUser } from '@/core/decorators/current-user.decorator';
-import { ResponseUtil } from '@/shared/utils/response.util';
-import {
-  EQUIPMENT_BRAND_PERMISSIONS,
-  EQUIPMENT_HOT_BRAND_PERMISSIONS,
-} from '@/shared/constants/permissions.constant';
-import { AccessGuard } from '@/core/guards/access.guard';
+import { RequirePermissions, OperationLog, CurrentUser, ResponseUtil, EQUIPMENT_BRAND_PERMISSIONS, EQUIPMENT_HOT_BRAND_PERMISSIONS, AccessGuard } from '@gvray/core';
+
+
+
+
+
+
 
 @ApiTags('设备品牌管理')
 @ApiBearerAuth('JWT-auth')

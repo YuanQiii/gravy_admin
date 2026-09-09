@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import { ConflictException } from '@nestjs/common';
 import { PermissionsService } from './permissions.service';
-import { PrismaService } from '../../../prisma/prisma.service';
+import { PrismaService } from '@gvray/core';
 
 describe('PermissionsService - Scan Managed Permissions', () => {
   let service: PermissionsService;

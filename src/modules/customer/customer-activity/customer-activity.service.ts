@@ -1,9 +1,10 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { plainToInstance } from 'class-transformer';
-import { PrismaService } from '@/prisma/prisma.service';
-import { BaseService } from '@/shared/services/base.service';
-import { PaginationData } from '@/shared/interfaces/response.interface';
+import { PrismaService, BaseService, PaginationData } from '@gvray/core';
+
+
+
 import { CreateFavoriteDto } from './dto/create-favorite.dto';
 import { QueryFavoriteDto } from './dto/query-favorite.dto';
 import { FavoriteResponseDto } from './dto/favorite-response.dto';

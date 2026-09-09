@@ -1,7 +1,8 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Logger } from '@nestjs/common';
 import { Exclude, Expose, Transform, Type } from 'class-transformer';
-import { UserStatus } from '@/shared/constants/user-status.constant';
+import { UserStatus } from '@gvray/core';
+
 
 export class CurrentUserPermissionResponseDto {
   @ApiProperty({ type: 'integer' })

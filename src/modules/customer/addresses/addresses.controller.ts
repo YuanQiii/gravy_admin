@@ -22,11 +22,12 @@ import { UpdateAddressDto } from './dto/update-address.dto';
 import { QueryAddressDto } from './dto/query-address.dto';
 import { AddressResponseDto } from './dto/address-response.dto';
 import { BatchDeleteAddressesDto } from './dto/batch-delete-addresses.dto';
-import { RequirePermissions } from '@/core/decorators/permissions.decorator';
-import { OperationLog } from '@/core/decorators/operation-log.decorator';
-import { ResponseUtil } from '@/shared/utils/response.util';
-import { CUSTOMER_ADDRESS_PERMISSIONS } from '@/shared/constants/permissions.constant';
-import { AccessGuard } from '@/core/guards/access.guard';
+import { RequirePermissions, OperationLog, ResponseUtil, CUSTOMER_ADDRESS_PERMISSIONS, AccessGuard } from '@gvray/core';
+
+
+
+
+
 
 @ApiTags('客户地址管理')
 @ApiBearerAuth('JWT-auth')

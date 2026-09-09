@@ -1,6 +1,6 @@
 import { SessionStore, SessionMeta } from './session-store.service';
-import { RedisUnavailableError } from '@/redis/redis.service';
-import { AUTH_REALM_USER, AUTH_REALM_CUSTOMER } from '@/core/constants/auth-realm.constant';
+import { RedisUnavailableError } from '../../redis/redis.service';
+import { AUTH_REALM_USER, AUTH_REALM_CUSTOMER } from '../../core/constants/auth-realm.constant';
 
 /**
  * 内存 Redis 假实现，覆盖 SessionStore 用到的全部原语，并记录 key 便于断言隔离。

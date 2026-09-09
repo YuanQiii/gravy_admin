@@ -14,7 +14,8 @@ import { InquiryResponseDto } from '@/modules/inquiry/inquiries/dto/inquiry-resp
 import { CustomerJwtGuard } from '@/core/guards/customer-jwt.guard';
 import { CurrentCustomer } from '@/core/decorators/current-customer.decorator';
 import { ICustomer } from '@/core/interfaces/customer.interface';
-import { ResponseUtil } from '@/shared/utils/response.util';
+import { ResponseUtil } from '@gvray/core';
+
 import { CreateCustomerInquiryDto } from './dto/create-customer-inquiry.dto';
 
 /**

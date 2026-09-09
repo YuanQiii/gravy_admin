@@ -1,6 +1,7 @@
 import { NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { PrismaService } from '@/prisma/prisma.service';
+import { PrismaService } from '@gvray/core';
+
 import { CustomerAddressesService } from './customer-addresses.service';
 
 function makePrisma() {

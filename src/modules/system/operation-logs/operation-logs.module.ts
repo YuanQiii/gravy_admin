@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
-import { PrismaModule } from '@/prisma/prisma.module';
+import { PrismaModule } from '@gvray/core';
+
 import { OperationLogsService } from './operation-logs.service';
 import { OperationLogsController } from './operation-logs.controller';
 

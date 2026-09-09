@@ -1,7 +1,8 @@
 import { Module } from '@nestjs/common';
 import { PositionsService } from './positions.service';
 import { PositionsController } from './positions.controller';
-import { PrismaModule } from '@/prisma/prisma.module';
+import { PrismaModule } from '@gvray/core';
+
 
 @Module({
   imports: [PrismaModule],

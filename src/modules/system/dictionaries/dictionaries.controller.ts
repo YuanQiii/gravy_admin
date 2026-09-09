@@ -25,16 +25,17 @@ import { CreateDictionaryItemDto } from './dto/create-dictionary-item.dto';
 import { UpdateDictionaryItemDto } from './dto/update-dictionary-item.dto';
 import { QueryDictionaryItemDto } from './dto/query-dictionary-item.dto';
 import { DictionaryItemResponseDto } from './dto/dictionary-item-response.dto';
-import { AccessGuard } from '@/core/guards/access.guard';
+import { AccessGuard, RequirePermissions, OperationLog, CurrentUser, IUser, ResponseUtil, DICTIONARY_PERMISSIONS } from '@gvray/core';
 
-import { RequirePermissions } from '@/core/decorators/permissions.decorator';
-import { OperationLog } from '@/core/decorators/operation-log.decorator';
-import { CurrentUser } from '@/core/decorators/current-user.decorator';
-import { IUser } from '@/core/interfaces/user.interface';
-import { ResponseUtil } from '@/shared/utils/response.util';
+
+
+
+
+
+
 import { BatchDeleteDictionaryTypesDto } from './dto/batch-delete-dictionary-types.dto';
 import { BatchDeleteDictionaryItemsDto } from './dto/batch-delete-dictionary-items.dto';
-import { DICTIONARY_PERMISSIONS } from '@/shared/constants/permissions.constant';
+
 
 @ApiTags('字典管理')
 @Controller('system/dictionaries')

@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
-import { SessionStore } from '@/core/session/session-store.service';
-import { AUTH_REALM_CUSTOMER } from '@/core/constants/auth-realm.constant';
+import { SessionStore, AUTH_REALM_CUSTOMER } from '@gvray/core';
+
+
 
 export interface CustomerSessionMetadata {
   ipAddress?: string;

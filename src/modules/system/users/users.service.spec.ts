@@ -7,9 +7,10 @@ import {
 } from '@nestjs/common';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import { UsersService } from './users.service';
-import { PrismaService } from '@/prisma/prisma.service';
-import { PermissionCacheService } from '@/redis/permission-cache.service';
-import { SUPER_ROLE_KEY } from '@/shared/constants/role.constant';
+import { PrismaService, PermissionCacheService, SUPER_ROLE_KEY } from '@gvray/core';
+
+
+
 
 describe('UsersService.remove', () => {
   let service: UsersService;

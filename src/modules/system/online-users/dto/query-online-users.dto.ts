@@ -1,6 +1,7 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsOptional, IsString } from 'class-validator';
-import { PaginationDto } from '@/shared/dtos/pagination.dto';
+import { PaginationDto } from '@gvray/core';
+
 
 /**
  * 在线用户列表查询 DTO

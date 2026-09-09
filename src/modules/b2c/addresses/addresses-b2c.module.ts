@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
-import { PrismaModule } from '@/prisma/prisma.module';
+import { PrismaModule } from '@gvray/core';
+
 import { B2CAddressesController } from './b2c-addresses.controller';
 import { CustomerAddressesService } from './customer-addresses.service';
 

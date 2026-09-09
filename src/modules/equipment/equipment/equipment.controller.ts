@@ -23,12 +23,13 @@ import { QueryEquipmentDto } from './dto/query-equipment.dto';
 import { EquipmentResponseDto } from './dto/equipment-response.dto';
 import { BatchDeleteEquipmentDto } from './dto/batch-delete-equipment.dto';
 import { AttachFiltersDto } from './dto/attach-filters.dto';
-import { RequirePermissions } from '@/core/decorators/permissions.decorator';
-import { OperationLog } from '@/core/decorators/operation-log.decorator';
-import { CurrentUser } from '@/core/decorators/current-user.decorator';
-import { ResponseUtil } from '@/shared/utils/response.util';
-import { EQUIPMENT_PERMISSIONS } from '@/shared/constants/permissions.constant';
-import { AccessGuard } from '@/core/guards/access.guard';
+import { RequirePermissions, OperationLog, CurrentUser, ResponseUtil, EQUIPMENT_PERMISSIONS, AccessGuard } from '@gvray/core';
+
+
+
+
+
+
 
 @ApiTags('设备档案管理')
 @ApiBearerAuth('JWT-auth')

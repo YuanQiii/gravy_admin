@@ -5,19 +5,20 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { CommonStatus } from '@/shared/constants/common-status.constant';
-import { SUPER_ROLE_KEY } from '@/shared/constants/role.constant';
-import { PrismaService } from '@/prisma/prisma.service';
-import { CacheService } from '@/redis/cache.service';
-import { Cacheable, CacheEvict } from '@/redis/decorators';
+import { CommonStatus, SUPER_ROLE_KEY, PrismaService, CacheService, Cacheable, CacheEvict, BaseService, PaginationData } from '@gvray/core';
+
+
+
+
+
 import { CreateConfigDto } from './dto/create-config.dto';
 import { UpdateConfigDto } from './dto/update-config.dto';
 import { QueryConfigDto } from './dto/query-config.dto';
 import { ConfigResponseDto } from './dto/config-response.dto';
 import { RuntimeConfigResponseDto } from './dto/runtime-config-response.dto';
 import { plainToInstance } from 'class-transformer';
-import { BaseService } from '@/shared/services/base.service';
-import { PaginationData } from '@/shared/interfaces/response.interface';
+
+
 
 @Injectable()
 export class ConfigsService extends BaseService {

@@ -5,15 +5,16 @@ import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { UsersModule } from '@/modules/system/users/users.module';
 import { LoginLogsModule } from '@/modules/system/login-logs/login-logs.module';
-import { JwtStrategy } from '@/core/strategies/jwt.strategy';
-import { JwtAuthGuard } from '@/core/guards/jwt-auth.guard';
-import { GuestWriteGuard } from '@/core/guards/guest-write.guard';
-import { RolesGuard } from '@/core/guards/roles.guard';
-import { PermissionsGuard } from '@/core/guards/permissions.guard';
-import { AccessGuard } from '@/core/guards/access.guard';
+import { JwtStrategy, JwtAuthGuard, GuestWriteGuard, RolesGuard, PermissionsGuard, AccessGuard, SessionStore } from '@gvray/core';
+
+
+
+
+
+
 import { CustomerJwtGuard } from '@/core/guards/customer-jwt.guard';
 import { CustomerJwtStrategy } from '@/core/strategies/customer-jwt.strategy';
-import { SessionStore } from '@/core/session/session-store.service';
+
 import { TokenService } from './token.service';
 
 @Global()

@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ICustomer } from '../interfaces/customer.interface';
-import { isCustomerRealm } from '../constants/auth-realm.constant';
+import { isCustomerRealm } from '@gvray/core';
 
 /**
  * B2C `Customer` 的 JWT 策略，注册名 `customer-jwt`（独立于后台 `jwt`）。

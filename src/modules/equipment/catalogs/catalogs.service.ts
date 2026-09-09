@@ -2,14 +2,11 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { plainToInstance } from 'class-transformer';
 import { Prisma } from '@prisma/client';
-import { PrismaService } from '@/prisma/prisma.service';
-import {
-  BaseService,
-  VisibilityOpts,
-  isB2cVisibility,
-} from '@/shared/services/base.service';
-import { SoftDeleteService } from '@/shared/services/soft-delete.service';
-import { PaginationData } from '@/shared/interfaces/response.interface';
+import { PrismaService, BaseService, VisibilityOpts, isB2cVisibility, SoftDeleteService, PaginationData } from '@gvray/core';
+
+
+
+
 import { runWeightedSort, WeightedField } from '../weighted-sort';
 import { CreateCatalogDto } from './dto/create-catalog.dto';
 import { UpdateCatalogDto } from './dto/update-catalog.dto';

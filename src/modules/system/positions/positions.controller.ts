@@ -22,14 +22,15 @@ import { CreatePositionDto } from './dto/create-position.dto';
 import { UpdatePositionDto } from './dto/update-position.dto';
 import { QueryPositionDto } from './dto/query-position.dto';
 import { PositionResponseDto } from './dto/position-response.dto';
-import { AccessGuard } from '@/core/guards/access.guard';
-import { RequirePermissions } from '@/core/decorators/permissions.decorator';
-import { OperationLog } from '@/core/decorators/operation-log.decorator';
-import { ResponseUtil } from '@/shared/utils/response.util';
+import { AccessGuard, RequirePermissions, OperationLog, ResponseUtil, CurrentUser, IUser, POSITION_PERMISSIONS } from '@gvray/core';
+
+
+
+
 import { BatchDeletePositionsDto } from './dto/batch-delete-positions.dto';
-import { CurrentUser } from '@/core/decorators/current-user.decorator';
-import { IUser } from '@/core/interfaces/user.interface';
-import { POSITION_PERMISSIONS } from '@/shared/constants/permissions.constant';
+
+
+
 
 @ApiTags('岗位管理')
 @Controller('system/positions')

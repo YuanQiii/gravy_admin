@@ -4,14 +4,15 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { LogResult } from '@/shared/constants/log-result.constant';
+import { LogResult, PrismaService, BaseService, PaginationData } from '@gvray/core';
+
 import { plainToInstance } from 'class-transformer';
-import { PrismaService } from '@/prisma/prisma.service';
+
 import { CreateLoginLogDto } from './dto/create-login-log.dto';
 import { QueryLoginLogDto } from './dto/query-login-log.dto';
 import { LoginLogResponseDto } from './dto/login-log-response.dto';
-import { BaseService } from '@/shared/services/base.service';
-import { PaginationData } from '@/shared/interfaces/response.interface';
+
+
 import { LoginStatsResponse } from './dto/login-stats-response.dto';
 
 @Injectable()

@@ -1,6 +1,7 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsOptional, IsString } from 'class-validator';
-import { PaginationSortDto } from '@/shared/dtos/pagination.dto';
+import { PaginationSortDto } from '@gvray/core';
+
 
 export class QueryNoticeDto extends PaginationSortDto {
   @ApiPropertyOptional({

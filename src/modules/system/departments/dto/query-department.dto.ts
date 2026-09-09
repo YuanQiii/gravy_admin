@@ -1,7 +1,8 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsOptional, IsString, IsInt } from 'class-validator';
 import { Type } from 'class-transformer';
-import { PaginationDto } from '@/shared/dtos/pagination.dto';
+import { PaginationDto } from '@gvray/core';
+
 
 export class QueryDepartmentDto extends PaginationDto {
   @ApiPropertyOptional({ description: '部门名称' })

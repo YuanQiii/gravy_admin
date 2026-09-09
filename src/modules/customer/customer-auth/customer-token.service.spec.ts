@@ -1,7 +1,8 @@
 import { CustomerTokenService } from './customer-token.service';
-import { SessionStore } from '@/core/session/session-store.service';
+import { SessionStore, AUTH_REALM_CUSTOMER } from '@gvray/core';
+
 import { TokenService } from '@/modules/auth/token.service';
-import { AUTH_REALM_CUSTOMER } from '@/core/constants/auth-realm.constant';
+
 
 function createFakeRedis() {
   const hash = new Map<string, Record<string, string>>();

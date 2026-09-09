@@ -1,6 +1,7 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsOptional, IsString, MaxLength } from 'class-validator';
-import { PaginationSortDto } from '@/shared/dtos/pagination.dto';
+import { PaginationSortDto } from '@gvray/core';
+
 
 export class QueryEquipmentDto extends PaginationSortDto {
   @ApiPropertyOptional({ description: '关键字（型号/品牌名称模糊匹配）' })

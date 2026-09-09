@@ -22,12 +22,13 @@ import { UpdateFilterDto } from './dto/update-filter.dto';
 import { QueryFilterDto } from './dto/query-filter.dto';
 import { FilterResponseDto } from './dto/filter-response.dto';
 import { BatchDeleteFiltersDto } from './dto/batch-delete-filters.dto';
-import { RequirePermissions } from '@/core/decorators/permissions.decorator';
-import { OperationLog } from '@/core/decorators/operation-log.decorator';
-import { CurrentUser } from '@/core/decorators/current-user.decorator';
-import { ResponseUtil } from '@/shared/utils/response.util';
-import { EQUIPMENT_FILTER_PERMISSIONS } from '@/shared/constants/permissions.constant';
-import { AccessGuard } from '@/core/guards/access.guard';
+import { RequirePermissions, OperationLog, CurrentUser, ResponseUtil, EQUIPMENT_FILTER_PERMISSIONS, AccessGuard } from '@gvray/core';
+
+
+
+
+
+
 
 @ApiTags('滤清器管理')
 @ApiBearerAuth('JWT-auth')

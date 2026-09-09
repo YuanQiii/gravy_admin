@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-import { CommonStatus } from '../../src/shared/constants/common-status.constant';
+import { CommonStatus } from '@gvray/core';
 
 const prisma = new PrismaClient();
 

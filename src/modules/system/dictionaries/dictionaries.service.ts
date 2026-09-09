@@ -5,10 +5,11 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { CommonStatus } from '@/shared/constants/common-status.constant';
-import { PrismaService } from '@/prisma/prisma.service';
-import { CacheService } from '@/redis/cache.service';
-import { Cacheable, CacheEvict } from '@/redis/decorators';
+import { CommonStatus, PrismaService, CacheService, Cacheable, CacheEvict, BaseService, PaginationData } from '@gvray/core';
+
+
+
+
 import { CreateDictionaryTypeDto } from './dto/create-dictionary-type.dto';
 import { UpdateDictionaryTypeDto } from './dto/update-dictionary-type.dto';
 import { QueryDictionaryTypeDto } from './dto/query-dictionary-type.dto';
@@ -18,8 +19,8 @@ import { UpdateDictionaryItemDto } from './dto/update-dictionary-item.dto';
 import { QueryDictionaryItemDto } from './dto/query-dictionary-item.dto';
 import { DictionaryItemResponseDto } from './dto/dictionary-item-response.dto';
 import { plainToInstance } from 'class-transformer';
-import { BaseService } from '@/shared/services/base.service';
-import { PaginationData } from '@/shared/interfaces/response.interface';
+
+
 
 @Injectable()
 export class DictionariesService extends BaseService {

@@ -15,7 +15,8 @@ import {
 import { CustomerAuthService } from './customer-auth.service';
 import { CustomerLoginDto } from './dto/customer-login.dto';
 import { CustomerRefreshTokenDto } from './dto/customer-refresh-token.dto';
-import { ResponseUtil } from '@/shared/utils/response.util';
+import { ResponseUtil } from '@gvray/core';
+
 import { CustomerJwtGuard } from '@/core/guards/customer-jwt.guard';
 
 interface CustomerRequest {

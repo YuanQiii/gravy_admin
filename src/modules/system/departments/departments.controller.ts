@@ -21,12 +21,13 @@ import { CreateDepartmentDto } from './dto/create-department.dto';
 import { UpdateDepartmentDto } from './dto/update-department.dto';
 import { QueryDepartmentDto } from './dto/query-department.dto';
 import { DepartmentResponseDto } from './dto/department-response.dto';
-import { RequirePermissions } from '@/core/decorators/permissions.decorator';
-import { OperationLog } from '@/core/decorators/operation-log.decorator';
-import { ResponseUtil } from '@/shared/utils/response.util';
-import { DEPARTMENT_PERMISSIONS } from '@/shared/constants/permissions.constant';
+import { RequirePermissions, OperationLog, ResponseUtil, DEPARTMENT_PERMISSIONS, AccessGuard } from '@gvray/core';
+
+
+
+
 import { BatchDeleteDepartmentsDto } from './dto/batch-delete-departments.dto';
-import { AccessGuard } from '@/core/guards/access.guard';
+
 
 @ApiTags('部门管理')
 @ApiBearerAuth('JWT-auth')

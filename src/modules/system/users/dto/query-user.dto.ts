@@ -1,8 +1,9 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsOptional, IsString, IsEnum } from 'class-validator';
 import { Type } from 'class-transformer';
-import { PaginationSortDto } from '@/shared/dtos/pagination.dto';
-import { UserStatus } from '@/shared/constants/user-status.constant';
+import { PaginationSortDto, UserStatus } from '@gvray/core';
+
+
 
 /**
  * 查询用户DTO

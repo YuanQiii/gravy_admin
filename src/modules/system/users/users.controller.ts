@@ -22,17 +22,18 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { AssignRolesDto } from './dto/assign-roles.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
-import { USER_PERMISSIONS } from '@/shared/constants/permissions.constant';
+import { USER_PERMISSIONS, AccessGuard, RequirePermissions, OperationLog, CurrentUser, IUser, ResponseUtil } from '@gvray/core';
 
-import { AccessGuard } from '@/core/guards/access.guard';
 
-import { RequirePermissions } from '@/core/decorators/permissions.decorator';
-import { OperationLog } from '@/core/decorators/operation-log.decorator';
-import { CurrentUser } from '@/core/decorators/current-user.decorator';
+
+
+
+
+
 import { QueryUserDto } from './dto/query-user.dto';
 import { UserResponseDto } from './dto/user-response.dto';
-import { IUser } from '@/core/interfaces/user.interface';
-import { ResponseUtil } from '@/shared/utils/response.util';
+
+
 import { BatchDeleteUsersDto } from './dto/batch-delete-users.dto';
 
 @ApiTags('用户管理')

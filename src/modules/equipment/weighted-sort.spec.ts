@@ -1,6 +1,7 @@
 import { Prisma } from '@prisma/client';
 import { Expose } from 'class-transformer';
-import { PaginationDto } from '@/shared/dtos/pagination.dto';
+import { PaginationDto } from '@gvray/core';
+
 import {
   runWeightedSort,
   WeightedField,

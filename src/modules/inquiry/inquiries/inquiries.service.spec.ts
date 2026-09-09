@@ -1,7 +1,8 @@
 import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { PrismaService } from '@/prisma/prisma.service';
-import { SoftDeleteService } from '@/shared/services/soft-delete.service';
+import { PrismaService, SoftDeleteService } from '@gvray/core';
+
+
 import { InquiriesService } from './inquiries.service';
 
 // 最小可用的 Prisma 代理：仅 mock 本次涉及的方法

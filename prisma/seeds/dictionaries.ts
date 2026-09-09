@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-import { CommonStatus } from '../../src/shared/constants/common-status.constant';
+import { CommonStatus } from '@gvray/core';
 
 export async function seedDictionaries(prisma: PrismaClient) {
   console.log('🌐 开始创建完整字典数据（批量插入优化）...');

@@ -4,8 +4,9 @@ import { Throttle } from '@nestjs/throttler';
 import { EquipmentService } from '@/modules/equipment/equipment/equipment.service';
 import { QueryEquipmentDto } from '@/modules/equipment/equipment/dto/query-equipment.dto';
 import { EquipmentResponseDto } from '@/modules/equipment/equipment/dto/equipment-response.dto';
-import { Public } from '@/core/decorators/public.decorator';
-import { ResponseUtil } from '@/shared/utils/response.util';
+import { Public, ResponseUtil } from '@gvray/core';
+
+
 import { B2C_OPTS } from '../b2c.constants';
 
 @ApiTags('B2C 设备档案浏览')

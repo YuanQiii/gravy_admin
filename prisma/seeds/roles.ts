@@ -1,9 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-import {
-  SUPER_ROLE_KEY,
-  SUPER_ROLE_NAME,
-} from '../../src/shared/constants/role.constant';
-import { CommonStatus } from '../../src/shared/constants/common-status.constant';
+import { SUPER_ROLE_KEY, SUPER_ROLE_NAME, CommonStatus } from '@gvray/core';
 
 export async function seedRoles(prisma: PrismaClient) {
   console.log('开始创建角色...');

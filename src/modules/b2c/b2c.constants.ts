@@ -1,4 +1,5 @@
-import type { VisibilityOpts } from '@/shared/services/base.service';
+import type { VisibilityOpts } from '@gvray/core';
+
 
 /**
  * B2C 公开浏览域的固定可见性选项。

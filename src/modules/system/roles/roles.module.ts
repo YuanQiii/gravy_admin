@@ -2,7 +2,8 @@ import { Module } from '@nestjs/common';
 import { RolesService } from './roles.service';
 import { RolesController } from './roles.controller';
 import { DataScopeService } from './services/data-scope.service';
-import { PrismaModule } from '@/prisma/prisma.module';
+import { PrismaModule } from '@gvray/core';
+
 
 @Module({
   imports: [PrismaModule],

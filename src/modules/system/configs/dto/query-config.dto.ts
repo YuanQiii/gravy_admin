@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsOptional, IsString, IsInt } from 'class-validator';
-import { PaginationDto } from '@/shared/dtos/pagination.dto';
+import { PaginationDto } from '@gvray/core';
+
 import { Type } from 'class-transformer';
 
 export class QueryConfigDto extends PaginationDto {

@@ -9,7 +9,8 @@
       "@/core/*": ["src/core/*"],
       "@/prisma/*": ["src/prisma/*"],
       "@/modules/*": ["src/modules/*"],
-      "@/config/*": ["src/config/*"]
+      "@/config/*": ["src/config/*"],
+      "@gvray/core": ["packages/core/src/index"]
     }
   }
 }

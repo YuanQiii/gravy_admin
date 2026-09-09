@@ -6,10 +6,11 @@ import {
   ApiResponse,
 } from '@nestjs/swagger';
 import { DashboardService } from './dashboard.service';
-import { JwtAuthGuard } from '@/core/guards/jwt-auth.guard';
-import { RolesGuard } from '@/core/guards/roles.guard';
-import { PermissionsGuard } from '@/core/guards/permissions.guard';
-import { ResponseUtil } from '@/shared/utils/response.util';
+import { JwtAuthGuard, RolesGuard, PermissionsGuard, ResponseUtil } from '@gvray/core';
+
+
+
+
 
 @ApiTags('仪表盘')
 @Controller('dashboard')

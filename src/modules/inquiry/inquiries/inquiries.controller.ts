@@ -23,12 +23,13 @@ import { UpdateInquiryStatusDto } from './dto/update-inquiry-status.dto';
 import { QueryInquiryDto } from './dto/query-inquiry.dto';
 import { InquiryResponseDto } from './dto/inquiry-response.dto';
 import { BatchDeleteInquiriesDto } from './dto/batch-delete-inquiries.dto';
-import { RequirePermissions } from '@/core/decorators/permissions.decorator';
-import { OperationLog } from '@/core/decorators/operation-log.decorator';
-import { CurrentUser } from '@/core/decorators/current-user.decorator';
-import { ResponseUtil } from '@/shared/utils/response.util';
-import { INQUIRY_PERMISSIONS } from '@/shared/constants/permissions.constant';
-import { AccessGuard } from '@/core/guards/access.guard';
+import { RequirePermissions, OperationLog, CurrentUser, ResponseUtil, INQUIRY_PERMISSIONS, AccessGuard } from '@gvray/core';
+
+
+
+
+
+
 
 @ApiTags('询价单管理')
 @ApiBearerAuth('JWT-auth')

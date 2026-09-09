@@ -2,12 +2,10 @@ import { PrismaClient } from '@prisma/client';
 import {
   PERMISSIONS,
   PERMISSION_METADATA_MAP,
-} from '../../src/shared/constants/permissions.constant';
-import {
   SUPER_ROLE_KEY,
   ADMIN_ROLE_KEY,
   GUEST_ROLE_KEY,
-} from '../../src/shared/constants/role.constant';
+} from '@gvray/core';
 
 export async function seedPermissionsAndAssignments(prisma: PrismaClient) {
   console.log('开始创建权限并分配系统角色权限...');

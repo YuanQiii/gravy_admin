@@ -1,7 +1,7 @@
 import { spawn } from 'child_process';
 import { existsSync, readdirSync } from 'fs';
 import { PrismaClient } from '@prisma/client';
-import { bootstrapDatabase } from '../src/bootstrap/bootstrap';
+import { bootstrapDatabase } from '@gvray/core';
 
 /**
  * Thin CLI adapter over the `bootstrapDatabase` deep module (ADR 0007).

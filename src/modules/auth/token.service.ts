@@ -1,8 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { UAParser } from 'ua-parser-js';
-import { PrismaService } from '@/prisma/prisma.service';
-import { SessionStore } from '@/core/session/session-store.service';
-import { AUTH_REALM_USER } from '@/core/constants/auth-realm.constant';
+import { PrismaService, SessionStore, AUTH_REALM_USER } from '@gvray/core';
+
+
+
 
 export interface SessionMetadata {
   ipAddress?: string;

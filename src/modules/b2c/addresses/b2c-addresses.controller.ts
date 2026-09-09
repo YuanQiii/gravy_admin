@@ -13,7 +13,8 @@ import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagg
 import { CustomerJwtGuard } from '@/core/guards/customer-jwt.guard';
 import { CurrentCustomer } from '@/core/decorators/current-customer.decorator';
 import { ICustomer } from '@/core/interfaces/customer.interface';
-import { ResponseUtil } from '@/shared/utils/response.util';
+import { ResponseUtil } from '@gvray/core';
+
 import { CustomerAddressesService } from './customer-addresses.service';
 import { CreateCustomerAddressDto } from './dto/create-customer-address.dto';
 import { UpdateCustomerAddressDto } from './dto/update-customer-address.dto';

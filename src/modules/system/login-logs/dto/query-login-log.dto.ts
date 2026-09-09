@@ -1,7 +1,8 @@
 import { IsOptional, IsString, IsInt } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { PaginationDto } from '@/shared/dtos/pagination.dto';
+import { PaginationDto } from '@gvray/core';
+
 
 export class QueryLoginLogDto extends PaginationDto {
   @ApiPropertyOptional({ description: '登录用户名/邮箱/手机号' })

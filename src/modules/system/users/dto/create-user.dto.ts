@@ -8,8 +8,9 @@ import {
   IsArray,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { UserStatus } from '@/shared/constants/user-status.constant';
-import { Gender } from '@/shared/constants/gender.constant';
+import { UserStatus, Gender } from '@gvray/core';
+
+
 
 export class CreateUserDto {
   @ApiPropertyOptional({

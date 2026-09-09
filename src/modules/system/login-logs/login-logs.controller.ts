@@ -19,11 +19,12 @@ import {
 import { LoginLogsService } from './login-logs.service';
 import { QueryLoginLogDto } from './dto/query-login-log.dto';
 import { LoginLogResponseDto } from './dto/login-log-response.dto';
-import { AccessGuard } from '@/core/guards/access.guard';
-import { RequirePermissions } from '@/core/decorators/permissions.decorator';
-import { OperationLog } from '@/core/decorators/operation-log.decorator';
-import { ResponseUtil } from '@/shared/utils/response.util';
-import { LOGIN_LOG_PERMISSIONS } from '@/shared/constants/permissions.constant';
+import { AccessGuard, RequirePermissions, OperationLog, ResponseUtil, LOGIN_LOG_PERMISSIONS } from '@gvray/core';
+
+
+
+
+
 import { BatchDeleteLoginLogsDto } from './dto/batch-delete-login-logs.dto';
 import { CleanLoginLogsDto } from './dto/clean-login-logs.dto';
 

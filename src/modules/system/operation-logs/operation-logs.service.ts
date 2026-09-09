@@ -6,11 +6,12 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
 import { QueryOperationLogDto } from './dto/query-operation-log.dto';
-import { PrismaService } from '@/prisma/prisma.service';
+import { PrismaService, BaseService, PaginationData } from '@gvray/core';
+
 import { plainToInstance } from 'class-transformer';
 import { OperationLogResponseDto } from './dto/operation-log-response.dto';
-import { BaseService } from '@/shared/services/base.service';
-import { PaginationData } from '@/shared/interfaces/response.interface';
+
+
 
 @Injectable()
 export class OperationLogsService extends BaseService {

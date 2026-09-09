@@ -3,7 +3,8 @@ import { ConfigService } from '@nestjs/config';
 import { ConflictException } from '@nestjs/common';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import { DepartmentsService } from './departments.service';
-import { PrismaService } from '@/prisma/prisma.service';
+import { PrismaService } from '@gvray/core';
+
 
 describe('DepartmentsService.remove', () => {
   let service: DepartmentsService;

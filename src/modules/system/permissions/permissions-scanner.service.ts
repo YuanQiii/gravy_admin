@@ -6,10 +6,11 @@ import {
 } from '@nestjs/common';
 import { DiscoveryService, MetadataScanner, Reflector } from '@nestjs/core';
 import { METHOD_METADATA } from '@nestjs/common/constants';
-import { PrismaService } from '@/prisma/prisma.service';
-import { PERMISSIONS_KEY } from '@/core/decorators/permissions.decorator';
-import { PERMISSION_METADATA_MAP } from '@/shared/constants/permissions.constant';
-import { PermissionCacheService } from '@/redis/permission-cache.service';
+import { PrismaService, PERMISSIONS_KEY, PERMISSION_METADATA_MAP, PermissionCacheService } from '@gvray/core';
+
+
+
+
 
 interface ScannedPermission {
   code: string;

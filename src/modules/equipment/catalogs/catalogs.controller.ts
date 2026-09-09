@@ -22,12 +22,13 @@ import { UpdateCatalogDto } from './dto/update-catalog.dto';
 import { QueryCatalogDto } from './dto/query-catalog.dto';
 import { CatalogResponseDto } from './dto/catalog-response.dto';
 import { BatchDeleteCatalogsDto } from './dto/batch-delete-catalogs.dto';
-import { RequirePermissions } from '@/core/decorators/permissions.decorator';
-import { OperationLog } from '@/core/decorators/operation-log.decorator';
-import { CurrentUser } from '@/core/decorators/current-user.decorator';
-import { ResponseUtil } from '@/shared/utils/response.util';
-import { EQUIPMENT_CATALOG_PERMISSIONS } from '@/shared/constants/permissions.constant';
-import { AccessGuard } from '@/core/guards/access.guard';
+import { RequirePermissions, OperationLog, CurrentUser, ResponseUtil, EQUIPMENT_CATALOG_PERMISSIONS, AccessGuard } from '@gvray/core';
+
+
+
+
+
+
 
 @ApiTags('设备目录管理')
 @ApiBearerAuth('JWT-auth')

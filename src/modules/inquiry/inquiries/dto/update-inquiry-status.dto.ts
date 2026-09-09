@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsString, IsOptional, IsIn } from 'class-validator';
-import { INQUIRY_STATUS_VALUES } from '@/shared/constants/inquiry.constant';
+import { INQUIRY_STATUS_VALUES } from '@gvray/core';
+
 
 export class UpdateInquiryStatusDto {
   @ApiProperty({

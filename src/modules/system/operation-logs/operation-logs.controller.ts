@@ -16,13 +16,14 @@ import {
   ApiBody,
   ApiResponse,
 } from '@nestjs/swagger';
-import { AccessGuard } from '@/core/guards/access.guard';
-import { RequirePermissions } from '@/core/decorators/permissions.decorator';
-import { OperationLog } from '@/core/decorators/operation-log.decorator';
+import { AccessGuard, RequirePermissions, OperationLog, ResponseUtil, OPERATION_LOG_PERMISSIONS } from '@gvray/core';
+
+
+
 import { OperationLogsService } from './operation-logs.service';
 import { QueryOperationLogDto } from './dto/query-operation-log.dto';
-import { ResponseUtil } from '@/shared/utils/response.util';
-import { OPERATION_LOG_PERMISSIONS } from '@/shared/constants/permissions.constant';
+
+
 import { BatchDeleteOperationLogsDto } from './dto/batch-delete-operation-logs.dto';
 import { CleanOperationLogsDto } from './dto/clean-operation-logs.dto';
 

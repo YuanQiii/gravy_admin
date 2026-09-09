@@ -2,7 +2,8 @@ import { Module } from '@nestjs/common';
 import { ConfigsService } from './configs.service';
 import { ConfigsController } from './configs.controller';
 import { ConfigsRuntimeController } from './configs-runtime.controller';
-import { PrismaModule } from '@/prisma/prisma.module';
+import { PrismaModule } from '@gvray/core';
+
 
 @Module({
   imports: [PrismaModule],

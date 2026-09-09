@@ -1,5 +1,5 @@
 import { ConfigService } from '@nestjs/config';
-import { REQUEST_ID_PROP } from '@/logging/logging.constants';
+import { REQUEST_ID_PROP } from '../../logging/logging.constants';
 import { OperationLogInterceptor } from './operation-log.interceptor';
 import { of } from 'rxjs';
 

@@ -5,14 +5,15 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { plainToInstance } from 'class-transformer';
-import { PrismaService } from '@/prisma/prisma.service';
+import { PrismaService, BaseService, PaginationData } from '@gvray/core';
+
 import { Prisma } from '@prisma/client';
 import { CreateMenuDto } from './dto/create-menu.dto';
 import { UpdateMenuDto } from './dto/update-menu.dto';
 import { QueryMenuDto } from './dto/query-menu.dto';
 import { MenuTreeNodeDto, MenuResponseDto } from './dto/menu-response.dto';
-import { BaseService } from '@/shared/services/base.service';
-import { PaginationData } from '@/shared/interfaces/response.interface';
+
+
 import type { Menu as MenuModel } from '@prisma/client';
 
 @Injectable()

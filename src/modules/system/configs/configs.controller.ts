@@ -21,15 +21,16 @@ import { CreateConfigDto } from './dto/create-config.dto';
 import { UpdateConfigDto } from './dto/update-config.dto';
 import { QueryConfigDto } from './dto/query-config.dto';
 import { ConfigResponseDto } from './dto/config-response.dto';
-import { AccessGuard } from '@/core/guards/access.guard';
+import { AccessGuard, RequirePermissions, OperationLog, CurrentUser, IUser, ResponseUtil, CONFIG_PERMISSIONS } from '@gvray/core';
 
-import { RequirePermissions } from '@/core/decorators/permissions.decorator';
-import { OperationLog } from '@/core/decorators/operation-log.decorator';
-import { CurrentUser } from '@/core/decorators/current-user.decorator';
-import { IUser } from '@/core/interfaces/user.interface';
-import { ResponseUtil } from '@/shared/utils/response.util';
+
+
+
+
+
+
 import { BatchDeleteConfigsDto } from './dto/batch-delete-configs.dto';
-import { CONFIG_PERMISSIONS } from '@/shared/constants/permissions.constant';
+
 
 @ApiTags('配置管理')
 @Controller('system/configs')

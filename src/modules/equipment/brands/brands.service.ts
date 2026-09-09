@@ -2,10 +2,11 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { plainToInstance } from 'class-transformer';
 import { Prisma } from '@prisma/client';
-import { PrismaService } from '@/prisma/prisma.service';
-import { BaseService, VisibilityOpts } from '@/shared/services/base.service';
-import { SoftDeleteService } from '@/shared/services/soft-delete.service';
-import { PaginationData } from '@/shared/interfaces/response.interface';
+import { PrismaService, BaseService, VisibilityOpts, SoftDeleteService, PaginationData } from '@gvray/core';
+
+
+
+
 import { CreateBrandDto } from './dto/create-brand.dto';
 import { UpdateBrandDto } from './dto/update-brand.dto';
 import { QueryBrandDto } from './dto/query-brand.dto';

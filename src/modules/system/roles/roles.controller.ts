@@ -21,7 +21,8 @@ import {
 import { RolesService } from './roles.service';
 import { CreateRoleDto } from './dto/create-role.dto';
 import { UpdateRoleDto } from './dto/update-role.dto';
-import { ROLE_PERMISSIONS } from '@/shared/constants/permissions.constant';
+import { ROLE_PERMISSIONS, AccessGuard, RequirePermissions, OperationLog, ResponseUtil, CurrentUser, IUser } from '@gvray/core';
+
 import { AssignPermissionsDto } from './dto/assign-permissions.dto';
 import { AssignUsersDto } from './dto/assign-users.dto';
 import { QueryRoleDto } from './dto/query-role.dto';
@@ -31,13 +32,13 @@ import {
 } from './dto/role-response.dto';
 import { AssignDataScopeDto } from './dto/assign-data-scope.dto';
 
-import { AccessGuard } from '@/core/guards/access.guard';
 
-import { RequirePermissions } from '@/core/decorators/permissions.decorator';
-import { OperationLog } from '@/core/decorators/operation-log.decorator';
-import { ResponseUtil } from '@/shared/utils/response.util';
-import { CurrentUser } from '@/core/decorators/current-user.decorator';
-import { IUser } from '@/core/interfaces/user.interface';
+
+
+
+
+
+
 import { BatchDeleteRolesDto } from './dto/batch-delete-roles.dto';
 
 @ApiTags('角色管理')

@@ -8,15 +8,13 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { plainToInstance } from 'class-transformer';
 import { Prisma } from '@prisma/client';
-import { PrismaService } from '@/prisma/prisma.service';
-import { BaseService } from '@/shared/services/base.service';
-import { SoftDeleteService } from '@/shared/services/soft-delete.service';
-import { PaginationData } from '@/shared/interfaces/response.interface';
-import { startOfDay, endOfDay } from '@/shared/utils/time.util';
-import {
-  INQUIRY_STATUS,
-  isValidStatusTransition,
-} from '@/shared/constants/inquiry.constant';
+import { PrismaService, BaseService, SoftDeleteService, PaginationData, startOfDay, endOfDay, INQUIRY_STATUS, isValidStatusTransition } from '@gvray/core';
+
+
+
+
+
+
 import { CreateInquiryDto } from './dto/create-inquiry.dto';
 import { UpdateInquiryDto } from './dto/update-inquiry.dto';
 import { UpdateInquiryStatusDto } from './dto/update-inquiry-status.dto';

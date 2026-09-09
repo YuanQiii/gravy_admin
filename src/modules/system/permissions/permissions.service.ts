@@ -5,12 +5,13 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { plainToInstance } from 'class-transformer';
-import { PrismaService } from '@/prisma/prisma.service';
+import { PrismaService, BaseService, PaginationData } from '@gvray/core';
+
 import { UpdatePermissionDto } from './dto/update-permission.dto';
 import { QueryPermissionDto } from './dto/query-permission.dto';
 import { PermissionResponseDto } from './dto/permission-response.dto';
-import { BaseService } from '@/shared/services/base.service';
-import { PaginationData } from '@/shared/interfaces/response.interface';
+
+
 import type { Permission as PermissionModel } from '@prisma/client';
 
 @Injectable()

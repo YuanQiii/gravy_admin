@@ -6,14 +6,11 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { plainToInstance } from 'class-transformer';
 import { Prisma } from '@prisma/client';
-import { PrismaService } from '@/prisma/prisma.service';
-import {
-  BaseService,
-  VisibilityOpts,
-  isB2cVisibility,
-} from '@/shared/services/base.service';
-import { SoftDeleteService } from '@/shared/services/soft-delete.service';
-import { PaginationData } from '@/shared/interfaces/response.interface';
+import { PrismaService, BaseService, VisibilityOpts, isB2cVisibility, SoftDeleteService, PaginationData } from '@gvray/core';
+
+
+
+
 import { runWeightedSort, WeightedField } from '../weighted-sort';
 import { CreateFilterDto } from './dto/create-filter.dto';
 import { UpdateFilterDto } from './dto/update-filter.dto';

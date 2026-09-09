@@ -1,6 +1,7 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsOptional, IsString } from 'class-validator';
-import { PaginationSortDto } from '@/shared/dtos/pagination.dto';
+import { PaginationSortDto } from '@gvray/core';
+
 
 export class QueryFilterDto extends PaginationSortDto {
   @ApiPropertyOptional({ description: '关键词（model/gencode 模糊）' })

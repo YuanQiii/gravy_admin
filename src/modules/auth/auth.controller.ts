@@ -20,11 +20,7 @@ import { RegisterDto } from './dto/register.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { AuthMenuResponseDto } from './dto/menu-response.dto';
 import { CurrentUserResponseDto } from './dto/current-user-response.dto';
-import { ResponseUtil } from '../../shared/utils/response.util';
-import { JwtAuthGuard } from '../../core/guards/jwt-auth.guard';
-import { CurrentUser } from '../../core/decorators/current-user.decorator';
-import { AllowGuestWrite } from '../../core/decorators/allow-guest-write.decorator';
-import { FeatureFlag } from '../../core/decorators/feature-flag.decorator';
+import { ResponseUtil, JwtAuthGuard, CurrentUser, AllowGuestWrite, FeatureFlag } from '@gvray/core';
 import { JwtService } from '@nestjs/jwt';
 
 @ApiTags('认证管理')

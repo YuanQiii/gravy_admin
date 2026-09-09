@@ -4,18 +4,19 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { CommonStatus } from '@/shared/constants/common-status.constant';
+import { CommonStatus, PrismaService, startOfDay, endOfDay, BaseService, PaginationData } from '@gvray/core';
+
 import { plainToInstance } from 'class-transformer';
-import { PrismaService } from '@/prisma/prisma.service';
+
 import type { Department } from '@prisma/client';
-import { startOfDay, endOfDay } from '@/shared/utils/time.util';
+
 import { Prisma } from '@prisma/client';
 import { CreateDepartmentDto } from './dto/create-department.dto';
 import { UpdateDepartmentDto } from './dto/update-department.dto';
 import { QueryDepartmentDto } from './dto/query-department.dto';
 import { DepartmentResponseDto } from './dto/department-response.dto';
-import { BaseService } from '@/shared/services/base.service';
-import { PaginationData } from '@/shared/interfaces/response.interface';
+
+
 
 @Injectable()
 export class DepartmentsService extends BaseService {

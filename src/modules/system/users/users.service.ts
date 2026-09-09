@@ -5,21 +5,22 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { PrismaService } from '@/prisma/prisma.service';
+import { PrismaService, BaseService, PaginationData, UserStatus, SUPER_ROLE_KEY, PermissionCacheService, startOfDay, endOfDay } from '@gvray/core';
+
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UserResponseDto } from './dto/user-response.dto';
 import * as bcrypt from 'bcrypt';
-import { BaseService } from '@/shared/services/base.service';
+
 import { QueryUserDto } from './dto/query-user.dto';
 import { Prisma } from '@prisma/client';
-import { PaginationData } from '@/shared/interfaces/response.interface';
-import { UserStatus } from '@/shared/constants/user-status.constant';
 
-import { SUPER_ROLE_KEY } from '@/shared/constants/role.constant';
-import { PermissionCacheService } from '@/redis/permission-cache.service';
+
+
+
+
 import { plainToInstance } from 'class-transformer';
-import { startOfDay, endOfDay } from '@/shared/utils/time.util';
+
 
 /**
  * User 响应投影：单实体回查与列表查询统一复用的 select 形状

@@ -1,7 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { RedisService, RedisUnavailableError } from '@/redis/redis.service';
-import { CacheService } from '@/redis/cache.service';
-import { CacheableExplorer } from '@/redis/cacheable.explorer';
+import { RedisService, RedisUnavailableError, CacheService, CacheableExplorer } from '@gvray/core';
+
+
+
 import { CacheStatsDto } from './dto/cache-stats.dto';
 import {
   CacheKeyInfoDto,

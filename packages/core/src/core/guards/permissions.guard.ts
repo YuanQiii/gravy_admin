@@ -6,9 +6,9 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { PERMISSIONS_KEY } from '../decorators/permissions.decorator';
-import { PermissionCacheService } from '@/redis/permission-cache.service';
-import { PrismaService } from '@/prisma/prisma.service';
-import { extractPermissionCodes, isSuperAdminOf } from '@/shared/utils/permission.util';
+import { PermissionCacheService } from '../../redis/permission-cache.service';
+import { PrismaService } from '../../prisma/prisma.service';
+import { extractPermissionCodes, isSuperAdminOf } from '../../shared/utils/permission.util';
 
 @Injectable()
 export class PermissionsGuard implements CanActivate {

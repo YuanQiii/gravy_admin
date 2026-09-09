@@ -6,7 +6,7 @@ import {
   DEFAULT_REQUEST_ID_HEADER,
   REQUEST_ID_PROP,
 } from './logging.constants';
-import { buildRedactPaths, SENSITIVE_KEYS } from '@/shared/constants/sensitive-keys.constant';
+import { buildRedactPaths, SENSITIVE_KEYS } from '../shared/constants/sensitive-keys.constant';
 import { RequestIdMiddleware } from './request-id.middleware';
 import { RequestLogInterceptor } from './request-log.interceptor';
 

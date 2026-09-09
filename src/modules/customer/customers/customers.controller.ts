@@ -22,11 +22,12 @@ import { UpdateCustomerDto } from './dto/update-customer.dto';
 import { QueryCustomerDto } from './dto/query-customer.dto';
 import { CustomerResponseDto } from './dto/customer-response.dto';
 import { BatchDeleteCustomersDto } from './dto/batch-delete-customers.dto';
-import { RequirePermissions } from '@/core/decorators/permissions.decorator';
-import { OperationLog } from '@/core/decorators/operation-log.decorator';
-import { ResponseUtil } from '@/shared/utils/response.util';
-import { CUSTOMER_PERMISSIONS } from '@/shared/constants/permissions.constant';
-import { AccessGuard } from '@/core/guards/access.guard';
+import { RequirePermissions, OperationLog, ResponseUtil, CUSTOMER_PERMISSIONS, AccessGuard } from '@gvray/core';
+
+
+
+
+
 
 @ApiTags('客户管理')
 @ApiBearerAuth('JWT-auth')

@@ -1,7 +1,8 @@
 import { Module } from '@nestjs/common';
 import { DictionariesService } from './dictionaries.service';
 import { DictionariesController } from './dictionaries.controller';
-import { PrismaModule } from '@/prisma/prisma.module';
+import { PrismaModule } from '@gvray/core';
+
 
 @Module({
   imports: [PrismaModule],

@@ -2,7 +2,8 @@ import { Controller, Get } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { ConfigsService } from './configs.service';
 import { RuntimeConfigResponseDto } from './dto/runtime-config-response.dto';
-import { ResponseUtil } from '@/shared/utils/response.util';
+import { ResponseUtil } from '@gvray/core';
+
 
 @ApiTags('运行时配置')
 @Controller('public')

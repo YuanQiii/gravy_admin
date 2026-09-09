@@ -18,13 +18,14 @@ import { PermissionsService } from './permissions.service';
 import { PermissionsScannerService } from './permissions-scanner.service';
 import { UpdatePermissionDto } from './dto/update-permission.dto';
 import { QueryPermissionDto } from './dto/query-permission.dto';
-import { AccessGuard } from '@/core/guards/access.guard';
-import { RequirePermissions } from '@/core/decorators/permissions.decorator';
-import { OperationLog } from '@/core/decorators/operation-log.decorator';
-import { ResponseUtil } from '@/shared/utils/response.util';
-import { PERMISSION_PERMISSIONS } from '@/shared/constants/permissions.constant';
-import { CurrentUser } from '@/core/decorators/current-user.decorator';
-import { IUser } from '@/core/interfaces/user.interface';
+import { AccessGuard, RequirePermissions, OperationLog, ResponseUtil, PERMISSION_PERMISSIONS, CurrentUser, IUser } from '@gvray/core';
+
+
+
+
+
+
+
 import { PermissionResponseDto } from './dto/permission-response.dto';
 
 @ApiTags('权限管理')

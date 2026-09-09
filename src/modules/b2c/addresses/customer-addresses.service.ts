@@ -2,8 +2,9 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { ConfigService } from '@nestjs/config';
 import { plainToInstance } from 'class-transformer';
-import { PrismaService } from '@/prisma/prisma.service';
-import { BaseService } from '@/shared/services/base.service';
+import { PrismaService, BaseService } from '@gvray/core';
+
+
 import { AddressResponseDto } from '@/modules/customer/addresses/dto/address-response.dto';
 import { QueryAddressDto } from '@/modules/customer/addresses/dto/query-address.dto';
 import { CreateCustomerAddressDto } from './dto/create-customer-address.dto';

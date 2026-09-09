@@ -8,17 +8,17 @@
 
 - [x] 1.2 创建 `tsconfig.base.json`（抽公共 compilerOptions）；建立 `packages/core`、`packages/domain`、`apps/admin`、`apps/mall` 的占位 `package.json`（name：`@gvray/core`、`@gvray/domain`，依赖 `workspace:*`）与占位 `tsconfig.json`；验证 `pnpm -r exec -- node -v` 能枚举全部包
 
-- [ ] 1.3 迁移 commit 落库（步骤 1），验证 `git log --follow` 可追溯（`git mv` 尚未发生，此步只动构建文件）
+- [x] 1.3 迁移 commit 落库（步骤 1），验证 `git log --follow` 可追溯（`git mv` 尚未发生，此步只动构建文件）
 
 ## 2. packages/core 平移（`@gvray/core`）
 
-- [ ] 2.1 `git mv` `src/{core,shared,prisma,logging,redis,bootstrap}` → `packages/core/src/`；剥离 B2C 专属文件暂回原位（`customer-jwt.strategy.ts`、`customer-jwt.guard.ts`、`@CurrentCustomer()` 留待步骤 4 迁 mall）；创建 `packages/core/src/index.ts` curated barrel（对外唯一 import 面，design D2）；验证目录结构符合 design D1 映射表、barrel 导出清单可编译
+- [x] 2.1 `git mv` `src/{core,shared,prisma,logging,redis,bootstrap}` → `packages/core/src/`；剥离 B2C 专属文件暂回原位（`customer-jwt.strategy.ts`、`customer-jwt.guard.ts`、`@CurrentCustomer()` 留待步骤 4 迁 mall）；创建 `packages/core/src/index.ts` curated barrel（对外唯一 import 面，design D2）；验证目录结构符合 design D1 映射表、barrel 导出清单可编译
 
-- [ ] 2.2 配置路径映射：根/各包 tsconfig 增 `@gvray/core` → `packages/core/src`；全仓 import 批量改写 `@/core|@/shared|@/prisma|...` → `@gvray/core`（仅 barrel 面，禁止 `@gvray/core/src/**` 深路径；core 内部引用相对化）；验证 `grep -r "@/core\|@/shared\|@/prisma\|@/logging\|@/redis" src/ apps/ packages/` 零残留（占位期暂查 src）且 `grep -r "@gvray/core/src"` 零命中
+- [x] 2.2 配置路径映射：根/各包 tsconfig 增 `@gvray/core` → `packages/core/src`；全仓 import 批量改写 `@/core|@/shared|@/prisma|...` → `@gvray/core`（仅 barrel 面，禁止 `@gvray/core/src/**` 深路径；core 内部引用相对化）；验证 `grep -r "@/core\|@/shared\|@/prisma\|@/logging\|@/redis" src/ apps/ packages/` 零残留（占位期暂查 src）且 `grep -r "@gvray/core/src"` 零命中
 
-- [ ] 2.3 jest `moduleNameMapper` 增 `@gvray/(.*)` 映射；验证 `pnpm test` 全绿（spec 文件零搬迁、零修改）
+- [x] 2.3 jest `moduleNameMapper` 增 `@gvray/(.*)` 映射；验证 `pnpm test` 全绿（spec 文件零搬迁、零修改）
 
-- [ ] 2.4 `pnpm build` + 本地启动原单应用（`/health` 200 + 登录冒烟）；commit 步骤 2
+- [x] 2.4 `pnpm build` + 本地启动原单应用（`/health` 200 + 登录冒烟）；commit 步骤 2
 
 ## 3. packages/domain 平移（`@gvray/domain`）
 

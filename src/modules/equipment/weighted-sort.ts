@@ -1,7 +1,8 @@
 import { Prisma } from '@prisma/client';
 import { plainToInstance } from 'class-transformer';
-import { PaginationDto } from '@/shared/dtos/pagination.dto';
-import { PaginationData } from '@/shared/interfaces/response.interface';
+import { PaginationDto, PaginationData } from '@gvray/core';
+
+
 
 /**
  * runWeightedSort 依赖的最小查询引擎——只要求 `$queryRaw`。

@@ -1,8 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import * as crypto from 'crypto';
-import { RedisService, RedisUnavailableError } from '@/redis/redis.service';
-import { REDIS_SESSION_NAMESPACE } from '@/redis/constants/redis-key.constant';
-import { AuthRealm } from '@/core/constants/auth-realm.constant';
+import { RedisService, RedisUnavailableError } from '../../redis/redis.service';
+import { REDIS_SESSION_NAMESPACE } from '../../redis/constants/redis-key.constant';
+import { AuthRealm } from '../../core/constants/auth-realm.constant';
 
 /**
  * 纯 Redis 会话存储（深接缝）。

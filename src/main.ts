@@ -4,7 +4,7 @@ import { Logger, ValidationPipe } from '@nestjs/common';
 import { Logger as PinoLogger } from 'nestjs-pino';
 import { ConfigService } from '@nestjs/config';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
-import { EmptyStringTransformPipe } from './core/pipes/empty-string-transform.pipe';
+import { EmptyStringTransformPipe } from '@gvray/core';
 
 async function bootstrap() {
   const isProd = process.env.NODE_ENV === 'production';

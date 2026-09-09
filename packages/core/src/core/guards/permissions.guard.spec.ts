@@ -1,8 +1,8 @@
 import { ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { PermissionsGuard } from './permissions.guard';
-import { PermissionCacheService } from '@/redis/permission-cache.service';
-import { PrismaService } from '@/prisma/prisma.service';
+import { PermissionCacheService } from '../../redis/permission-cache.service';
+import { PrismaService } from '../../prisma/prisma.service';
 
 /* ── Test doubles ──────────────────────────────────────────────── */
 

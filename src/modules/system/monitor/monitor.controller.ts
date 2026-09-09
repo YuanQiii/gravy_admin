@@ -7,15 +7,13 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { plainToInstance } from 'class-transformer';
-import { JwtAuthGuard } from '@/core/guards/jwt-auth.guard';
-import { GuestWriteGuard } from '@/core/guards/guest-write.guard';
-import { PermissionsGuard } from '@/core/guards/permissions.guard';
-import { RequirePermissions } from '@/core/decorators/permissions.decorator';
-import { ResponseUtil } from '@/shared/utils/response.util';
-import {
-  MONITOR_PERMISSIONS,
-  CACHE_PERMISSIONS,
-} from '@/shared/constants/permissions.constant';
+import { JwtAuthGuard, GuestWriteGuard, PermissionsGuard, RequirePermissions, ResponseUtil, MONITOR_PERMISSIONS, CACHE_PERMISSIONS } from '@gvray/core';
+
+
+
+
+
+
 import { MonitorService } from './monitor.service';
 import { CacheMonitorService } from './cache-monitor.service';
 import { ServerMetricsResponseDto } from './dto/server-metrics-response.dto';

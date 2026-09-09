@@ -16,8 +16,9 @@ import { EquipmentModule } from '@/modules/equipment/equipment.module';
 import { InquiryModule } from '@/modules/inquiry/inquiry.module';
 import { CustomerModule } from '@/modules/customer/customer.module';
 import { B2cModule } from '@/modules/b2c/b2c.module';
-import { PrismaModule } from '@/prisma/prisma.module';
-import { SoftDeleteModule } from '@/shared/services/soft-delete.module';
+import { PrismaModule, SoftDeleteModule, RedisModule, ResponseInterceptor, HttpExceptionFilter, OperationLogInterceptor, FeatureFlagGuard, LoggingModule, RequestLogInterceptor } from '@gvray/core';
+
+
 import { DashboardModule } from '@/modules/dashboard/dashboard.module';
 import { ProfileModule } from '@/modules/profile/profile.module';
 import { OperationLogsModule } from '@/modules/system/operation-logs/operation-logs.module';
@@ -27,14 +28,14 @@ import jwtConfig from '@/config/jwt.config';
 import corsConfig from '@/config/cors.config';
 import redisConfig from '@/config/redis.config';
 import { validate } from '@/config/env.validation';
-import { RedisModule } from '@/redis/redis.module';
-import { ResponseInterceptor } from '@/core/interceptors/response.interceptor';
-import { HttpExceptionFilter } from '@/core/filters/http-exception.filter';
-import { OperationLogInterceptor } from '@/core/interceptors/operation-log.interceptor';
-// import { SessionHeartbeatInterceptor } from '@/core/interceptors/session-heartbeat.interceptor';
-import { FeatureFlagGuard } from '@/core/guards/feature-flag.guard';
-import { LoggingModule } from '@/logging/logging.module';
-import { RequestLogInterceptor } from '@/logging/request-log.interceptor';
+
+
+
+
+// import { SessionHeartbeatInterceptor } from '@gvray/core'; // 依赖 @/modules/auth/token.service，暂未纳入 barrel
+
+
+
 
 @Module({
   controllers: [AppController],

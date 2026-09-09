@@ -1,8 +1,6 @@
 import { PrismaClient, Department, Position, Role } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
-import { SUPER_ROLE_KEY } from '../../src/shared/constants/role.constant';
-import { Gender } from '../../src/shared/constants/gender.constant';
-import { UserStatus } from '../../src/shared/constants/user-status.constant';
+import { SUPER_ROLE_KEY, Gender, UserStatus } from '@gvray/core';
 
 export async function seedUsers(
   prisma: PrismaClient,

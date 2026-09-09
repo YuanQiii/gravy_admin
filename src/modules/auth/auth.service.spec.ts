@@ -5,9 +5,7 @@ import { AuthService } from './auth.service';
 import { UsersService } from '../system/users/users.service';
 import { LoginLogsService } from '../system/login-logs/login-logs.service';
 import { TokenService } from './token.service';
-import { RateLimiterService } from '@/redis/rate-limiter.service';
-import { PermissionCacheService } from '@/redis/permission-cache.service';
-import { PrismaService } from '../../prisma/prisma.service';
+import { RateLimiterService, PermissionCacheService, PrismaService } from '@gvray/core';
 
 describe('AuthService', () => {
   let service: AuthService;

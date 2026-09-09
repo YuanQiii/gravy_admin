@@ -3,8 +3,9 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
-import { PrismaService } from '@/prisma/prisma.service';
-import { AUTH_REALM_CUSTOMER } from '@/core/constants/auth-realm.constant';
+import { PrismaService, AUTH_REALM_CUSTOMER } from '@gvray/core';
+
+
 import { CustomerTokenService } from './customer-token.service';
 import { CustomerLoginDto } from './dto/customer-login.dto';
 

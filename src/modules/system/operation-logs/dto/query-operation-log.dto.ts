@@ -1,7 +1,8 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import { IsInt, IsOptional, IsString } from 'class-validator';
-import { PaginationDto } from '@/shared/dtos/pagination.dto';
+import { PaginationDto } from '@gvray/core';
+
 
 export class QueryOperationLogDto extends PaginationDto {
   @ApiPropertyOptional({ description: 'ID 精确匹配', type: 'integer' })

@@ -4,20 +4,21 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { CommonStatus } from '@/shared/constants/common-status.constant';
+import { CommonStatus, PrismaService, BaseService, startOfDay, endOfDay, PaginationData, SUPER_ROLE_KEY, PermissionCacheService } from '@gvray/core';
+
 import { plainToInstance } from 'class-transformer';
-import { PrismaService } from '@/prisma/prisma.service';
+
 import { CreateRoleDto } from './dto/create-role.dto';
 import { UpdateRoleDto } from './dto/update-role.dto';
 import { QueryRoleDto } from './dto/query-role.dto';
 import { RoleResponseDto } from './dto/role-response.dto';
-import { BaseService } from '@/shared/services/base.service';
+
 import { Prisma } from '@prisma/client';
-import { startOfDay, endOfDay } from '@/shared/utils/time.util';
-import { PaginationData } from '@/shared/interfaces/response.interface';
+
+
 import { DataScopeService } from './services/data-scope.service';
-import { SUPER_ROLE_KEY } from '@/shared/constants/role.constant';
-import { PermissionCacheService } from '@/redis/permission-cache.service';
+
+
 
 @Injectable()
 export class RolesService extends BaseService {

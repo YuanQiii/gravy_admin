@@ -5,8 +5,9 @@ import { BrandsService } from '@/modules/equipment/brands/brands.service';
 import { QueryBrandDto } from '@/modules/equipment/brands/dto/query-brand.dto';
 import { BrandResponseDto } from '@/modules/equipment/brands/dto/brand-response.dto';
 import { HotBrandQueryDto } from '@/modules/equipment/brands/dto/hot-brand-query.dto';
-import { Public } from '@/core/decorators/public.decorator';
-import { ResponseUtil } from '@/shared/utils/response.util';
+import { Public, ResponseUtil } from '@gvray/core';
+
+
 import { B2C_OPTS } from '../b2c.constants';
 
 @ApiTags('B2C 设备品牌浏览')

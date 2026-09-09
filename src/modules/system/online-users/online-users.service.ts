@@ -1,7 +1,8 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '@/prisma/prisma.service';
+import { PrismaService, PermissionCacheService } from '@gvray/core';
+
 import { TokenService } from '@/modules/auth/token.service';
-import { PermissionCacheService } from '@/redis/permission-cache.service';
+
 import { OnlineUserItemDto } from './dto/online-user-item.dto';
 import { SessionDetailDto } from './dto/session-detail.dto';
 

@@ -20,7 +20,8 @@ import { CustomerActivityService } from './customer-activity.service';
 import { CreateFavoriteDto } from './dto/create-favorite.dto';
 import { QueryFavoriteDto } from './dto/query-favorite.dto';
 import { FavoriteResponseDto } from './dto/favorite-response.dto';
-import { ResponseUtil } from '@/shared/utils/response.util';
+import { ResponseUtil } from '@gvray/core';
+
 import { CustomerJwtGuard } from '@/core/guards/customer-jwt.guard';
 import { CurrentCustomer } from '@/core/decorators/current-customer.decorator';
 import { ICustomer } from '@/core/interfaces/customer.interface';

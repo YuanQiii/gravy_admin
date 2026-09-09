@@ -4,14 +4,15 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
-import { PrismaService } from '@/prisma/prisma.service';
+import { PrismaService, extractRoleKeys, isSuperAdminOf } from '@gvray/core';
+
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { UpdateSettingsDto } from './dto/update-settings.dto';
 import { ProfileResponseDto } from './dto/profile-response.dto';
 import { Prisma } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
-import { extractRoleKeys, isSuperAdminOf } from '@/shared/utils/permission.util';
+
 
 @Injectable()
 export class ProfileService {

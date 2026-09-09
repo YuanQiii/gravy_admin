@@ -1,7 +1,8 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Exclude, Expose, Transform, Type } from 'class-transformer';
-import { UserStatus } from '@/shared/constants/user-status.constant';
-import { Gender } from '@/shared/constants/gender.constant';
+import { UserStatus, Gender } from '@gvray/core';
+
+
 import { RoleResponseDto } from '@/modules/system/roles/dto/role-response.dto';
 import { DepartmentResponseDto } from '@/modules/system/departments/dto/department-response.dto';
 import { PositionResponseDto } from '@/modules/system/positions/dto/position-response.dto';

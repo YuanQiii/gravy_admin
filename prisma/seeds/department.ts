@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-import { CommonStatus } from '../../src/shared/constants/common-status.constant';
+import { CommonStatus } from '@gvray/core';
 
 export async function seedDepartments(prisma: PrismaClient) {
   console.log('开始创建部门');

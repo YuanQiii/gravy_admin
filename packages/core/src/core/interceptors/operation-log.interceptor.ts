@@ -8,15 +8,15 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { Reflector } from '@nestjs/core';
 import { Observable, catchError, tap, throwError } from 'rxjs';
-import { PrismaService } from '@/prisma/prisma.service';
-import { LogResult } from '@/shared/constants/log-result.constant';
+import { PrismaService } from '../../prisma/prisma.service';
+import { LogResult } from '../../shared/constants/log-result.constant';
 import {
   OPLOG_META,
   OperationLogOptions,
-} from '@/core/decorators/operation-log.decorator';
-import { OPLOG_SKIP } from '@/core/decorators/no-operation-log.decorator';
-import { SENSITIVE_KEYS } from '@/shared/constants/sensitive-keys.constant';
-import { REQUEST_ID_PROP } from '@/logging/logging.constants';
+} from '../../core/decorators/operation-log.decorator';
+import { OPLOG_SKIP } from '../../core/decorators/no-operation-log.decorator';
+import { SENSITIVE_KEYS } from '../../shared/constants/sensitive-keys.constant';
+import { REQUEST_ID_PROP } from '../../logging/logging.constants';
 
 function maskSensitive(input: unknown, maskFields: string[]): unknown {
   const fields = new Set(maskFields.map((f) => f.toLowerCase()));

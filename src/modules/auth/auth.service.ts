@@ -1,5 +1,6 @@
 import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
-import { LogResult } from '@/shared/constants/log-result.constant';
+import { LogResult, RateLimiterService, PermissionCacheService, RedisKeys, extractPermissionCodes, extractRoleKeys, isSuperAdminOf, PrismaService, UserStatus } from '@gvray/core';
+
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { UsersService } from '@/modules/system/users/users.service';
@@ -11,19 +12,13 @@ import { AuthMenuResponseDto } from './dto/menu-response.dto';
 // no unified response types needed in service
 import { plainToInstance } from 'class-transformer';
 import * as bcrypt from 'bcrypt';
-import { PrismaService } from '../../prisma/prisma.service';
-import { UserStatus } from '../../shared/constants/user-status.constant';
 import { UAParser } from 'ua-parser-js';
 import * as crypto from 'crypto';
 import { TokenService } from './token.service';
-import { RateLimiterService } from '@/redis/rate-limiter.service';
-import { PermissionCacheService } from '@/redis/permission-cache.service';
-import { RedisKeys } from '@/redis/constants/redis-key.constant';
-import {
-  extractPermissionCodes,
-  extractRoleKeys,
-  isSuperAdminOf,
-} from '@/shared/utils/permission.util';
+
+
+
+
 
 interface RequestWithHeaders {
   headers?: Record<string, string | string[]>;

@@ -19,13 +19,14 @@ import { MenuService } from './menu.service';
 import { CreateMenuDto } from './dto/create-menu.dto';
 import { UpdateMenuDto } from './dto/update-menu.dto';
 import { QueryMenuDto } from './dto/query-menu.dto';
-import { AccessGuard } from '@/core/guards/access.guard';
-import { RequirePermissions } from '@/core/decorators/permissions.decorator';
-import { OperationLog } from '@/core/decorators/operation-log.decorator';
-import { ResponseUtil } from '@/shared/utils/response.util';
-import { CurrentUser } from '@/core/decorators/current-user.decorator';
-import { IUser } from '@/core/interfaces/user.interface';
-import { MENU_PERMISSIONS } from '@/shared/constants/permissions.constant';
+import { AccessGuard, RequirePermissions, OperationLog, ResponseUtil, CurrentUser, IUser, MENU_PERMISSIONS } from '@gvray/core';
+
+
+
+
+
+
+
 import { MenuResponseDto, MenuTreeNodeDto } from './dto/menu-response.dto';
 
 @ApiTags('菜单管理')

@@ -3,7 +3,7 @@ import { ConflictException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import { SoftDeleteService } from './soft-delete.service';
-import { PrismaService } from '@/prisma/prisma.service';
+import { PrismaService } from '../../prisma/prisma.service';
 
 /**
  * SoftDeleteService 6 核心场景（design.md D4 / ADR 0003）
