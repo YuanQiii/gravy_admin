@@ -14,44 +14,45 @@ import {
 } from '@nestjs/swagger';
 import { CustomerActivityService } from './customer-activity.service';
 import { QueryHistoryDto } from './dto/query-history.dto';
-import { RequirePermissions } from '@/core/decorators/permissions.decorator';
-import { OperationLog } from '@/core/decorators/operation-log.decorator';
 import { ResponseUtil } from '@/shared/utils/response.util';
-import { CUSTOMER_HISTORY_PERMISSIONS } from '@/shared/constants/permissions.constant';
-import { AccessGuard } from '@/core/guards/access.guard';
+import { CustomerJwtGuard } from '@/core/guards/customer-jwt.guard';
+import { CurrentCustomer } from '@/core/decorators/current-customer.decorator';
+import { ICustomer } from '@/core/interfaces/customer.interface';
 
 /**
- * 客户浏览历史管理。
+ * 客户浏览历史管理（B2C 登录态）。
  *
- * NOTE: recordView is called internally by the filter detail-view flow, not
- * exposed as a public endpoint. CUSTOMER_HISTORY_PERMISSIONS has no CREATE/UPDATE
- * because history is auto-recorded via upsert semantics. The VIEW permission is
- * reserved for future internal/detail-flow use; this controller exposes only
- * LIST and DELETE per spec.
+ * recordView 由滤清器详情查看流程内部调用，不暴露为公开接口；本控制器仅暴露
+ * LIST 与 DELETE。客户身份取自 `@CurrentCustomer()`，仅返回/删除当前客户本人历史。
  */
 @ApiTags('客户浏览历史管理')
 @ApiBearerAuth('JWT-auth')
 @Controller('customer/history')
-@UseGuards(AccessGuard)
+@UseGuards(CustomerJwtGuard)
 export class HistoryController {
   constructor(private readonly activityService: CustomerActivityService) {}
 
   @Get()
-  @RequirePermissions(CUSTOMER_HISTORY_PERMISSIONS.LIST)
-  @ApiOperation({ summary: '获取客户浏览历史列表' })
+  @ApiOperation({ summary: '获取当前客户浏览历史列表（visitedAt 降序分页）' })
   @ApiResponse({ status: 200, description: '获取浏览历史成功' })
-  async findAll(@Query() query: QueryHistoryDto) {
+  async findAll(
+    @CurrentCustomer() customer: ICustomer,
+    @Query() query: QueryHistoryDto,
+  ) {
+    // 强制限定当前客户，仅返回本人历史；分页按 visitedAt 倒序
+    query.customerId = customer.customerId;
     const pageData = await this.activityService.findHistory(query);
     return ResponseUtil.paginated(pageData, '获取浏览历史成功');
   }
 
   @Delete(':id')
-  @RequirePermissions(CUSTOMER_HISTORY_PERMISSIONS.DELETE)
-  @OperationLog({ module: '客户浏览历史管理', action: 'delete' })
-  @ApiOperation({ summary: '删除浏览历史（软删除）' })
+  @ApiOperation({ summary: '删除浏览历史（软删除，仅限当前客户）' })
   @ApiResponse({ status: 200, description: '浏览历史删除成功' })
-  async remove(@Param('id') id: string) {
-    await this.activityService.removeHistory(id);
+  async remove(
+    @CurrentCustomer() customer: ICustomer,
+    @Param('id') id: string,
+  ) {
+    await this.activityService.removeHistory(id, customer.customerId);
     return ResponseUtil.deleted(null, '浏览历史删除成功');
   }
 }

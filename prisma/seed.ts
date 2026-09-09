@@ -8,6 +8,7 @@ import { seedDictionaries } from './seeds/dictionaries';
 import { seedConfigs } from './seeds/configs';
 import { seedPermissionsAndAssignments } from './seeds/permissions';
 import { seedNotices } from './seeds/notices';
+import { seedCustomers } from './seeds/customers';
 
 const prisma = new PrismaClient();
 
@@ -64,6 +65,9 @@ async function main() {
       { managerPosition, hrPosition },
       { superRole, adminRole, userRole, guestRole },
     );
+
+    // 6. 创建客户测试账号（仅开发环境）
+    await seedCustomers(prisma);
 
     // 6. 创建通知通告数据
     await seedNotices(prisma);

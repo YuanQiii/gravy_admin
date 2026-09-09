@@ -20,68 +20,76 @@ import { CustomerActivityService } from './customer-activity.service';
 import { CreateFavoriteDto } from './dto/create-favorite.dto';
 import { QueryFavoriteDto } from './dto/query-favorite.dto';
 import { FavoriteResponseDto } from './dto/favorite-response.dto';
-import { RequirePermissions } from '@/core/decorators/permissions.decorator';
-import { OperationLog } from '@/core/decorators/operation-log.decorator';
 import { ResponseUtil } from '@/shared/utils/response.util';
-import { CUSTOMER_FAVORITE_PERMISSIONS } from '@/shared/constants/permissions.constant';
-import { AccessGuard } from '@/core/guards/access.guard';
+import { CustomerJwtGuard } from '@/core/guards/customer-jwt.guard';
+import { CurrentCustomer } from '@/core/decorators/current-customer.decorator';
+import { ICustomer } from '@/core/interfaces/customer.interface';
 
+/**
+ * 客户收藏管理（B2C 登录态）。
+ *
+ * 客户身份取自 `@CurrentCustomer()`（CustomerJwtGuard 注入），
+ * 不再由请求体/请求参数显式传 `customerId`，仅限当前客户本人操作。
+ */
 @ApiTags('客户收藏管理')
 @ApiBearerAuth('JWT-auth')
 @Controller('customer/favorites')
-@UseGuards(AccessGuard)
+@UseGuards(CustomerJwtGuard)
 export class FavoritesController {
   constructor(private readonly activityService: CustomerActivityService) {}
 
   @Post()
-  @RequirePermissions(CUSTOMER_FAVORITE_PERMISSIONS.CREATE)
-  @OperationLog({ module: '客户收藏管理' })
-  @ApiOperation({ summary: '收藏滤清器（幂等）' })
+  @ApiOperation({ summary: '收藏滤清器（幂等，仅限当前客户）' })
   @ApiResponse({
     status: 201,
     description: '收藏成功',
     type: FavoriteResponseDto,
   })
   @ApiBody({ type: CreateFavoriteDto })
-  async create(@Body() dto: CreateFavoriteDto) {
+  async create(
+    @CurrentCustomer() customer: ICustomer,
+    @Body() dto: CreateFavoriteDto,
+  ) {
     const data = await this.activityService.createFavorite(
-      dto.customerId,
+      customer.customerId,
       dto.filterId,
     );
     return ResponseUtil.created(data, '收藏成功');
   }
 
   @Get()
-  @RequirePermissions(CUSTOMER_FAVORITE_PERMISSIONS.LIST)
-  @ApiOperation({ summary: '获取客户收藏列表' })
+  @ApiOperation({ summary: '获取当前客户收藏列表' })
   @ApiResponse({ status: 200, description: '获取收藏列表成功' })
-  async findAll(@Query() query: QueryFavoriteDto) {
+  async findAll(
+    @CurrentCustomer() customer: ICustomer,
+    @Query() query: QueryFavoriteDto,
+  ) {
+    // 强制限定当前客户，避免越权读取他人收藏
+    query.customerId = customer.customerId;
     const pageData = await this.activityService.findFavorites(query);
     return ResponseUtil.paginated(pageData, '获取收藏列表成功');
   }
 
   @Delete()
-  @RequirePermissions(CUSTOMER_FAVORITE_PERMISSIONS.DELETE)
-  @OperationLog({ module: '客户收藏管理', action: 'delete' })
-  @ApiOperation({ summary: '按客户+滤清器取消收藏（幂等）' })
-  @ApiQuery({ name: 'customerId', description: '客户ID（customerId UUID）' })
+  @ApiOperation({ summary: '按客户+滤清器取消收藏（幂等，仅限当前客户）' })
   @ApiQuery({ name: 'filterId', description: '滤清器ID（filterId UUID）' })
   @ApiResponse({ status: 200, description: '取消收藏成功' })
   async remove(
-    @Query('customerId') customerId: string,
+    @CurrentCustomer() customer: ICustomer,
     @Query('filterId') filterId: string,
   ) {
-    await this.activityService.removeFavorite(customerId, filterId);
+    await this.activityService.removeFavorite(customer.customerId, filterId);
     return ResponseUtil.deleted(null, '取消收藏成功');
   }
 
   @Delete(':id')
-  @RequirePermissions(CUSTOMER_FAVORITE_PERMISSIONS.DELETE)
-  @OperationLog({ module: '客户收藏管理', action: 'delete' })
-  @ApiOperation({ summary: '按 favoriteId 删除单条收藏' })
+  @ApiOperation({ summary: '按 favoriteId 删除单条收藏（仅限当前客户）' })
   @ApiResponse({ status: 200, description: '删除收藏成功' })
-  async removeById(@Param('id') id: string) {
-    await this.activityService.removeFavoriteById(id);
+  async removeById(
+    @CurrentCustomer() customer: ICustomer,
+    @Param('id') id: string,
+  ) {
+    await this.activityService.removeFavoriteById(id, customer.customerId);
     return ResponseUtil.deleted(null, '删除收藏成功');
   }
 }

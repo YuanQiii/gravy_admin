@@ -1,13 +1,8 @@
-import { Injectable, Logger } from '@nestjs/common';
-import * as crypto from 'crypto';
+import { Injectable } from '@nestjs/common';
 import { UAParser } from 'ua-parser-js';
 import { PrismaService } from '@/prisma/prisma.service';
-import { CacheService } from '@/redis/cache.service';
-import { RedisService, RedisUnavailableError } from '@/redis/redis.service';
-import {
-  RedisKeys,
-  AUTH_SESSIONS_KEY_PREFIX,
-} from '@/redis/constants/redis-key.constant';
+import { SessionStore } from '@/core/session/session-store.service';
+import { AUTH_REALM_USER } from '@/core/constants/auth-realm.constant';
 
 export interface SessionMetadata {
   ipAddress?: string;
@@ -33,13 +28,20 @@ export interface OnlineUser {
   lastActiveAt: string;
 }
 
+/**
+ * 后台会话的薄适配器。
+ *
+ * 已完成深接缝重构：纯粹的 Redis 会话存取/撤销逻辑已下沉到 `SessionStore`，
+ * 本类仅做 `user` 命名空间的两件事：
+ * 1. 委托 `SessionStore` 完成会话写入/验证/撤销（`user` 命名空间）；
+ * 2. **保留** 后台关注的 UA/location 解析与 `prisma.refreshToken` DB 归档。
+ *
+ * 对外方法签名保持不变，auth.service / online-users.service 无感。
+ */
 @Injectable()
 export class TokenService {
-  private readonly logger = new Logger(TokenService.name);
-
   constructor(
-    private readonly cacheService: CacheService,
-    private readonly redisService: RedisService,
+    private readonly sessionStore: SessionStore,
     private readonly prisma: PrismaService,
   ) {}
 
@@ -52,139 +54,45 @@ export class TokenService {
     expiresInSeconds: number,
     accessTokenJti?: string,
   ): Promise<void> {
-    const tokenHash = this.hashToken(token);
-    const key = RedisKeys.auth.refreshToken(userId, tokenHash);
-
-    // 解析 UA 和 IP
+    // 解析 UA 和 IP（后台会话关注点，保留在此）
     const parsed = this.parseUserAgent(metadata.userAgent);
     const location = await this.getLocationFromIP(metadata.ipAddress);
-    const now = new Date().toISOString();
 
-    try {
-      await this.redisService.hSet(key, 'userAgent', metadata.userAgent || '');
-      await this.redisService.hSet(key, 'ipAddress', metadata.ipAddress || '');
-      await this.redisService.hSet(key, 'browser', parsed.browser || '');
-      await this.redisService.hSet(key, 'os', parsed.os || '');
-      await this.redisService.hSet(key, 'device', parsed.device || '');
-      await this.redisService.hSet(key, 'location', location || '');
-      await this.redisService.hSet(key, 'createdAt', now);
-      await this.redisService.hSet(key, 'lastActiveAt', now);
-      if (accessTokenJti) {
-        await this.redisService.hSet(key, 'accessTokenJti', accessTokenJti);
-      }
-      await this.redisService.expire(key, expiresInSeconds);
-
-      // 建立 tokenHash → userId 索引（纯 Redis 验证 RT 用）
-      await this.redisService.set(RedisKeys.auth.rtIndex(tokenHash), userId, {
-        ttlSeconds: expiresInSeconds,
-      });
-
-      // 建立 AT jti → RT hash 反向索引（logout 时定位 RT）
-      if (accessTokenJti) {
-        await this.redisService.set(
-          RedisKeys.auth.atJtiMap(accessTokenJti),
-          `${userId}:${tokenHash}`,
-          { ttlSeconds: expiresInSeconds },
-        );
-      }
-
-      // 加入用户会话集合，同步设置 TTL（与 RT 一致）
-      await this.redisService.sAdd(
-        RedisKeys.auth.sessionsSet(userId),
-        tokenHash,
-      );
-      await this.redisService.expire(
-        RedisKeys.auth.sessionsSet(userId),
-        expiresInSeconds,
-      );
-    } catch (e) {
-      if (e instanceof RedisUnavailableError) {
-        this.logger.warn('Redis unavailable, skipping RT cache');
-        return;
-      }
-      throw e;
-    }
+    await this.sessionStore.store({
+      ns: AUTH_REALM_USER,
+      subjectId: userId,
+      token,
+      meta: {
+        userAgent: metadata.userAgent,
+        ipAddress: metadata.ipAddress,
+        browser: parsed.browser,
+        os: parsed.os,
+        device: parsed.device,
+        location,
+      },
+      expiresInSeconds,
+      accessTokenJti,
+    });
   }
 
   /**
-   * 心跳更新：通过 AT jti 查反向索引，找到对应 RT hash，更新最后活跃时间
-   * 只更新已存在的 session，不重建已删除的 key
+   * 心跳更新：通过 AT jti 查反向索引，找到对应 RT hash，更新最后活跃时间。
+   * 只更新已存在的 session，不重建已删除的 key。
    */
   async touchSessionByJti(jti: string): Promise<void> {
-    try {
-      const mapping = await this.redisService.get(RedisKeys.auth.atJtiMap(jti));
-      if (!mapping) return;
-
-      const [userId, tokenHash] = mapping.split(':');
-      if (!userId || !tokenHash) return;
-
-      const key = RedisKeys.auth.refreshToken(userId, tokenHash);
-      const sessionSetKey = RedisKeys.auth.sessionsSet(userId);
-
-      const exists = await this.redisService.exists(key);
-      if (exists === 0) return;
-
-      await this.redisService.hSet(
-        key,
-        'lastActiveAt',
-        new Date().toISOString(),
-      );
-      const currentTtl = await this.redisService.ttl(key);
-      if (currentTtl === -1) {
-        await this.redisService.expire(key, 7 * 24 * 60 * 60);
-      }
-      const setTtl = await this.redisService.ttl(sessionSetKey);
-      if (setTtl === -1) {
-        await this.redisService.expire(sessionSetKey, 7 * 24 * 60 * 60);
-      }
-    } catch (e) {
-      if (e instanceof RedisUnavailableError) return;
-      throw e;
-    }
+    await this.sessionStore.touchByJti(AUTH_REALM_USER, jti);
   }
 
   async verifyRefreshToken(
     token: string,
   ): Promise<{ userId: string; metadata: SessionMetadata } | null> {
-    const tokenHash = this.hashToken(token);
-
-    // 纯 Redis 验证：先查 tokenHash → userId 索引
-    try {
-      const userId = await this.redisService.get(
-        RedisKeys.auth.rtIndex(tokenHash),
-      );
-
-      if (!userId) {
-        return null;
-      }
-
-      const key = RedisKeys.auth.refreshToken(userId, tokenHash);
-      const hash = await this.redisService.hGetAll(key);
-
-      if (Object.keys(hash).length > 0) {
-        return {
-          userId,
-          metadata: {
-            userAgent: hash.userAgent || undefined,
-            ipAddress: hash.ipAddress || undefined,
-          },
-        };
-      }
-
-      // Redis key 不存在 → session 已过期/被清理
-      return null;
-    } catch (e) {
-      if (e instanceof RedisUnavailableError) {
-        this.logger.warn('[RT Verify] Redis unavailable');
-        return null;
-      }
-      throw e;
-    }
+    const verified = await this.sessionStore.verify(AUTH_REALM_USER, token);
+    if (!verified) return null;
+    return { userId: verified.subjectId, metadata: verified.meta };
   }
 
   async revokeRefreshToken(userId: string, token: string): Promise<void> {
-    const tokenHash = this.hashToken(token);
-    await this.revokeRefreshTokenByHash(userId, tokenHash);
+    await this.sessionStore.revoke(AUTH_REALM_USER, userId, token);
 
     // 异步归档到数据库
     this.prisma.refreshToken
@@ -199,73 +107,25 @@ export class TokenService {
     userId: string,
     tokenHash: string,
   ): Promise<void> {
-    try {
-      const key = RedisKeys.auth.refreshToken(userId, tokenHash);
-
-      // 读取 AT jti，删除反向索引
-      const jti = await this.redisService.hGet(key, 'accessTokenJti');
-      if (jti) {
-        await this.redisService.del(RedisKeys.auth.atJtiMap(jti));
-      }
-
-      await this.redisService.del(key);
-      await this.redisService.del(RedisKeys.auth.rtIndex(tokenHash));
-      await this.redisService.sRem(
-        RedisKeys.auth.sessionsSet(userId),
-        tokenHash,
-      );
-    } catch (e) {
-      if (e instanceof RedisUnavailableError) {
-        this.logger.warn('Redis unavailable, skipping RT revocation cache');
-      }
-    }
+    await this.sessionStore.revokeByHash(AUTH_REALM_USER, userId, tokenHash);
   }
 
   /**
    * 通过 Access Token JTI 撤销对应会话（logout 时用）
    */
   async revokeByAccessTokenJti(accessTokenJti: string): Promise<void> {
-    try {
-      const mapKey = RedisKeys.auth.atJtiMap(accessTokenJti);
-      const mapping = await this.redisService.get(mapKey);
-      if (!mapping) return;
-
-      const [userId, tokenHash] = mapping.split(':');
-      if (userId && tokenHash) {
-        await this.revokeRefreshTokenByHash(userId, tokenHash);
-      }
-    } catch (e) {
-      if (e instanceof RedisUnavailableError) {
-        this.logger.warn('Redis unavailable, skipping revoke by AT jti');
-      }
-    }
+    await this.sessionStore.revokeByJti(AUTH_REALM_USER, accessTokenJti);
   }
 
   async revokeAllUserTokens(
     userId: string,
     exceptTokenHash?: string,
   ): Promise<void> {
-    try {
-      const sessionKey = RedisKeys.auth.sessionsSet(userId);
-      const tokenHashes = await this.redisService.sMembers(sessionKey);
-
-      for (const hash of tokenHashes) {
-        if (exceptTokenHash && hash === exceptTokenHash) continue;
-        await this.redisService.del(RedisKeys.auth.refreshToken(userId, hash));
-      }
-
-      if (exceptTokenHash) {
-        // 只保留 exceptTokenHash
-        await this.redisService.del(sessionKey);
-        await this.redisService.sAdd(sessionKey, exceptTokenHash);
-      } else {
-        await this.redisService.del(sessionKey);
-      }
-    } catch (e) {
-      if (e instanceof RedisUnavailableError) {
-        this.logger.warn('Redis unavailable, skipping bulk revocation cache');
-      }
-    }
+    await this.sessionStore.revokeAll(
+      AUTH_REALM_USER,
+      userId,
+      exceptTokenHash,
+    );
 
     // 同时更新数据库
     await this.prisma.refreshToken.updateMany({
@@ -277,73 +137,24 @@ export class TokenService {
   // ===== 会话管理（在线用户）=====
 
   async getUserSessions(userId: string): Promise<ParsedSessionInfo[]> {
-    try {
-      const sessionSetKey = RedisKeys.auth.sessionsSet(userId);
-      const tokenHashes = await this.redisService.sMembers(sessionSetKey);
-
-      const sessions: ParsedSessionInfo[] = [];
-      for (const hash of tokenHashes) {
-        const hashData = await this.redisService.hGetAll(
-          RedisKeys.auth.refreshToken(userId, hash),
-        );
-        if (Object.keys(hashData).length > 0) {
-          sessions.push({
-            tokenHash: hash,
-            ipAddress: hashData.ipAddress || undefined,
-            browser: hashData.browser || undefined,
-            os: hashData.os || undefined,
-            device: hashData.device || undefined,
-            location: hashData.location || undefined,
-            createdAt: hashData.createdAt || new Date().toISOString(),
-            lastActiveAt:
-              hashData.lastActiveAt ||
-              hashData.createdAt ||
-              new Date().toISOString(),
-          });
-        } else {
-          // 防御性清理：hash 已不存在但 sessionsSet 里还有引用，自动移除
-          await this.redisService.sRem(sessionSetKey, hash);
-          this.logger.debug(
-            `[Session Cleanup] 移除失效引用: ${sessionSetKey} → ${hash}`,
-          );
-        }
-      }
-      return sessions;
-    } catch (e) {
-      if (e instanceof RedisUnavailableError) {
-        return []; // 降级：返回空列表
-      }
-      throw e;
-    }
+    const sessions = await this.sessionStore.getSessions(AUTH_REALM_USER, userId);
+    return sessions.map((s) => ({
+      tokenHash: s.tokenHash,
+      ipAddress: s.ipAddress,
+      browser: s.browser,
+      os: s.os,
+      device: s.device,
+      location: s.location,
+      createdAt: s.createdAt,
+      lastActiveAt: s.lastActiveAt,
+    }));
   }
 
   async getAllOnlineUserIds(): Promise<string[]> {
-    try {
-      const userIds = new Set<string>();
-      for await (const keys of this.redisService.scanIterator(
-        `${AUTH_SESSIONS_KEY_PREFIX}*`,
-      )) {
-        for (const key of keys) {
-          const parts = key.split(':');
-          if (parts.length >= 3) {
-            userIds.add(parts[2]);
-          }
-        }
-      }
-      return Array.from(userIds);
-    } catch (e) {
-      if (e instanceof RedisUnavailableError) {
-        return [];
-      }
-      throw e;
-    }
+    return this.sessionStore.getAllSubjectIds(AUTH_REALM_USER);
   }
 
   // ===== 工具方法 =====
-
-  private hashToken(token: string): string {
-    return crypto.createHash('sha256').update(token).digest('hex').slice(0, 32);
-  }
 
   private parseUserAgent(userAgent?: string): {
     browser?: string;

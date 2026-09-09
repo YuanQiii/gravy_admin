@@ -88,10 +88,11 @@ export class CustomerActivityService extends BaseService {
 
   /**
    * 按 favoriteId 删除单条收藏（spec：事件型表，硬删）。
+   * 仅限当前登录客户本人，跨客户收藏返回不存在。
    */
-  async removeFavoriteById(favoriteId: string): Promise<void> {
-    const existing = await this.prisma.customerFavorite.findUnique({
-      where: { favoriteId },
+  async removeFavoriteById(favoriteId: string, customerId: string): Promise<void> {
+    const existing = await this.prisma.customerFavorite.findFirst({
+      where: { favoriteId, customerId },
     });
     if (!existing) {
       throw new NotFoundException('收藏不存在');
@@ -142,10 +143,11 @@ export class CustomerActivityService extends BaseService {
 
   /**
    * 硬删单条浏览历史（spec：事件型表，硬删）。
+   * 仅限当前登录客户本人，跨客户历史返回不存在。
    */
-  async removeHistory(historyId: string): Promise<void> {
-    const existing = await this.prisma.customerHistory.findUnique({
-      where: { historyId },
+  async removeHistory(historyId: string, customerId: string): Promise<void> {
+    const existing = await this.prisma.customerHistory.findFirst({
+      where: { historyId, customerId },
     });
     if (!existing) {
       throw new NotFoundException('浏览历史不存在');

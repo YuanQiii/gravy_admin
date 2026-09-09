@@ -11,6 +11,9 @@ import { GuestWriteGuard } from '@/core/guards/guest-write.guard';
 import { RolesGuard } from '@/core/guards/roles.guard';
 import { PermissionsGuard } from '@/core/guards/permissions.guard';
 import { AccessGuard } from '@/core/guards/access.guard';
+import { CustomerJwtGuard } from '@/core/guards/customer-jwt.guard';
+import { CustomerJwtStrategy } from '@/core/strategies/customer-jwt.strategy';
+import { SessionStore } from '@/core/session/session-store.service';
 import { TokenService } from './token.service';
 
 @Global()
@@ -33,22 +36,29 @@ import { TokenService } from './token.service';
   providers: [
     AuthService,
     TokenService,
+    SessionStore,
     JwtStrategy,
     JwtAuthGuard,
     GuestWriteGuard,
     RolesGuard,
     PermissionsGuard,
     AccessGuard,
+    CustomerJwtStrategy,
+    CustomerJwtGuard,
   ],
   exports: [
     AuthService,
     TokenService,
+    SessionStore,
+    JwtModule, // 复用同一 JWT secret（D7），供客户域注入全局 JwtService
     JwtStrategy,
     JwtAuthGuard,
     GuestWriteGuard,
     RolesGuard,
     PermissionsGuard,
     AccessGuard,
+    CustomerJwtStrategy,
+    CustomerJwtGuard,
   ],
 })
 export class AuthModule {}
