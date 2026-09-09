@@ -44,15 +44,15 @@
 
 - [x] 4.7 D7 依赖方向 lint：apps 各自 `no-restricted-imports` 禁止 import 对方路径、packages 禁止 import `apps/*`，同时禁止 `@gvray/core/src`、`@gvray/domain/src` 深路径 import（design D2 barrel 约束）；验证故意注入违规 import 时 lint 报错（负向测试）
 
-- [ ] 4.8 `pnpm test` 全绿 + 双端本地启动冒烟；commit 步骤 4
+- [x] 4.8 `pnpm test` 全绿 + 双端本地启动冒烟；commit 步骤 4
 
 ## 5. 构建与 dist 重构
 
-- [ ] 5.1 `nest-cli.json` ×2（`apps/admin`、`apps/mall`，各自 sourceRoot）；`start:dev`/`start:prod`/`build` scripts 按包拆分（启动路径 `dist/apps/<app>/src/main.js`）；验证 `pnpm build` 产出 `dist/apps/**` + `dist/packages/**` 结构
+- [x] 5.1 `nest-cli.json` ×2（`apps/admin`、`apps/mall`，各自 sourceRoot）；`start:dev`/`start:prod`/`build` scripts 按包拆分（启动路径 `dist/apps/<app>/src/main.js`）；验证 `pnpm build` 产出 `dist/apps/**` + `dist/packages/**` 结构
 
-- [ ] 5.2 双端本地生产模式冒烟：`node dist/apps/admin/src/main.js` 与 `node dist/apps/mall/src/main.js` 各自 `/health` 200、Swagger 可达、代表路由行为符合 specs（enabled-only、加权排序、404 禁用记录）
+- [x] 5.2 双端本地生产模式冒烟：`node dist/apps/admin/src/main.js` 与 `node dist/apps/mall/src/main.js` 各自 `/health` 200、Swagger 可达、代表路由行为符合 specs（enabled-only、加权排序、404 禁用记录）
 
-- [ ] 5.3 `.env` ×2：`apps/admin/.env.*`、`apps/mall/.env.*` 完整自持（含 DB/Redis 串重复）；jest rootDir 上移仓库根；验证 `pnpm test`（全仓单测）+ `pnpm test:e2e` 通过；commit 步骤 5
+- [x] 5.3 `.env` ×2：`apps/admin/.env.*`、`apps/mall/.env.*` 完整自持（含 DB/Redis 串重复）；jest rootDir 上移仓库根；验证 `pnpm test`（全仓单测）+ `pnpm test:e2e` 通过；commit 步骤 5
 
 ## 6. Docker / Compose 双镜像
 
