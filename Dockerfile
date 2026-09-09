@@ -88,7 +88,13 @@ ENV NODE_ENV=production \
 # where the generated Prisma client lives (node_modules/.pnpm/.../.prisma/client).
 COPY --from=builder /app/dist         ./dist
 COPY --from=builder /app/node_modules ./node_modules
-COPY prisma ./prisma
+# Whitelist the prisma payload (ADR 0008): only what the runtime needs enters
+# the image. migrations + schema.prisma (prisma migrate deploy reads the datasource
+# provider/path from the schema; one-time products under prisma/scripts and
+# prisma/backups never ship; new prisma subdirs are excluded by default. Seed runs
+# from compiled dist/prisma/seed.js; Prisma Client is already inside node_modules.
+COPY prisma/migrations ./prisma/migrations
+COPY prisma/schema.prisma ./prisma/schema.prisma
 
 # Startup entrypoint: runs migrations then hands off to CMD
 COPY docker/entrypoint.sh ./entrypoint.sh

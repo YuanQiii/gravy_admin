@@ -30,6 +30,12 @@ Thumbs.db
 logs
 *.log
 
+# Prisma one-time migration products (History reference only — not shipped, not
+# part of the migration chain; see ADR 0008). Whitelist COPY in Dockerfile covers
+# runner; these also keep dev/build contexts lean.
+prisma/scripts
+prisma/backups
+
 # Coverage
 coverage
 .nyc_output

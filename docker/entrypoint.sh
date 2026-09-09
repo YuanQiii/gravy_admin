@@ -1,56 +1,22 @@
 #!/usr/bin/env sh
-# Container entrypoint
+# Container entrypoint — thin adapter over the db-bootstrap deep module (ADR 0007).
 #
-# Startup sequence:
-#   1. Schema sync
-#      - prisma/migrations/ has files → prisma migrate deploy  (production)
-#      - no migration files           → prisma db push         (first-run / dev)
-#   2. Auto-seed on fresh database
-#      - user table empty → run dist/prisma/seed.js once
-#      - users exist      → skip (already seeded)
-#   3. Start application
+#   development : no schema sync here — schema/seed are managed on the host
+#                 via `prisma migrate dev` + `prisma:seed`. Just start the app.
+#   otherwise   : run db-bootstrap (fail-closed: applies committed migrations;
+#                 refuses `db push` when prisma/migrations is missing/empty;
+#                 auto-seeds a fresh DB), then start the app.
 
 set -e
 
-MIGRATIONS_DIR="prisma/migrations"
-
-# ── 0. Security checks ────────────────────────────────────────────────────────
-if [ -z "$SUPER_ADMIN_INITIAL_PASSWORD" ]; then
-  echo "[entrypoint] WARNING: SUPER_ADMIN_INITIAL_PASSWORD not set, using default password."
-  echo "[entrypoint] For production, set SUPER_ADMIN_INITIAL_PASSWORD in your environment."
+# Operational safeguard (not schema logic): flag missing admin password in any env.
+if [ -z "${SUPER_ADMIN_INITIAL_PASSWORD}" ]; then
+  echo "[entrypoint] WARNING: SUPER_ADMIN_INITIAL_PASSWORD not set — using default seed password."
 fi
 
-# ── 1. Schema ─────────────────────────────────────────────────────────────────
-if [ -d "$MIGRATIONS_DIR" ] && [ -n "$(ls -A "$MIGRATIONS_DIR" 2>/dev/null)" ]; then
-  echo "[entrypoint] Running prisma migrate deploy..."
-  node_modules/.bin/prisma migrate deploy
-else
-  echo "[entrypoint] No migrations found — running prisma db push..."
-  node_modules/.bin/prisma db push --accept-data-loss
+if [ "${NODE_ENV}" = "development" ]; then
+  exec "$@"
 fi
 
-# ── 2. Auto-seed (first run only) ─────────────────────────────────────────────
-USER_COUNT=$(node -e "
-const { PrismaClient } = require('@prisma/client');
-const p = new PrismaClient();
-p.user.count()
-  .then(n => process.stdout.write(String(n)))
-  .catch(() => process.stdout.write('0'))
-  .finally(() => p.\$disconnect());
-" 2>/dev/null || echo "0")
-
-if [ "$USER_COUNT" = "0" ]; then
-  echo "[entrypoint] Fresh database — running seed..."
-  if [ "${NODE_ENV}" = "development" ]; then
-    node_modules/.bin/ts-node prisma/seed.ts
-  else
-    node dist/prisma/seed.js
-  fi
-  echo "[entrypoint] Seed complete."
-else
-  echo "[entrypoint] Database already seeded (${USER_COUNT} users) — skipping."
-fi
-
-# ── 3. Start ──────────────────────────────────────────────────────────────────
-echo "[entrypoint] Starting application..."
+node dist/scripts/db-bootstrap.js
 exec "$@"
