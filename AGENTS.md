@@ -4,19 +4,19 @@
 
 ## 项目概况
 
-GVRAY Admin 是 NestJS 11 + TypeScript 后端，使用 Prisma 6 + PostgreSQL（数据库原生外键约束）、JWT 认证、RBAC 权限模型、Swagger/OpenAPI 和 Docker 部署。
+GVRAY 后端为 Monorepo 双应用 + 共享内核：NestJS 11 + TypeScript，Prisma 6 + PostgreSQL（数据库原生外键约束）、JWT 认证、RBAC 权限模型、Swagger/OpenAPI 与 Docker 部署。Admin 应用（运营端）与 Mall 应用（商城端）共享 `@gvray/core` / `@gvray/domain`。
 
 ## 关键目录
 
-- `src/core/`：基础设施（decorators / guards / interceptors / filters / pipes / strategies）
+- `apps/admin/src/`：Admin 应用（运营端）——业务模块（`modules/`，系统管理在 `apps/admin/src/modules/system/`）、admin 专属基础设施（`core/`：JwtAuthGuard / RolesGuard / PermissionsGuard / jwt.strategy 等）
 
-- `src/modules/`：业务模块，系统管理模块在 `src/modules/system/`
+- `apps/mall/src/`：Mall 应用（商城端）——匿名浏览 + 客户自助（`modules/mall/`、`modules/customer-auth/`、`modules/customer-activity/`）、客户认证基础设施（`core/`：CustomerJwtGuard / customer-jwt.strategy / @CurrentCustomer）
 
-- `src/prisma/`：Nest Prisma Module / PrismaService（`@Global()`）
+- `packages/core/src/`：共享内核（`@gvray/core`）——基础设施（decorators/guards/interceptors/filters/pipes/strategies）、`prisma/`（Nest Prisma Module/PrismaService，`@Global()`）、`shared/`（constants/DTO/interfaces/utils/services 含 BaseService）、`logging/`、`redis/`
 
-- `prisma/`：`schema.prisma`、`seed.ts`、`seeds/`
+- `packages/domain/src/`：共享领域包（`@gvray/domain`）——equipment 五件套与 inquiry 的 Service/DTO（providers-only，无 controller）
 
-- `src/shared/`：constants、DTO、interfaces、utils、services（含 BaseService）
+- `prisma/`：`schema.prisma`、`seed.ts`、`seeds/`（单一所有权，核心包相对路径消费）
 
 ## 开发硬规则
 
@@ -28,15 +28,15 @@ GVRAY Admin 是 NestJS 11 + TypeScript 后端，使用 Prisma 6 + PostgreSQL（�
 
 - 禁止返回未过滤的 Prisma 对象；禁止响应中出现 `password`、token、secret；禁止暴露数据库自增 `id`（对外暴露业务 UUID，如 `userId`）。
 
-- 权限码使用 `src/shared/constants/permissions.constant.ts` 常量（`{module}:{resource}:{action}`），不硬编码。
+- 权限码使用 `@gvray/core` 的 `permissions.constant`（`packages/core/src/shared/constants/permissions.constant.ts`）常量（`{module}:{resource}:{action}`），不硬编码。
 
-- 路径使用 tsconfig alias（`@/*`），避免深层相对路径。
+- 路径使用 tsconfig alias：应用内 `@/*`（各自指向 `apps/<app>/src`），跨 app 共享一律 `import ... from '@gvray/core'` / `@gvray/domain`（只允许 barrel 公开面，禁止 `@gvray/*/src` 深路径与 app 间交叉 import），避免深层相对路径。
 
-- 系统管理模块路由使用 `system/...` 前缀；受保护接口显式使用 `JwtAuthGuard`，配合 `RolesGuard` / `PermissionsGuard`，读取类监控接口可省略 `RolesGuard`。`FeatureFlagGuard` 是全局守卫，仅对标记 `@FeatureFlag(...)` 的路由生效。
+- 系统管理模块路由使用 `system/...` 前缀；受保护接口显式使用 `JwtAuthGuard`（apps/admin），配合 `RolesGuard` / `PermissionsGuard`，读取类监控接口可省略 `RolesGuard`。客户自助/浏览接口（mall）用 `CustomerJwtGuard` / `@CurrentCustomer()`。`FeatureFlagGuard` 仅 admin 挂载，是全局守卫，仅对标记 `@FeatureFlag(...)` 的路由生效。
 
-- 获取当前用户统一使用 `@CurrentUser()`；跳过操作日志用 `@NoOperationLog()`。
+- 获取当前用户统一使用 `@CurrentUser()`（admin）/ `@CurrentCustomer()`（mall）；跳过操作日志用 `@NoOperationLog()`。
 
-- 结构化日志收敛在 `src/logging/`：访问日志由最外层 `RequestLogInterceptor` 统一产出（成功 info / 慢附 body / 失败 error 只记一次），`HttpExceptionFilter` 不记日志；关联 ID 读 `req.id`（`LOG_REQ_ID_HEADER`，缺失生成 UUID），敏感字段脱敏名单用 `src/shared/constants/sensitive-keys.constant.ts` 单一来源。
+- 结构化日志收敛在 `packages/core/src/logging/`：访问日志由最外层 `RequestLogInterceptor` 统一产出（成功 info / 慢附 body / 失败 error 只记一次），`HttpExceptionFilter` 不记日志；关联 ID 读 `req.id`（`LOG_REQ_ID_HEADER`，缺失生成 UUID），敏感字段脱敏名单用 `packages/core/src/shared/constants/sensitive-keys.constant.ts` 单一来源。`OperationLogInterceptor` 仅 admin 挂载，mall 不产生审计写。
 
 - 改动涉及接口/权限/配置/响应/部署时，同步更新对应文档。
 
@@ -58,7 +58,7 @@ GVRAY Admin 是 NestJS 11 + TypeScript 后端，使用 Prisma 6 + PostgreSQL（�
 
 - 多表写入或强一致场景使用 `this.prisma.$transaction(...)`。
 
-- **生产禁跑 `prisma db push`**；一切 schema 变更走 migration——开发用 `prisma migrate dev`（生成 + 应用），容器启动经 [db-bootstrap](src/bootstrap/bootstrap.ts)（ADR 0007）执行 `migrate deploy`，`prisma/migrations/` 缺失即 fail-closed 退出，绝不 fallback 到 `db push`。常用命令见下方。
+- **生产禁跑 `prisma db push`**；一切 schema 变更走 migration——开发用 `prisma migrate dev`（生成 + 应用），admin 容器启动经脚本 [db-bootstrap](scripts/db-bootstrap.ts)（薄 CLI，调用 `@gvray/core` 的共享 `bootstrapDatabase`，见 ADR 0007）执行 `migrate deploy`，`prisma/migrations/` 缺失即 fail-closed 退出，绝不 fallback 到 `db push`；mall 容器不执行任何 schema 同步。常用命令见下方。
 
 - 容器入口 [docker/entrypoint.sh](docker/entrypoint.sh) 是薄 adapter：dev 不做 schema 同步（本机跑 `migrate dev`），生产调用 `node dist/scripts/db-bootstrap.js` 后 `exec CMD`。
 

@@ -8,13 +8,19 @@
 
 ## 路径别名
 
-使用 tsconfig alias：`@/*` → `src/*`，`@/core/*` / `@/shared/*` / `@/modules/*` / `@/prisma/*` 等同理。禁止深层相对路径。
+使用 tsconfig alias：app 内 `@/*` → 各自 `apps/<app>/src/*`；跨 app 共享一律 `import ... from '@gvray/core'` / `@gvray/domain`（只允许包 barrel 公开面，禁止 `@gvray/*/src` 深路径与 app 间交叉 import——由 eslint `no-restricted-imports` 结构化禁止）。避免深层相对路径。
 
 ## 关键目录
 
-- `src/prisma/`：Nest Prisma Module / PrismaService（`@Global()`）。
-- `prisma/`：`schema.prisma`（数据库原生外键约束）、seed.ts、seeds/。
-- `src/shared/services/base.service.ts`：通用分页/查询辅助，按现有模式复用，不强制继承。
+- `packages/core/src/prisma/`：Nest Prisma Module / PrismaService（`@Global()`，经 `@gvray/core` 桶导出）。
+- `prisma/`：`schema.prisma`（生产禁 `db push`）、seed.ts、seeds/（核心包相对路径消费）。
+- `packages/core/src/shared/services/base.service.ts`：通用分页/查询辅助 / `VisibilityOpts` 三分流，按现有模式复用，不强制继承。
+
+## 双应用职责边界
+
+- **apps/admin**（运营端）：`system/*`、`equipment/*`、`customer/addresses`、`inquiry/*` 等管理端点；挂载全量横切（OperationLog / FeatureFlag / RolesGuard / PermissionsGuard / JwtAuthGuard）。
+- **apps/mall**（商城端）：匿名浏览（`/filters`、`/equipment`、`/catalogs`、`/brands`、`/filter-types`）+ 客户自助（`/auth`、`/addresses`、`/inquiries`、`/favorites`、`/history`）；只挂 RequestLog / Response / HttpException / Throttler，**不**挂 OperationLog / FeatureFlag。
+- 共享内核：`@gvray/core`（基础设施）、`@gvray/domain`（equipment 五件套 + inquiry 的 providers-only 领域服务）。
 
 ## Controller
 
@@ -28,7 +34,7 @@
 
 ## 权限控制
 
-权限装饰器：`@RequirePermissions(USER_PERMISSIONS.CREATE)`。权限常量：`src/shared/constants/permissions.constant.ts`。命名：`{module}:{resource}:{action}`。`super_admin` 不绕过 `PermissionsGuard`。
+权限装饰器：`@RequirePermissions(USER_PERMISSIONS.CREATE)`。权限常量：`packages/core/src/shared/constants/permissions.constant.ts`（经 `@gvray/core` 桶导出）。命名：`{module}:{resource}:{action}`。`super_admin` 不绕过 `PermissionsGuard`（仅 admin 应用）。
 
 详见 [permissions.md](permissions.md)。
 

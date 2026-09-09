@@ -14,9 +14,9 @@ pnpm docker:deploy
 
 ## 两套 Docker 工作流
 
-- **开发**：`docker-compose.dev.yml`，挂载 `./src`，build 目标 `dev`，端口 `3000`。
+- **开发**：`docker-compose.dev.yml`，双 service（`admin` / `mall`），挂载 `./apps` + `./packages`，build 目标 `dev`；admin 端口 `3000`、mall 端口 `3001（MALL_PORT）`。
 
-- **测试 / 生产**：`docker-compose.yml`，pull 镜像 + `.env` 注入，端口 `3000`。
+- **测试 / 生产**：`docker-compose.yml`，双 service（`admin` = `gvray-admin-app`，入口 entrypoint→db-bootstrap→exec；`mall` = `gvray-mall-app`，直接 exec CMD 不跑 schema 同步），pull 各自镜像 + `.env` 注入，admin 端口 `3000`、mall 端口 `3001`。
 
 ## 集中日志采集（可选）
 
@@ -44,7 +44,7 @@ pnpm docker:deploy
 
 ## 数据库迁移策略
 
-- **生产（非 development）**：容器启动经 [db-bootstrap 深模块](../../src/bootstrap/bootstrap.ts)（见 [ADR 0007](../../docs/adr/0007-db-bootstrap-deep-module.md)）执行 `prisma migrate deploy` 并做 fail-closed 校验——`prisma/migrations/` 缺失/为空时打印英文错误并以非零退出，**绝不回退到** **`prisma db push`**。
+- **生产（非 development）**：仅 **admin** 容器启动经 [db-bootstrap](../../scripts/db-bootstrap.ts)（薄 CLI，调用 `packages/core/src/bootstrap/bootstrap.ts` 共享 `bootstrapDatabase`，见 [ADR 0007](../../docs/adr/0007-db-bootstrap-deep-module.md)）执行 `prisma migrate deploy` 并做 fail-closed 校验——`prisma/migrations/` 缺失/为空时打印英文错误并以非零退出，**绝不回退到 `prisma db push`**。mall 容器不执行任何 schema 同步（镜像不含 migrations/schema）。
 
 - **开发**：dev 容器不做 schema 同步；开发者在本机用 `prisma migrate dev`（生成 + 应用）与 `prisma:seed`。
 
@@ -58,5 +58,5 @@ pnpm docker:deploy
 
 - 修改 Docker Compose、Nginx、端口、健康检查或部署脚本时，同步 [../../DOCKER\_DEPLOYMENT.md](../../DOCKER_DEPLOYMENT.md)。
 
-- 修改运行时配置前，确认 `src/config/*.ts` 和环境变量读取逻辑。
+- 修改运行时配置前，确认 `packages/core/src/config/*.ts`（共享）与 `apps/<app>` 各自 `.env.*`、环境变量读取逻辑。
 

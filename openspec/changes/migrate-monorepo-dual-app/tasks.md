@@ -66,7 +66,7 @@
 
 ## 7. 收尾验证
 
-- [ ] 7.1 对照 6 个 delta specs 逐条场景自检（workspace/b2c-browse/customer-auth/customer/inquiry/schema-migrations），记录逐条勾选结果；`openspec validate "migrate-monorepo-dual-app"` 通过
+- [x] 7.1 对照 6 个 delta specs 逐条场景自检（workspace/b2c-browse/customer-auth/customer/inquiry/schema-migrations），记录逐条勾选结果；`openspec validate "migrate-monorepo-dual-app"` 通过
 
-- [ ] 7.2 文档同步：AGENTS.md 关键目录段落、`.agents/project/architecture.md`、`deployment.md` 更新为双应用结构（工作区规则要求接口/部署变更同步文档）；更新 mall 调用方路径映射表入发布说明
+- [x] 7.2 文档同步：AGENTS.md 关键目录段落、`.agents/project/architecture.md`、`deployment.md` 更新为双应用结构（工作区规则要求接口/部署变更同步文档）；更新 mall 调用方路径映射表入发布说明
 
