@@ -22,11 +22,11 @@
 
 ## 3. packages/domain 平移（`@gvray/domain`）
 
-- [ ] 3.1 `git mv` `src/modules/equipment/**`（五件套）与 `src/modules/inquiry/**` 的 Service/DTO/Module → `packages/domain/src/`（领域 Module 拆 providers-only，controllers 不随行）；admin 侧 controllers 留 `src/modules/equipment/` 原位，新建 admin 聚合 module（controllers + import 领域 EquipmentModule/InquiryModule）维持单应用可运行——由步骤 4.1 一次 `git mv` 至 `apps/admin/src/modules/equipment/`；验证 import 路径改写后 `pnpm build` 通过
+- [x] 3.1 `git mv` `src/modules/equipment/**`（五件套）与 `src/modules/inquiry/**` 的 Service/DTO/Module → `packages/domain/src/`（领域 Module 拆 providers-only，controllers 不随行）；admin 侧 controllers 留 `src/modules/equipment/` 原位，新建 admin 聚合 module（controllers + import 领域 EquipmentModule/InquiryModule）维持单应用可运行——由步骤 4.1 一次 `git mv` 至 `apps/admin/src/modules/equipment/`；验证 import 路径改写后 `pnpm build` 通过
 
-- [ ] 3.2 领域包 providers-only 清理：包内不残留任何 controller；DTO/常量（VisibilityOpts、B2C\_VISIBILITIES、加权排序 spec）随行；创建 `packages/domain/src/index.ts` barrel（services + DTOs 精选面，design D2）；验证 mall 侧 browse 仍编译通过（此步仍走原 `src/modules/b2c` 位置 import 新包，仅 barrel 面）
+- [x] 3.2 领域包 providers-only 清理：包内不残留任何 controller；DTO/常量（VisibilityOpts、B2C\_VISIBILITIES、加权排序 spec）随行；创建 `packages/domain/src/index.ts` barrel（services + DTOs 精选面，design D2）；验证 mall 侧 browse 仍编译通过（此步仍走原 `src/modules/b2c` 位置 import 新包，仅 barrel 面）
 
-- [ ] 3.3 `pnpm test` 全绿（equipment/inquiry 相关单测全部随迁）+ 双路径冒烟：admin `GET /equipment/filters`（带 JWT）与 `GET /b2c/filters`（匿名）行为不变；commit 步骤 3
+- [x] 3.3 `pnpm test` 全绿（equipment/inquiry 相关单测全部随迁）+ 双路径冒烟：admin `GET /equipment/filters`（带 JWT）与 `GET /b2c/filters`（匿名）行为不变；commit 步骤 3
 
 ## 4. Apps 拆壳与命名/路由收敛（BREAKING）
 
