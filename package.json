@@ -1,9 +1,10 @@
 {
-  "name": "gvray-admin",
+  "name": "gvray",
   "version": "0.0.1",
-  "description": "企业级后台管理系统，基于 NestJS、Prisma 和 PostgreSQL",
+  "description": "GVRAY Monorepo: 双应用（admin/mall）+ 共享内核（@gvray/core / @gvray/domain）",
   "author": "Gavin Ray",
   "license": "MIT",
+  "private": true,
   "scripts": {
     "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
