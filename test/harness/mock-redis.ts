@@ -1,4 +1,4 @@
-import { RedisService } from '../../src/redis/redis.service';
+import { RedisService } from '@gvray/core';
 
 interface StoredValue {
   value: string;

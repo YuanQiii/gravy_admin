@@ -1,5 +1,5 @@
 import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
-import { LogResult, RateLimiterService, PermissionCacheService, RedisKeys, extractPermissionCodes, extractRoleKeys, isSuperAdminOf, PrismaService, UserStatus } from '@gvray/core';
+import { LogResult, RateLimiterService, PermissionCacheService, RedisKeys, extractPermissionCodes, extractRoleKeys, isSuperAdminOf, PrismaService, UserStatus, AUTH_REALM_USER } from '@gvray/core';
 
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
@@ -703,6 +703,7 @@ export class AuthService {
       {
         sub: user.userId,
         jti,
+        realm: AUTH_REALM_USER,
         username: user.username,
         nickname: user.nickname,
         email: user.email ?? null,

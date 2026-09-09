@@ -22,15 +22,15 @@ import { AddressResponseDto } from './dto/address-response.dto';
 import { QueryAddressDto } from './dto/query-address.dto';
 
 /**
- * B2C 客户自助收货地址。身份仅来自 `@CurrentCustomer()`（CustomerJwtGuard 注入），
+ * 商城客户自助收货地址。身份仅来自 `@CurrentCustomer()`（CustomerJwtGuard 注入），
  * 请求体不含 customerId（forbidNonWhitelisted 拒绝）。归属校验在
  * CustomerAddressesService 内（他人 addressId → 404）。
  */
-@ApiTags('B2C 客户收货地址')
+@ApiTags('商城客户收货地址')
 @ApiBearerAuth('JWT-auth')
-@Controller('b2c/addresses')
+@Controller('addresses')
 @UseGuards(CustomerJwtGuard)
-export class B2CAddressesController {
+export class MallAddressesController {
   constructor(private readonly addressesService: CustomerAddressesService) {}
 
   @Get()

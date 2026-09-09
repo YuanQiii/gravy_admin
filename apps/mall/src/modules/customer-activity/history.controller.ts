@@ -28,7 +28,7 @@ import { ICustomer } from '@/core/interfaces/customer.interface';
  */
 @ApiTags('客户浏览历史管理')
 @ApiBearerAuth('JWT-auth')
-@Controller('customer/history')
+@Controller('history')
 @UseGuards(CustomerJwtGuard)
 export class HistoryController {
   constructor(private readonly activityService: CustomerActivityService) {}

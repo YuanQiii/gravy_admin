@@ -27,7 +27,7 @@ interface CustomerRequest {
 }
 
 @ApiTags('客户认证')
-@Controller('customer/auth')
+@Controller('auth')
 export class CustomerAuthController {
   constructor(
     private readonly customerAuthService: CustomerAuthService,

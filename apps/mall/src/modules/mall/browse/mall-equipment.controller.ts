@@ -4,24 +4,23 @@ import { Throttle } from '@nestjs/throttler';
 import { EquipmentService, QueryEquipmentDto, EquipmentResponseDto } from '@gvray/domain';
 import { Public, ResponseUtil } from '@gvray/core';
 
+import { MALL_OPTS } from '../mall.constants';
 
-import { B2C_OPTS } from '../b2c.constants';
-
-@ApiTags('B2C 设备档案浏览')
-@Controller('b2c/equipment')
-export class B2CEquipmentController {
+@ApiTags('商城设备档案浏览')
+@Controller('equipment')
+export class MallEquipmentController {
   constructor(private readonly equipmentService: EquipmentService) {}
 
   @Get()
   @Public()
   @Throttle({ default: { limit: 60, ttl: 60000 } })
   @ApiOperation({
-    summary: 'B2C 浏览设备档案列表',
+    summary: '商城浏览设备档案列表',
     description: '公开接口，无需认证；强制 status=enabled + 加权排序',
   })
   @ApiResponse({ status: 200, description: '获取设备档案列表成功' })
   async findAll(@Query() query: QueryEquipmentDto) {
-    const pageData = await this.equipmentService.findAll(query, B2C_OPTS);
+    const pageData = await this.equipmentService.findAll(query, MALL_OPTS);
     return ResponseUtil.paginated(pageData, '获取设备档案列表成功');
   }
 
@@ -29,7 +28,7 @@ export class B2CEquipmentController {
   @Public()
   @Throttle({ default: { limit: 60, ttl: 60000 } })
   @ApiOperation({
-    summary: 'B2C 浏览设备档案详情',
+    summary: '商城浏览设备档案详情',
     description: '公开接口，无需认证；强制 status=enabled',
   })
   @ApiResponse({
@@ -38,7 +37,7 @@ export class B2CEquipmentController {
     type: EquipmentResponseDto,
   })
   async findOne(@Param('id') id: string) {
-    const data = await this.equipmentService.findOne(id, B2C_OPTS);
+    const data = await this.equipmentService.findOne(id, MALL_OPTS);
     return ResponseUtil.found(data, '获取设备档案详情成功');
   }
 }

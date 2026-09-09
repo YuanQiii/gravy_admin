@@ -15,15 +15,15 @@ import { ICustomer } from '@/core/interfaces/customer.interface';
 import { ResponseUtil } from '@gvray/core';
 
 /**
- * B2C 客户自助询价。身份仅来自 `@CurrentCustomer()`（CustomerJwtGuard 注入），
+ * 商城客户自助询价。身份仅来自 `@CurrentCustomer()`（CustomerJwtGuard 注入），
  * 请求体不含 customerId（forbidNonWhitelisted 拒绝任何身份字段）。
  * 不暴露状态流转端点（PATCH status 仅后台）。
  */
-@ApiTags('B2C 客户询价')
+@ApiTags('商城客户询价')
 @ApiBearerAuth('JWT-auth')
-@Controller('b2c/inquiries')
+@Controller('inquiries')
 @UseGuards(CustomerJwtGuard)
-export class B2CInquiriesController {
+export class MallInquiriesController {
   constructor(private readonly inquiriesService: InquiriesService) {}
 
   @Post()

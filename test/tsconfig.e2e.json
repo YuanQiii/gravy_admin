@@ -1,0 +1,15 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "paths": {
+      "@/core/*": ["apps/admin/src/core/*", "apps/mall/src/core/*"],
+      "@/modules/*": ["apps/admin/src/modules/*", "apps/mall/src/modules/*"],
+      "@/shared/*": ["apps/admin/src/shared/*", "apps/mall/src/shared/*"],
+      "@/config/*": ["apps/admin/src/config/*", "apps/mall/src/config/*"],
+      "@/prisma/*": ["apps/admin/src/prisma/*", "apps/mall/src/prisma/*"],
+      "@/*": ["apps/admin/src/*", "apps/mall/src/*"],
+      "@gvray/core": ["packages/core/src/index"],
+      "@gvray/domain": ["packages/domain/src/index"]
+    }
+  }
+}

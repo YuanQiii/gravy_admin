@@ -1,9 +1,9 @@
 import * as request from 'supertest';
-import { createTestApp } from './harness';
+import { createAdminTestApp } from './harness';
 
 describe('AppController (e2e)', () => {
   it('GET /health 返回健康状态', async () => {
-    const { app } = await createTestApp();
+    const { app } = await createAdminTestApp();
 
     const response = await request(app.getHttpServer())
       .get('/health')
@@ -18,7 +18,7 @@ describe('AppController (e2e)', () => {
   });
 
   it('GET / 返回 404（根路由不存在，仅 /health 存在）', async () => {
-    const { app } = await createTestApp();
+    const { app } = await createAdminTestApp();
     await request(app.getHttpServer()).get('/').expect(404);
     await app.close();
   });

@@ -102,25 +102,127 @@
     "typescript-eslint": "^8.20.0"
   },
   "jest": {
-    "moduleFileExtensions": [
-      "js",
-      "json",
-      "ts"
+    "projects": [
+      {
+        "displayName": "core",
+        "rootDir": ".",
+        "testMatch": [
+          "<rootDir>/packages/core/**/*.spec.ts"
+        ],
+        "moduleFileExtensions": [
+          "js",
+          "json",
+          "ts"
+        ],
+        "transform": {
+          "^.+\\.(t|j)s$": [
+            "ts-jest",
+            {
+              "tsconfig": "<rootDir>/packages/core/tsconfig.json"
+            }
+          ]
+        },
+        "testEnvironment": "node",
+        "testPathIgnorePatterns": [
+          "/node_modules/",
+          "/dist/"
+        ],
+        "moduleNameMapper": {
+          "^@gvray/(.*)$": "<rootDir>/packages/$1/src/index.ts"
+        }
+      },
+      {
+        "displayName": "domain",
+        "rootDir": ".",
+        "testMatch": [
+          "<rootDir>/packages/domain/**/*.spec.ts"
+        ],
+        "moduleFileExtensions": [
+          "js",
+          "json",
+          "ts"
+        ],
+        "transform": {
+          "^.+\\.(t|j)s$": [
+            "ts-jest",
+            {
+              "tsconfig": "<rootDir>/packages/domain/tsconfig.json"
+            }
+          ]
+        },
+        "testEnvironment": "node",
+        "testPathIgnorePatterns": [
+          "/node_modules/",
+          "/dist/"
+        ],
+        "moduleNameMapper": {
+          "^@gvray/(.*)$": "<rootDir>/packages/$1/src/index.ts"
+        }
+      },
+      {
+        "displayName": "admin",
+        "rootDir": ".",
+        "testMatch": [
+          "<rootDir>/apps/admin/**/*.spec.ts"
+        ],
+        "moduleFileExtensions": [
+          "js",
+          "json",
+          "ts"
+        ],
+        "transform": {
+          "^.+\\.(t|j)s$": [
+            "ts-jest",
+            {
+              "tsconfig": "<rootDir>/apps/admin/tsconfig.json"
+            }
+          ]
+        },
+        "testEnvironment": "node",
+        "testPathIgnorePatterns": [
+          "/node_modules/",
+          "/dist/"
+        ],
+        "moduleNameMapper": {
+          "^@gvray/(.*)$": "<rootDir>/packages/$1/src/index.ts",
+          "^@/(.*)$": "<rootDir>/apps/admin/src/$1"
+        }
+      },
+      {
+        "displayName": "mall",
+        "rootDir": ".",
+        "testMatch": [
+          "<rootDir>/apps/mall/**/*.spec.ts"
+        ],
+        "moduleFileExtensions": [
+          "js",
+          "json",
+          "ts"
+        ],
+        "transform": {
+          "^.+\\.(t|j)s$": [
+            "ts-jest",
+            {
+              "tsconfig": "<rootDir>/apps/mall/tsconfig.json"
+            }
+          ]
+        },
+        "testEnvironment": "node",
+        "testPathIgnorePatterns": [
+          "/node_modules/",
+          "/dist/"
+        ],
+        "moduleNameMapper": {
+          "^@gvray/(.*)$": "<rootDir>/packages/$1/src/index.ts",
+          "^@/(.*)$": "<rootDir>/apps/mall/src/$1"
+        }
+      }
     ],
-    "rootDir": "src",
-    "testRegex": ".*\\.spec\\.ts$",
-    "transform": {
-      "^.+\\.(t|j)s$": "ts-jest"
-    },
     "collectCoverageFrom": [
-      "**/*.(t|j)s"
+      "apps/**/*.(t|j)s",
+      "packages/**/*.(t|j)s"
     ],
-    "coverageDirectory": "../coverage",
-    "testEnvironment": "node",
-    "moduleNameMapper": {
-      "^@/(.*)$": "<rootDir>/$1",
-      "^@gvray/(.*)$": "<rootDir>/../packages/$1/src/index.ts"
-    }
+    "coverageDirectory": "coverage"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"

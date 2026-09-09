@@ -30,19 +30,19 @@
 
 ## 4. Apps 拆壳与命名/路由收敛（BREAKING）
 
-- [ ] 4.1 `git mv` 剩余代码分流：`src/modules/{auth,system,dashboard,profile}`、`customer/{customers,addresses}`、`config` → `apps/admin/src/`（含步骤 3 遗留的 equipment/inquiry admin 聚合 module 与 controllers，一次迁移至 `apps/admin/src/modules/equipment/`）；`src/modules/b2c/**`、`customer/{customer-auth,customer-activity}` → `apps/mall/src/`；`customer-jwt.strategy/guard/@CurrentCustomer` → `apps/mall/src/`；`app.controller.ts`/`app.service.ts`（含 `/health`，tasks 6.2/6.3 冒烟依赖）复制为两 app 各自一份；删除旧 `src/`；验证两 app 各自 `nest build` 通过
+- [x] 4.1 `git mv` 剩余代码分流：`src/modules/{auth,system,dashboard,profile}`、`customer/{customers,addresses}`、`config` → `apps/admin/src/`（含步骤 3 遗留的 equipment/inquiry admin 聚合 module 与 controllers，一次迁移至 `apps/admin/src/modules/equipment/`）；`src/modules/b2c/**`、`customer/{customer-auth,customer-activity}` → `apps/mall/src/`；`customer-jwt.strategy/guard/@CurrentCustomer` → `apps/mall/src/`；`app.controller.ts`/`app.service.ts`（含 `/health`，tasks 6.2/6.3 冒烟依赖）复制为两 app 各自一份；删除旧 `src/`；验证两 app 各自 `nest build` 通过
 
-- [ ] 4.2 双 `main.ts`/`app.module.ts`：共享引导走 `@gvray/core` 的 `configureApp`（pino logger 接管 + 全局管道组合 + CORS，design D9），各端 main 只保留 Swagger（admin 现状、mall 标题 `GVRAY Mall API`）与端口；app.module——admin 保留全部横切（RequestLog/Response/OperationLog/FeatureFlag/Throttler + RBAC guards），mall 只挂 RequestLog/Response/HttpException/Throttler（独立 ThrottlerModule 预算，公开浏览 60/min 不变）——对照 specs/workspace 的横切挂载要求；验证 mall app 模块图不含 OperationLogInterceptor/FeatureFlagGuard/PermissionsGuard
+- [x] 4.2 双 `main.ts`/`app.module.ts`：共享引导走 `@gvray/core` 的 `configureApp`（pino logger 接管 + 全局管道组合 + CORS，design D9），各端 main 只保留 Swagger（admin 现状、mall 标题 `GVRAY Mall API`）与端口；app.module——admin 保留全部横切（RequestLog/Response/OperationLog/FeatureFlag/Throttler + RBAC guards），mall 只挂 RequestLog/Response/HttpException/Throttler（独立 ThrottlerModule 预算，公开浏览 60/min 不变）——对照 specs/workspace 的横切挂载要求；验证 mall app 模块图不含 OperationLogInterceptor/FeatureFlagGuard/PermissionsGuard
 
-- [ ] 4.3 e2e harness 双工厂（design D8）：`test/harness/create-app.ts` 拆为 `createAdminTestApp()` / `createMallTestApp()`，共享既有 mock-prisma/mock-redis，全局管道配置经 `configureApp` 与双 main 复用同一接缝；三个 e2e spec 改指对应工厂（`equipment-anonymous` 的后台 `equipment/*` 401 断言走 admin 工厂）；补认证互斥 e2e：customer token 打 admin 路由 401、user token 打 mall 受保护路由 401；验证 `pnpm test:e2e` 全绿
+- [x] 4.3 e2e harness 双工厂（design D8）：`test/harness/create-app.ts` 拆为 `createAdminTestApp()` / `createMallTestApp()`，共享既有 mock-prisma/mock-redis，全局管道配置经 `configureApp` 与双 main 复用同一接缝；三个 e2e spec 改指对应工厂（`equipment-anonymous` 的后台 `equipment/*` 401 断言走 admin 工厂）；补认证互斥 e2e：customer token 打 admin 路由 401、user token 打 mall 受保护路由 401；验证 `pnpm test:e2e` 全绿
 
-- [ ] 4.4 路由剥前缀（design D4 清单逐条）：mall 全部 `@Controller` 去前缀；e2e 断言同步（`test/equipment-anonymous.e2e-spec.ts` 匿名路径改无前缀）；验证 `grep -r "@Controller('b2c/\|@Controller('customer/" apps/mall` 零残留
+- [x] 4.4 路由剥前缀（design D4 清单逐条）：mall 全部 `@Controller` 去前缀；e2e 断言同步（`test/equipment-anonymous.e2e-spec.ts` 匿名路径改无前缀）；验证 `grep -r "@Controller('b2c/\|@Controller('customer/" apps/mall` 零残留
 
-- [ ] 4.5 命名收敛：`B2cModule`→`MallModule`、`B2C_OPTS`→`MALL_OPTS`、`B2C*Controller`→`Mall*Controller`（文件名同步）；验证全仓 `grep -ri "b2c" apps/mall/src` 仅剩注释/文档性引用
+- [x] 4.5 命名收敛：`B2cModule`→`MallModule`、`B2C_OPTS`→`MALL_OPTS`、`B2C*Controller`→`Mall*Controller`（文件名同步）；验证全仓 `grep -ri "b2c" apps/mall/src` 仅剩注释/文档性引用
 
-- [ ] 4.6 admin `jwt.strategy` 补显式 `realm === 'user'` 断言（先核存量 user token payload 均带 realm——见 design Risks；缺 realm 历史存量按 design 处理）；补互斥回归用例：customer token 打 admin 路由 401、user token 打 mall 路由 401；验证新用例通过
+- [x] 4.6 admin `jwt.strategy` 补显式 `realm === 'user'` 断言（先核存量 user token payload 均带 realm——见 design Risks；缺 realm 历史存量按 design 处理）；补互斥回归用例：customer token 打 admin 路由 401、user token 打 mall 路由 401；验证新用例通过
 
-- [ ] 4.7 D7 依赖方向 lint：apps 各自 `no-restricted-imports` 禁止 import 对方路径、packages 禁止 import `apps/*`，同时禁止 `@gvray/core/src`、`@gvray/domain/src` 深路径 import（design D2 barrel 约束）；验证故意注入违规 import 时 lint 报错（负向测试）
+- [x] 4.7 D7 依赖方向 lint：apps 各自 `no-restricted-imports` 禁止 import 对方路径、packages 禁止 import `apps/*`，同时禁止 `@gvray/core/src`、`@gvray/domain/src` 深路径 import（design D2 barrel 约束）；验证故意注入违规 import 时 lint 报错（负向测试）
 
 - [ ] 4.8 `pnpm test` 全绿 + 双端本地启动冒烟；commit 步骤 4
 

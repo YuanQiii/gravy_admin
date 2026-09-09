@@ -34,7 +34,7 @@ import { ICustomer } from '@/core/interfaces/customer.interface';
  */
 @ApiTags('客户收藏管理')
 @ApiBearerAuth('JWT-auth')
-@Controller('customer/favorites')
+@Controller('favorites')
 @UseGuards(CustomerJwtGuard)
 export class FavoritesController {
   constructor(private readonly activityService: CustomerActivityService) {}

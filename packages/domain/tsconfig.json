@@ -2,7 +2,10 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "outDir": "../../dist/packages/domain",
-    "baseUrl": "./"
+    "baseUrl": "./",
+    "paths": {
+      "@gvray/core": ["../core/src/index"]
+    }
   },
   "include": ["src/**/*.ts"]
 }

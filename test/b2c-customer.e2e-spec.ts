@@ -1,7 +1,7 @@
 import * as request from 'supertest';
 import * as crypto from 'crypto';
 import { ConfigService } from '@nestjs/config';
-import { createTestApp } from './harness';
+import { createMallTestApp } from './harness';
 
 /**
  * B2C 客户 e2e 回归网：覆盖 b2c/inquiries 与 b2c/addresses 的 HTTP 层行为。
@@ -36,15 +36,40 @@ function signCustomerJwt(customerId: string, secret: string): string {
   return `${header}.${body}.${sig}`;
 }
 
+/** 合法后台 user token（realm==='user' + roleKeys + status），用于认证域互斥断言 */
+function signUserJwt(secret: string): string {
+  const now = Math.floor(Date.now() / 1000);
+  const header = Buffer.from(
+    JSON.stringify({ alg: 'HS256', typ: 'JWT' }),
+  ).toString('base64url');
+  const body = Buffer.from(
+    JSON.stringify({
+      sub: 'admin-user-id',
+      realm: 'user',
+      roleKeys: ['super_admin'],
+      status: 'enabled',
+      username: 'admin',
+      nickname: 'Admin',
+      iat: now,
+      exp: now + 300,
+    }),
+  ).toString('base64url');
+  const sig = crypto
+    .createHmac('sha256', secret)
+    .update(`${header}.${body}`)
+    .digest('base64url');
+  return `${header}.${body}.${sig}`;
+}
+
 describe('B2C Customer HTTP e2e (inquiries + addresses)', () => {
-  let harness: Awaited<ReturnType<typeof createTestApp>>;
+  let harness: Awaited<ReturnType<typeof createMallTestApp>>;
   let tokenA: string; // 客户 A（本人）
   let secret: string;
 
   const lineItem = { filterId: 'flt-001', quantity: 2 };
 
   beforeAll(async () => {
-    harness = await createTestApp();
+    harness = await createMallTestApp();
     const configService = harness.module.get(ConfigService);
     secret = configService.get<string>('jwt.secret') || 'default-secret-key';
     tokenA = signCustomerJwt('cust-A', secret);
@@ -65,7 +90,7 @@ describe('B2C Customer HTTP e2e (inquiries + addresses)', () => {
         deletedAt: null,
       });
       const res = await request(harness.app.getHttpServer())
-        .post('/b2c/inquiries')
+        .post('/inquiries')
         .set('Authorization', `Bearer ${tokenA}`)
         .send({ title: '采购滤清器', lines: [lineItem] });
       // guard 放行则非 401；此处验证鉴权链路可用（$transaction mock 返回 undefined）
@@ -74,14 +99,14 @@ describe('B2C Customer HTTP e2e (inquiries + addresses)', () => {
 
     it('未登录访问 b2c/inquiries 返回 401', async () => {
       await request(harness.app.getHttpServer())
-        .post('/b2c/inquiries')
+        .post('/inquiries')
         .send({ title: 'x', lines: [lineItem] })
         .expect(401);
     });
 
     it('未登录访问 b2c/addresses 返回 401', async () => {
       await request(harness.app.getHttpServer())
-        .post('/b2c/addresses')
+        .post('/addresses')
         .send({
           receiver: '张三',
           phone: '138',
@@ -91,6 +116,14 @@ describe('B2C Customer HTTP e2e (inquiries + addresses)', () => {
         })
         .expect(401);
     });
+
+    it('后台 user token 打 mall 受保护路由 401（认证域互斥 D5）', async () => {
+      const userToken = signUserJwt(secret);
+      await request(harness.app.getHttpServer())
+        .get('/inquiries')
+        .set('Authorization', `Bearer ${userToken}`)
+        .expect(401);
+    });
   });
 
   /* ── 请求体携带身份字段 → forbidNonWhitelisted 400 ─────────── */
@@ -98,7 +131,7 @@ describe('B2C Customer HTTP e2e (inquiries + addresses)', () => {
   describe('Identity field injection rejected (forbidNonWhitelisted)', () => {
     it('POST /b2c/inquiries 携带 customerId 返回 400', async () => {
       await request(harness.app.getHttpServer())
-        .post('/b2c/inquiries')
+        .post('/inquiries')
         .set('Authorization', `Bearer ${tokenA}`)
         .send({ title: 'x', lines: [lineItem], customerId: 'cust-B' })
         .expect(400);
@@ -106,7 +139,7 @@ describe('B2C Customer HTTP e2e (inquiries + addresses)', () => {
 
     it('POST /b2c/addresses 携带 customerId 返回 400', async () => {
       await request(harness.app.getHttpServer())
-        .post('/b2c/addresses')
+        .post('/addresses')
         .set('Authorization', `Bearer ${tokenA}`)
         .send({
           receiver: '张三',
@@ -127,7 +160,7 @@ describe('B2C Customer HTTP e2e (inquiries + addresses)', () => {
       // findFirst 返回 null → findOneForCustomer 抛 404
       (harness.prisma as any).inquiry.findFirst.mockResolvedValue(null);
       await request(harness.app.getHttpServer())
-        .get('/b2c/inquiries/inq-other')
+        .get('/inquiries/inq-other')
         .set('Authorization', `Bearer ${tokenA}`)
         .expect(404);
     });
@@ -140,7 +173,7 @@ describe('B2C Customer HTTP e2e (inquiries + addresses)', () => {
         deletedAt: null,
       });
       await request(harness.app.getHttpServer())
-        .patch('/b2c/addresses/addr-other')
+        .patch('/addresses/addr-other')
         .set('Authorization', `Bearer ${tokenA}`)
         .send({ receiver: '张三' })
         .expect(404);
@@ -152,12 +185,12 @@ describe('B2C Customer HTTP e2e (inquiries + addresses)', () => {
   describe('Missing authorization returns 401 for write endpoints', () => {
     it('GET /b2c/addresses (private, no token) return 401', async () => {
       await request(harness.app.getHttpServer())
-        .get('/b2c/addresses')
+        .get('/addresses')
         .expect(401);
     });
     it('GET /b2c/inquiries (private, no token) return 401', async () => {
       await request(harness.app.getHttpServer())
-        .get('/b2c/inquiries')
+        .get('/inquiries')
         .expect(401);
     });
   });

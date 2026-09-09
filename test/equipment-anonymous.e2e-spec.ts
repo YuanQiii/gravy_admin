@@ -1,7 +1,7 @@
 import * as request from 'supertest';
 import * as crypto from 'crypto';
 import { ConfigService } from '@nestjs/config';
-import { createTestApp } from './harness';
+import { createMallTestApp, createAdminTestApp } from './harness';
 
 /* ── Minimal HS256 JWT signer (avoids jsonwebtoken transitive dep) ─ */
 
@@ -221,20 +221,23 @@ function signAdminToken(secret: string): string {
 /* ── 5.1 – 5.4: Access and visibility tests ──────────────────────── */
 
 describe('Equipment Anonymous Access (e2e)', () => {
-  let harness: Awaited<ReturnType<typeof createTestApp>>;
+  let mallHarness: Awaited<ReturnType<typeof createMallTestApp>>;
+  let adminHarness: Awaited<ReturnType<typeof createAdminTestApp>>;
   let adminToken: string;
+  let secret: string;
 
   beforeAll(async () => {
-    harness = await createTestApp();
+    mallHarness = await createMallTestApp();
+    adminHarness = await createAdminTestApp();
 
-    const configService = harness.module.get(ConfigService);
-    const secret =
-      configService.get<string>('jwt.secret') || 'default-secret-key';
+    const configService = adminHarness.module.get(ConfigService);
+    secret = configService.get<string>('jwt.secret') || 'default-secret-key';
     adminToken = signAdminToken(secret);
   });
 
   afterAll(async () => {
-    await harness.app.close();
+    await mallHarness.app.close();
+    await adminHarness.app.close();
   });
 
   /* ── 5.1: Anonymous GET returns 200 with enabled records only ── */
@@ -245,10 +248,10 @@ describe('Equipment Anonymous Access (e2e)', () => {
     // so the shared `findMany was called` assertion no longer applies.
     // Only dictionary-ish tables (brands / filter-types) remain here.
     const cases: Array<[string, string, string, () => any]> = [
-      ['brands', '/b2c/brands', 'equipmentBrand', makeEnabledBrand],
+      ['brands', '/brands', 'equipmentBrand', makeEnabledBrand],
       [
         'filter-types',
-        '/b2c/filter-types',
+        '/filter-types',
         'filterType',
         makeEnabledFilterType,
       ],
@@ -256,7 +259,7 @@ describe('Equipment Anonymous Access (e2e)', () => {
 
     beforeEach(() => {
       for (const [, , modelKey, factory] of cases) {
-        const mocks = getModelMocks(harness.prisma, modelKey);
+        const mocks = getModelMocks(mallHarness.prisma, modelKey);
         mocks.findMany.mockResolvedValue([factory()]);
         mocks.count.mockResolvedValue(1);
       }
@@ -265,14 +268,14 @@ describe('Equipment Anonymous Access (e2e)', () => {
     it.each(cases)(
       'GET /b2c/%s returns 200, items all enabled, where.status=enabled',
       async (_label, path, modelKey) => {
-        const res = await request(harness.app.getHttpServer())
+        const res = await request(mallHarness.app.getHttpServer())
           .get(`${path}${LIST_PARAMS}`)
           .expect(200);
 
         expect(res.body.data.items).toHaveLength(1);
         expect(res.body.data.items[0].status).toBe('enabled');
 
-        const mocks = getModelMocks(harness.prisma, modelKey);
+        const mocks = getModelMocks(mallHarness.prisma, modelKey);
         expect(mocks.findMany).toHaveBeenCalledWith(
           expect.objectContaining({
             where: expect.objectContaining({ status: 'enabled' }),
@@ -286,26 +289,26 @@ describe('Equipment Anonymous Access (e2e)', () => {
     const cases: Array<[string, string, string, () => any]> = [
       [
         'brands',
-        '/b2c/brands/brand-001',
+        '/brands/brand-001',
         'equipmentBrand',
         makeEnabledBrand,
       ],
       [
         'catalogs',
-        '/b2c/catalogs/cat-001',
+        '/catalogs/cat-001',
         'equipmentCatalog',
         makeEnabledCatalog,
       ],
       [
         'filter-types',
-        '/b2c/filter-types/ft-001',
+        '/filter-types/ft-001',
         'filterType',
         makeEnabledFilterType,
       ],
-      ['filters', '/b2c/filters/flt-001', 'filter', makeEnabledFilter],
+      ['filters', '/filters/flt-001', 'filter', makeEnabledFilter],
       [
         'equipment',
-        '/b2c/equipment/eq-001',
+        '/equipment/eq-001',
         'equipment',
         makeEnabledEquipment,
       ],
@@ -313,7 +316,7 @@ describe('Equipment Anonymous Access (e2e)', () => {
 
     beforeEach(() => {
       for (const [, , modelKey, factory] of cases) {
-        const mocks = getModelMocks(harness.prisma, modelKey);
+        const mocks = getModelMocks(mallHarness.prisma, modelKey);
         mocks.findUnique.mockResolvedValue(factory());
       }
     });
@@ -321,7 +324,7 @@ describe('Equipment Anonymous Access (e2e)', () => {
     it.each(cases)(
       'GET /b2c/%s/:id returns 200 with enabled record',
       async (_label, path, _modelKey) => {
-        const res = await request(harness.app.getHttpServer())
+        const res = await request(mallHarness.app.getHttpServer())
           .get(path)
           .expect(200);
 
@@ -332,7 +335,7 @@ describe('Equipment Anonymous Access (e2e)', () => {
 
   describe('5.1 Anonymous GET /equipment/filter-types/options', () => {
     beforeEach(() => {
-      const mocks = getModelMocks(harness.prisma, 'filterType');
+      const mocks = getModelMocks(mallHarness.prisma, 'filterType');
       mocks.findMany.mockResolvedValue([
         {
           filterTypeId: 'ft-001',
@@ -344,8 +347,8 @@ describe('Equipment Anonymous Access (e2e)', () => {
     });
 
     it('returns 200 with enabled options', async () => {
-      const res = await request(harness.app.getHttpServer())
-        .get('/b2c/filter-types/options')
+      const res = await request(mallHarness.app.getHttpServer())
+        .get('/filter-types/options')
         .expect(200);
 
       expect(res.body.data).toBeInstanceOf(Array);
@@ -359,26 +362,26 @@ describe('Equipment Anonymous Access (e2e)', () => {
     const cases: Array<[string, string, string, () => any]> = [
       [
         'brands',
-        '/b2c/brands/brand-002',
+        '/brands/brand-002',
         'equipmentBrand',
         makeDisabledBrand,
       ],
       [
         'catalogs',
-        '/b2c/catalogs/cat-002',
+        '/catalogs/cat-002',
         'equipmentCatalog',
         makeDisabledCatalog,
       ],
       [
         'filter-types',
-        '/b2c/filter-types/ft-002',
+        '/filter-types/ft-002',
         'filterType',
         makeDisabledFilterType,
       ],
-      ['filters', '/b2c/filters/flt-002', 'filter', makeDisabledFilter],
+      ['filters', '/filters/flt-002', 'filter', makeDisabledFilter],
       [
         'equipment',
-        '/b2c/equipment/eq-002',
+        '/equipment/eq-002',
         'equipment',
         makeDisabledEquipment,
       ],
@@ -386,7 +389,7 @@ describe('Equipment Anonymous Access (e2e)', () => {
 
     beforeEach(() => {
       for (const [, , modelKey, factory] of cases) {
-        const mocks = getModelMocks(harness.prisma, modelKey);
+        const mocks = getModelMocks(mallHarness.prisma, modelKey);
         mocks.findUnique.mockResolvedValue(factory());
       }
     });
@@ -394,7 +397,7 @@ describe('Equipment Anonymous Access (e2e)', () => {
     it.each(cases)(
       'GET /b2c/%s/:id (disabled) returns 404',
       async (_label, path) => {
-        await request(harness.app.getHttpServer()).get(path).expect(404);
+        await request(mallHarness.app.getHttpServer()).get(path).expect(404);
       },
     );
   });
@@ -403,7 +406,7 @@ describe('Equipment Anonymous Access (e2e)', () => {
 
   describe('5.3 Anonymous POST returns 401', () => {
     it('POST /equipment/filters without Authorization returns 401', async () => {
-      await request(harness.app.getHttpServer())
+      await request(adminHarness.app.getHttpServer())
         .post('/equipment/filters')
         .send({ model: 'X', typeName: 'Y' })
         .expect(401);
@@ -414,13 +417,13 @@ describe('Equipment Anonymous Access (e2e)', () => {
 
   describe('5.4 Authenticated GET can see disabled records', () => {
     beforeEach(() => {
-      const mocks = getModelMocks(harness.prisma, 'equipmentBrand');
+      const mocks = getModelMocks(adminHarness.prisma, 'equipmentBrand');
       mocks.findMany.mockResolvedValue([makeDisabledBrand()]);
       mocks.count.mockResolvedValue(1);
     });
 
     it('GET /equipment/brands?status=disabled with admin JWT returns 200 with disabled items', async () => {
-      const res = await request(harness.app.getHttpServer())
+      const res = await request(adminHarness.app.getHttpServer())
         .get(`/equipment/brands${LIST_PARAMS}&status=disabled`)
         .set('Authorization', `Bearer ${adminToken}`)
         .expect(200);
@@ -429,7 +432,7 @@ describe('Equipment Anonymous Access (e2e)', () => {
       expect(res.body.data.items[0].status).toBe('disabled');
 
       // Authenticated path must NOT force where.status='enabled'
-      const mocks = getModelMocks(harness.prisma, 'equipmentBrand');
+      const mocks = getModelMocks(adminHarness.prisma, 'equipmentBrand');
       expect(mocks.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({ status: 'disabled' }),
@@ -467,24 +470,27 @@ describe('Equipment Anonymous Access (e2e)', () => {
     };
 
     beforeEach(() => {
-      const mocks = getRawMocks(harness.prisma);
-      // Clear call history from previous tests so `not.toHaveBeenCalled()`
-      // assertions reflect only the current test's behavior.
-      mocks.$queryRaw.mockClear();
-      mocks.filter.findMany.mockClear();
-      mocks.filter.count.mockClear();
-      // Pre-sorted rows returned by $queryRaw (mock simulates DB ordering).
-      mocks.$queryRaw.mockResolvedValue([weightedA, weightedB, weightedC]);
-      mocks.filter.count.mockResolvedValue(3);
-      // Reset findMany to default empty so we can assert it is NOT called
-      // for the anonymous path.
-      mocks.filter.findMany.mockResolvedValue([]);
+      // mall prisma 服务于匿名 /b2c/filters，admin prisma 服务于已验证 /equipment/filters
+      for (const harness of [mallHarness, adminHarness]) {
+        const mocks = getRawMocks(harness.prisma);
+        // Clear call history from previous tests so `not.toHaveBeenCalled()`
+        // assertions reflect only the current test's behavior.
+        mocks.$queryRaw.mockClear();
+        mocks.filter.findMany.mockClear();
+        mocks.filter.count.mockClear();
+        // Pre-sorted rows returned by $queryRaw (mock simulates DB ordering).
+        mocks.$queryRaw.mockResolvedValue([weightedA, weightedB, weightedC]);
+        mocks.filter.count.mockResolvedValue(3);
+        // Reset findMany to default empty so we can assert it is NOT called
+        // for the anonymous path.
+        mocks.filter.findMany.mockResolvedValue([]);
+      }
     });
 
     it('anonymous GET /b2c/filters returns items in $queryRaw weighted order', async () => {
-      const mocks = getRawMocks(harness.prisma);
-      const res = await request(harness.app.getHttpServer())
-        .get('/b2c/filters?page=1&pageSize=10')
+      const mocks = getRawMocks(mallHarness.prisma);
+      const res = await request(mallHarness.app.getHttpServer())
+        .get('/filters?page=1&pageSize=10')
         .expect(200);
 
       expect(res.body.data.items).toHaveLength(3);
@@ -503,10 +509,10 @@ describe('Equipment Anonymous Access (e2e)', () => {
     });
 
     it('anonymous GET /b2c/filters ignores ?sortBy param (weighted sort wins)', async () => {
-      const mocks = getRawMocks(harness.prisma);
-      const res = await request(harness.app.getHttpServer())
+      const mocks = getRawMocks(mallHarness.prisma);
+      const res = await request(mallHarness.app.getHttpServer())
         .get(
-          '/b2c/filters?page=1&pageSize=10&sortBy=model&sortOrder=desc',
+          '/filters?page=1&pageSize=10&sortBy=model&sortOrder=desc',
         )
         .expect(200);
 
@@ -519,9 +525,9 @@ describe('Equipment Anonymous Access (e2e)', () => {
     });
 
     it('anonymous GET /b2c/filters passes status=enabled to count query', async () => {
-      const mocks = getRawMocks(harness.prisma);
-      await request(harness.app.getHttpServer())
-        .get('/b2c/filters?page=1&pageSize=10')
+      const mocks = getRawMocks(mallHarness.prisma);
+      await request(mallHarness.app.getHttpServer())
+        .get('/filters?page=1&pageSize=10')
         .expect(200);
 
       // count is shared between paths; visibility filter must still apply
@@ -533,11 +539,11 @@ describe('Equipment Anonymous Access (e2e)', () => {
     });
 
     it('authenticated GET /equipment/filters uses findMany, not $queryRaw', async () => {
-      const mocks = getRawMocks(harness.prisma);
+      const mocks = getRawMocks(adminHarness.prisma);
       mocks.filter.findMany.mockResolvedValue([weightedA]);
       mocks.filter.count.mockResolvedValue(1);
 
-      const res = await request(harness.app.getHttpServer())
+      const res = await request(adminHarness.app.getHttpServer())
         .get('/equipment/filters?page=1&pageSize=10')
         .set('Authorization', `Bearer ${adminToken}`)
         .expect(200);
@@ -567,13 +573,13 @@ describe('Equipment Anonymous Access (e2e)', () => {
         gencode: null,
         createdAt: new Date('2026-08-01T00:00:00Z'),
       };
-      const mocks = getRawMocks(harness.prisma);
+      const mocks = getRawMocks(mallHarness.prisma);
       // DB applies createdAt DESC → newer row first
       mocks.$queryRaw.mockResolvedValue([newer, older]);
       mocks.filter.count.mockResolvedValue(2);
 
-      const res = await request(harness.app.getHttpServer())
-        .get('/b2c/filters?page=1&pageSize=10')
+      const res = await request(mallHarness.app.getHttpServer())
+        .get('/filters?page=1&pageSize=10')
         .expect(200);
 
       expect(res.body.data.items).toHaveLength(2);
@@ -635,7 +641,7 @@ describe('Equipment Anonymous Access (e2e)', () => {
     };
 
     beforeEach(() => {
-      const mocks = getRawMocks(harness.prisma);
+      const mocks = getRawMocks(mallHarness.prisma);
       mocks.$queryRaw.mockClear();
       mocks.equipment.findMany.mockClear();
       mocks.equipment.count.mockClear();
@@ -645,9 +651,9 @@ describe('Equipment Anonymous Access (e2e)', () => {
     });
 
     it('anonymous GET /b2c/equipment returns items in $queryRaw weighted order', async () => {
-      const mocks = getRawMocks(harness.prisma);
-      const res = await request(harness.app.getHttpServer())
-        .get('/b2c/equipment?page=1&pageSize=10')
+      const mocks = getRawMocks(mallHarness.prisma);
+      const res = await request(mallHarness.app.getHttpServer())
+        .get('/equipment?page=1&pageSize=10')
         .expect(200);
 
       expect(res.body.data.items).toHaveLength(3);
@@ -670,10 +676,10 @@ describe('Equipment Anonymous Access (e2e)', () => {
     });
 
     it('anonymous GET /b2c/equipment ignores ?sortBy param (weighted sort wins)', async () => {
-      const mocks = getRawMocks(harness.prisma);
-      const res = await request(harness.app.getHttpServer())
+      const mocks = getRawMocks(mallHarness.prisma);
+      const res = await request(mallHarness.app.getHttpServer())
         .get(
-          '/b2c/equipment?page=1&pageSize=10&sortBy=model&sortOrder=desc',
+          '/equipment?page=1&pageSize=10&sortBy=model&sortOrder=desc',
         )
         .expect(200);
 
@@ -685,9 +691,9 @@ describe('Equipment Anonymous Access (e2e)', () => {
     });
 
     it('anonymous GET /b2c/equipment passes status=enabled to count query', async () => {
-      const mocks = getRawMocks(harness.prisma);
-      await request(harness.app.getHttpServer())
-        .get('/b2c/equipment?page=1&pageSize=10')
+      const mocks = getRawMocks(mallHarness.prisma);
+      await request(mallHarness.app.getHttpServer())
+        .get('/equipment?page=1&pageSize=10')
         .expect(200);
 
       expect(mocks.equipment.count).toHaveBeenCalledWith(
@@ -728,7 +734,7 @@ describe('Equipment Anonymous Access (e2e)', () => {
     };
 
     beforeEach(() => {
-      const mocks = getRawMocks(harness.prisma);
+      const mocks = getRawMocks(mallHarness.prisma);
       mocks.$queryRaw.mockClear();
       mocks.catalog.findMany.mockClear();
       mocks.catalog.count.mockClear();
@@ -738,9 +744,9 @@ describe('Equipment Anonymous Access (e2e)', () => {
     });
 
     it('anonymous GET /b2c/catalogs returns items in $queryRaw weighted order', async () => {
-      const mocks = getRawMocks(harness.prisma);
-      const res = await request(harness.app.getHttpServer())
-        .get('/b2c/catalogs?page=1&pageSize=10')
+      const mocks = getRawMocks(mallHarness.prisma);
+      const res = await request(mallHarness.app.getHttpServer())
+        .get('/catalogs?page=1&pageSize=10')
         .expect(200);
 
       expect(res.body.data.items).toHaveLength(3);
@@ -763,10 +769,10 @@ describe('Equipment Anonymous Access (e2e)', () => {
     });
 
     it('anonymous GET /b2c/catalogs ignores ?sortBy param (weighted sort wins)', async () => {
-      const mocks = getRawMocks(harness.prisma);
-      const res = await request(harness.app.getHttpServer())
+      const mocks = getRawMocks(mallHarness.prisma);
+      const res = await request(mallHarness.app.getHttpServer())
         .get(
-          '/b2c/catalogs?page=1&pageSize=10&sortBy=name&sortOrder=desc',
+          '/catalogs?page=1&pageSize=10&sortBy=name&sortOrder=desc',
         )
         .expect(200);
 
@@ -778,9 +784,9 @@ describe('Equipment Anonymous Access (e2e)', () => {
     });
 
     it('anonymous GET /b2c/catalogs passes status=enabled to count query', async () => {
-      const mocks = getRawMocks(harness.prisma);
-      await request(harness.app.getHttpServer())
-        .get('/b2c/catalogs?page=1&pageSize=10')
+      const mocks = getRawMocks(mallHarness.prisma);
+      await request(mallHarness.app.getHttpServer())
+        .get('/catalogs?page=1&pageSize=10')
         .expect(200);
 
       expect(mocks.catalog.count).toHaveBeenCalledWith(
@@ -795,19 +801,21 @@ describe('Equipment Anonymous Access (e2e)', () => {
 
   describe('5.9 Equipment list model & brandName exact filter', () => {
     beforeEach(() => {
-      const mocks = getRawMocks(harness.prisma);
-      mocks.$queryRaw.mockClear();
-      mocks.equipment.findMany.mockClear();
-      mocks.equipment.count.mockClear();
-      mocks.$queryRaw.mockResolvedValue([makeEnabledEquipment()]);
-      mocks.equipment.count.mockResolvedValue(1);
-      mocks.equipment.findMany.mockResolvedValue([makeEnabledEquipment()]);
+      for (const harness of [mallHarness, adminHarness]) {
+        const mocks = getRawMocks(harness.prisma);
+        mocks.$queryRaw.mockClear();
+        mocks.equipment.findMany.mockClear();
+        mocks.equipment.count.mockClear();
+        mocks.$queryRaw.mockResolvedValue([makeEnabledEquipment()]);
+        mocks.equipment.count.mockResolvedValue(1);
+        mocks.equipment.findMany.mockResolvedValue([makeEnabledEquipment()]);
+      }
     });
 
     it('anonymous GET /b2c/equipment?model=X200 puts model ILIKE into $queryRaw and equals+insensitive into count', async () => {
-      const mocks = getRawMocks(harness.prisma);
-      await request(harness.app.getHttpServer())
-        .get('/b2c/equipment?page=1&pageSize=10&model=X200')
+      const mocks = getRawMocks(mallHarness.prisma);
+      await request(mallHarness.app.getHttpServer())
+        .get('/equipment?page=1&pageSize=10&model=X200')
         .expect(200);
 
       // B2C raw SQL 路径：model 精确匹配（大小写不敏感）必须进入 $queryRaw 条件
@@ -824,9 +832,9 @@ describe('Equipment Anonymous Access (e2e)', () => {
     });
 
     it('anonymous GET /b2c/equipment?brandName=Bosch puts brandName ILIKE into $queryRaw', async () => {
-      const mocks = getRawMocks(harness.prisma);
-      await request(harness.app.getHttpServer())
-        .get('/b2c/equipment?page=1&pageSize=10&brandName=Bosch')
+      const mocks = getRawMocks(mallHarness.prisma);
+      await request(mallHarness.app.getHttpServer())
+        .get('/equipment?page=1&pageSize=10&brandName=Bosch')
         .expect(200);
 
       const sqlArg = mocks.$queryRaw.mock.calls[0][0];
@@ -841,8 +849,8 @@ describe('Equipment Anonymous Access (e2e)', () => {
     });
 
     it('authenticated GET /equipment?model=X200&brandName=Bosch uses findMany with equals+insensitive filters', async () => {
-      const mocks = getRawMocks(harness.prisma);
-      const res = await request(harness.app.getHttpServer())
+      const mocks = getRawMocks(adminHarness.prisma);
+      const res = await request(adminHarness.app.getHttpServer())
         .get(
           '/equipment/equipment?page=1&pageSize=10&model=X200&brandName=Bosch',
         )
@@ -862,35 +870,61 @@ describe('Equipment Anonymous Access (e2e)', () => {
       expect(mocks.$queryRaw).not.toHaveBeenCalled();
     });
   });
+
+  /* ── 5.10 认证域互斥（D5）：customer token 打 admin 路由 401 ── */
+
+  describe('5.10 auth-realm mutual exclusion', () => {
+    it('customer token（即便伪造 roleKeys）打 admin 路由 401', async () => {
+      // 带 roleKeys+status 的 customer token：旧"恰好缺 roleKeys"的巧合防线
+      // 已失效（本 token 不缺），只有 admin realm 显式断言能挡下 → 401
+      const customerToken = signJwt(
+        {
+          sub: 'cust-uuid-1',
+          realm: 'customer',
+          roleKeys: ['super_admin'],
+          status: 'enabled',
+          username: 'cust',
+          nickname: 'Cust',
+          iat: Math.floor(Date.now() / 1000),
+          exp: Math.floor(Date.now() / 1000) + 300,
+        },
+        secret,
+      );
+      await request(adminHarness.app.getHttpServer())
+        .get('/equipment/equipment?page=1&pageSize=10')
+        .set('Authorization', `Bearer ${customerToken}`)
+        .expect(401);
+    });
+  });
 });
 
 /* ── 5.5: Rate limiting ──────────────────────────────────────────── */
 
 describe('Equipment Anonymous Rate Limiting (e2e)', () => {
-  let harness: Awaited<ReturnType<typeof createTestApp>>;
+  let mallHarness: Awaited<ReturnType<typeof createMallTestApp>>;
 
   beforeAll(async () => {
-    harness = await createTestApp();
-    const mocks = getModelMocks(harness.prisma, 'equipmentBrand');
+    mallHarness = await createMallTestApp();
+    const mocks = getModelMocks(mallHarness.prisma, 'equipmentBrand');
     mocks.findMany.mockResolvedValue([makeEnabledBrand()]);
     mocks.count.mockResolvedValue(1);
   });
 
   afterAll(async () => {
-    await harness.app.close();
+    await mallHarness.app.close();
   });
 
   it('returns 429 on the 61st request from the same IP', async () => {
-    const server = harness.app.getHttpServer();
+    const server = mallHarness.app.getHttpServer();
 
     // First 60 requests should succeed (limit = 60/min)
     for (let i = 0; i < 60; i++) {
-      await request(server).get(`/b2c/brands${LIST_PARAMS}`).expect(200);
+      await request(server).get(`/brands${LIST_PARAMS}`).expect(200);
     }
 
     // 61st request should be rate-limited
     const res = await request(server)
-      .get(`/b2c/brands${LIST_PARAMS}`)
+      .get(`/brands${LIST_PARAMS}`)
       .expect(429);
 
     expect(res.headers['retry-after']).toBeDefined();

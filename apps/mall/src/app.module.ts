@@ -10,7 +10,7 @@ import {
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { B2cModule } from '@/modules/b2c/b2c.module';
+import { MallModule } from '@/modules/mall/mall.module';
 import { CustomerAuthModule } from '@/modules/customer-auth/customer-auth.module';
 import { CustomerActivityModule } from '@/modules/customer-activity/customer-activity.module';
 import {
@@ -55,7 +55,7 @@ import {
     PrismaModule,
     RedisModule,
     SoftDeleteModule,
-    B2cModule,
+    MallModule,
     CustomerAuthModule,
     CustomerActivityModule,
     DiscoveryModule,

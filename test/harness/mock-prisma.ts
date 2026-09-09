@@ -1,4 +1,4 @@
-import { PrismaService } from '../../src/prisma/prisma.service';
+import { PrismaService } from '@gvray/core';
 
 /**
  * PrismaService 深度 mock 工厂。

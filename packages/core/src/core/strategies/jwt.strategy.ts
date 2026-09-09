@@ -5,6 +5,7 @@ import { ConfigService } from '@nestjs/config';
 import { JwtPayload } from '../types/jwt-payload.type';
 import { IUser } from '../interfaces/user.interface';
 import { UserStatus } from '../../shared/constants/user-status.constant';
+import { AUTH_REALM_USER } from '../constants/auth-realm.constant';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
@@ -23,6 +24,13 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
   async validate(payload: JwtPayload): Promise<IUser> {
     if (!payload?.sub || !payload.roleKeys) {
+      throw new UnauthorizedException('无效的 Access Token');
+    }
+
+    // 认证域互斥显式断言（ADR 0010 D5）：明确拒绝 customer 域 token，
+    // 替换"customer token 恰好缺 roleKeys 被间接拒绝"的巧合防线。
+    // 未携带 realm 的历史后台 token 放行（一次性兼容，见 JwtPayload.realm）。
+    if (payload.realm && payload.realm !== AUTH_REALM_USER) {
       throw new UnauthorizedException('无效的 Access Token');
     }
 
