@@ -56,13 +56,13 @@
 
 ## 6. Docker / Compose 双镜像
 
-- [ ] 6.1 Dockerfile ×2（构建上下文=仓库根）：admin 含 `dist/apps/admin` + `dist/packages` + `prisma/migrations` + `schema.prisma` + `dist/scripts/db-bootstrap.js`；mall 仅 `dist/apps/mall` + `dist/packages`；`.dockerignore` 保持排除 `prisma/scripts`、`prisma/backups`；验证镜像 payload：`docker run --rm --entrypoint sh IMG -c "ls ..."`（admin 含 migrations、mall 不含）
+- [x] 6.1 Dockerfile ×2（构建上下文=仓库根）：admin 含 `dist/apps/admin` + `dist/packages` + `prisma/migrations` + `schema.prisma` + `dist/scripts/db-bootstrap.js`；mall 仅 `dist/apps/mall` + `dist/packages`；`.dockerignore` 保持排除 `prisma/scripts`、`prisma/backups`；验证镜像 payload：`docker run --rm --entrypoint sh IMG -c "ls ..."`（admin 含 migrations、mall 不含）
 
 - [ ] 6.2 compose 三份（dev/test/prod）改双 service：`gvray-admin-app`（entrypoint.sh → db-bootstrap → exec）与 `gvray-mall-app`（直接 exec CMD，不调 db-bootstrap）；entrypoint 行尾 LF（`git config core.autocrlf` 注意 + 容器实测 exit 0）；验证 dev compose 双容器 `docker:dev:up` 全部 healthy
 
 - [ ] 6.3 容器级冒烟：双容器加入 dev compose 网络、`REDIS_HOST=redis`；admin `/health` + migrate deploy 日志正常、mall `/health` 且日志无 schema 同步痕迹；customer token 打 admin 路由 401（ADR 0009 互斥 + 步骤 4.6 断言的 en vivo 验证）；匿名打 mall `/filters` 200 且 OperationLog 表无新增行（specs/workspace 的横切挂载场景）
 
-- [ ] 6.4 `docker-build.ts` 脚本扩展双镜像目标（build/push/scan）；验证构建产物清单与回滚说明（design Migration Plan 回滚段）；commit 步骤 6
+- [x] 6.4 `docker-build.ts` 脚本扩展双镜像目标（build/push/scan）；验证构建产物清单与回滚说明（design Migration Plan 回滚段）；commit 步骤 6
 
 ## 7. 收尾验证
 
