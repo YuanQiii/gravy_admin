@@ -38,7 +38,7 @@ pnpm docker:deploy
 
 - `JWT_ACCESS_TOKEN_EXPIRES_IN` / `JWT_REFRESH_TOKEN_EXPIRES_IN` 控制 token 过期，默认 `2h` / `7d`。
 
-- 微信小程序静默登录（仅 mall）：`WECHAT_APPID` / `WECHAT_SECRET`（mall 本地 `registerAs('wechat')` 读取，见 [wechat.config.ts](../../apps/mall/src/config/wechat.config.ts)）。mall 运行环境须可出站 HTTPS 到 `api.weixin.qq.com`。两变量缺省为空串，未配置时换取返回 401，不影响其余客户认证。
+- 微信小程序静默登录（仅 mall）：`WECHAT_APPID` / `WECHAT_SECRET`（mall 本地 `registerAs('wechat')` 读取，见 [wechat.config.ts](../../apps/mall/src/config/wechat.config.ts)）。mall 运行环境须可出站 HTTPS 到 `api.weixin.qq.com`。两变量缺省为空串，未配置时换取返回 401，不影响其余客户认证。可选 `WECHAT_API_ENDPOINT` 可覆盖换取端点（默认微信官方地址，测试/本地 mock 用）。
 
 - `docker-compose.yml` 的 app healthcheck 使用 `node -e "fetch(...)"`，不依赖 wget/curl。
 

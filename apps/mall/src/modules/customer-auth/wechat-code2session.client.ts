@@ -17,7 +17,7 @@ export interface WechatSessionResult {
 @Injectable()
 export class WechatCode2SessionClient {
   private readonly logger = new Logger(WechatCode2SessionClient.name);
-  private readonly endpoint =
+  private readonly defaultEndpoint =
     'https://api.weixin.qq.com/sns/jscode2session';
   private readonly timeoutMs = 5000;
 
@@ -26,6 +26,8 @@ export class WechatCode2SessionClient {
   async code2Session(code: string): Promise<WechatSessionResult> {
     const appId = this.configService.get<string>('wechat.appId') || '';
     const secret = this.configService.get<string>('wechat.secret') || '';
+    const endpoint =
+      this.configService.get<string>('wechat.endpoint') || this.defaultEndpoint;
 
     const params = new URLSearchParams({
       appid: appId,
@@ -37,7 +39,7 @@ export class WechatCode2SessionClient {
     let response: Response;
     try {
       response = await this.fetchWithTimeout(
-        `${this.endpoint}?${params.toString()}`,
+        `${endpoint}?${params.toString()}`,
       );
     } catch (error) {
       this.logger.warn(`Wechat code2session request failed: ${error}`);
