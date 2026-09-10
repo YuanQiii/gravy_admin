@@ -32,13 +32,13 @@
 
 - [x] 4.2 在 `CustomerAuthController` 新增 `POST wechat-login` 端点，`@Throttle 10/min/IP`（与 login 同级），`@ApiOperation`/`@ApiResponse` 中文描述，`ResponseUtil.success` 返回；同时用 `@ClientInfo()` 改造既有 `login` 端点并删除 controller 内 `getClientIp` 与手写 `CustomerRequest` 类型（`extractAccessTokenJti` 本次不动，单消费端不抽接缝）——验证：`pnpm build` 通过，Swagger 呈现该端点，controller 无 IP 猎取逻辑
 
-- [ ] 4.3 规范联调：openid 命中→复用 customerId；换取出错→401 统一话术；端点不产生 audit 写（mall 无 OperationLog）——验证：端到端冒烟（curl）符合 specs 各 Scenario
+- [x] 4.3 规范联调：openid 命中→复用 customerId；换取出错→401 统一话术；端点不产生 audit 写（mall 无 OperationLog）——验证：端到端冒烟（curl）符合 specs 各 Scenario
 
 ## 5. 测试与文档
 
 - [x] 5.1 为 `wechatLogin` 补齐单元测试（命中登录、未命中建号、换取失败 401、并发幂等、禁用/软删拒登、占位密码不可账密登录）——验证：`pnpm test` 全部通过
 
-- [ ] 5.2 提交 PR；归档后按流程同步 `openspec/specs/customer/auth/spec.md`——验证：`openspec instructions specs --change --json` 与比对通过
+- [x] 5.2 提交 PR；归档后按流程同步 `openspec/specs/customer/auth/spec.md`——验证：`openspec instructions specs --change --json` 与比对通过
 
 - [x] 5.3 新增 ADR 0012 记录个人主体约束→静默 openid 登录取舍、只建新号、username/password 占位约定、单小程序不引入 provider 维度、微信换取层归 mall——验证：docs/adr/0012-\*.md 已创建
 
