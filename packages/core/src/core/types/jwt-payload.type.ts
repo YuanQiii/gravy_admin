@@ -1,8 +1,9 @@
 export type JwtPayload = {
   sub: string; // userId
   jti: string; // token unique id，用于登出时定位 RT
-  // 认证域声明（'user' | 'customer'）。可选是为了兼容 realm 断言上线前
-  // 已签发、未携带 realm 的历史后台 token（ADR 0010 一次性兼容）。
+  // 认证域声明（'user' | 'customer'）。后台 `JwtStrategy` 对 realm !== 'user'
+  // （含缺失 realm）一律拒绝（ADR 0011 收紧，缺 realm 兼容窗口已移除）；客户
+  // `CustomerJwtStrategy` 要求 realm === 'customer'。
   realm?: string;
   username: string;
   nickname: string;

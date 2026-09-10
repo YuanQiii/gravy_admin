@@ -8,7 +8,8 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { plainToInstance } from 'class-transformer';
 import { Prisma } from '@prisma/client';
-import { PrismaService, BaseService, SoftDeleteService, PaginationData, startOfDay, endOfDay, INQUIRY_STATUS, isValidStatusTransition } from '@gvray/core';
+import { PrismaService, BaseService, SoftDeleteService, PaginationData, startOfDay, endOfDay, INQUIRY_STATUS, InquiryStatus, isValidStatusTransition } from '@gvray/core';
+import { ACTIVE_FILTER_WHERE } from '../../equipment/filters/active-filter';
 
 
 
@@ -98,6 +99,14 @@ export class InquiriesService extends BaseService {
   ): Promise<InquiryResponseDto> {
     const customer = await this.prisma.customer.findUnique({
       where: { customerId },
+      // 白名单投影，避免把 password 哈希带进内存（仅定位/快照所需字段）
+      select: {
+        customerId: true,
+        deletedAt: true,
+        nickName: true,
+        email: true,
+        phoneNumber: true,
+      },
     });
     if (!customer || customer.deletedAt) {
       throw new NotFoundException('CUSTOMER_NOT_FOUND');
@@ -114,6 +123,35 @@ export class InquiriesService extends BaseService {
     }
 
     return this.prisma.$transaction(async (tx) => {
+      // 批量解析明细行快照：一次性按 ACTIVE_FILTER_WHERE（单门禁源）批量查滤清器，
+      // 替代逐行 findUnique 的 N+1，且「当前可用性」判定与收藏/浏览保持一致。
+      const filterIds = Array.from(
+        new Set(lines.filter((l) => l.filterId).map((l) => l.filterId as string)),
+      );
+      const activeFilters = filterIds.length
+        ? await tx.filter.findMany({
+            where: { filterId: { in: filterIds }, ...ACTIVE_FILTER_WHERE },
+          })
+        : [];
+      const activeFilterIds = new Set(activeFilters.map((f) => f.filterId));
+      const resolvedLines = lines.map((line) => {
+        if (line.filterId) {
+          if (!activeFilterIds.has(line.filterId)) {
+            throw new BadRequestException('FILTER_NOT_AVAILABLE');
+          }
+          const filter = activeFilters.find((f) => f.filterId === line.filterId)!;
+          return {
+            productName: filter.model,
+            model: filter.model as string | null,
+            typeName: (filter.typeName as string | null) ?? null,
+          };
+        }
+        if (line.productName) {
+          return { productName: line.productName, model: null, typeName: null };
+        }
+        throw new BadRequestException('INQUIRY_LINE_PRODUCT_NAME_REQUIRED');
+      });
+
       const now = new Date();
       const yyyy = now.getUTCFullYear();
       const mm = String(now.getUTCMonth() + 1).padStart(2, '0');
@@ -143,34 +181,16 @@ export class InquiriesService extends BaseService {
             },
           });
 
-          for (const line of lines) {
-            let productName: string;
-            let model: string | undefined;
-            let typeName: string | undefined;
-
-            if (line.filterId) {
-              const filter = await tx.filter.findUnique({
-                where: { filterId: line.filterId },
-              });
-              if (!filter || filter.deletedAt) {
-                throw new NotFoundException('EQUIPMENT_FILTER_NOT_FOUND');
-              }
-              productName = filter.model;
-              model = filter.model;
-              typeName = filter.typeName;
-            } else if (line.productName) {
-              productName = line.productName;
-            } else {
-              throw new BadRequestException('INQUIRY_LINE_PRODUCT_NAME_REQUIRED');
-            }
-
+          for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+            const resolved = resolvedLines[i];
             await tx.inquiryLine.create({
               data: {
                 inquiryId: inquiry.inquiryId,
                 filterId: line.filterId ?? null,
-                productName,
-                model: model ?? null,
-                typeName: typeName ?? null,
+                productName: resolved.productName,
+                model: resolved.model,
+                typeName: resolved.typeName,
                 quantity: line.quantity ?? 1,
                 remarks: line.remarks ?? null,
                 sortOrder: line.sortOrder ?? 0,
@@ -204,6 +224,7 @@ export class InquiriesService extends BaseService {
     customerId: string,
     query: QueryInquiryDto,
   ): Promise<PaginationData<InquiryResponseDto>> {
+    await this.expireDueQuoted();
     const where: Record<string, unknown> = { deletedAt: null, customerId };
     const result = await this.paginateWithSort(
       this.prisma.inquiry,
@@ -228,9 +249,10 @@ export class InquiriesService extends BaseService {
     customerId: string,
     inquiryId: string,
   ): Promise<InquiryResponseDto> {
+    await this.expireDueQuoted();
     const inquiry = await this.prisma.inquiry.findFirst({
       where: { inquiryId, customerId },
-      include: { inquiryLines: true },
+      include: { inquiryLines: { where: { deletedAt: null } } },
     });
     if (!inquiry || inquiry.deletedAt) {
       throw new NotFoundException('INQUIRY_NOT_FOUND');
@@ -240,9 +262,90 @@ export class InquiriesService extends BaseService {
     });
   }
 
+  /**
+   * 客户提交本人的 draft 询价单（draft→submitted，置 `submittedAt`）。
+   * 所有权校验失败一律返回 404，不泄露他人询价存在性。
+   */
+  async submitForCustomer(
+    customerId: string,
+    inquiryId: string,
+  ): Promise<InquiryResponseDto> {
+    return this.transitionForCustomer(
+      customerId,
+      inquiryId,
+      INQUIRY_STATUS.SUBMITTED,
+    );
+  }
+
+  /**
+   * 客户取消本人的 draft/submitted 询价单（→cancelled，置 `cancelledAt`，终态）。
+   * `quoted`/`expired` 不可取消；所有权校验失败返回 404。
+   */
+  async cancelForCustomer(
+    customerId: string,
+    inquiryId: string,
+  ): Promise<InquiryResponseDto> {
+    return this.transitionForCustomer(
+      customerId,
+      inquiryId,
+      INQUIRY_STATUS.CANCELLED,
+    );
+  }
+
+  /**
+   * 懒过期：把已到 `expiresAt` 的 quoted 询价单批量流转为 expired（终态）。
+   * 查询路径在返回状态前调用，保证对外永不呈现"报价已过期却仍显示 quoted"的
+   * 半闭环状态。只命中 `quoted + expiresAt <= now + 未软删`，天然是合法流转
+   * （quoted→expired），expired 为终态不会再被误转。无调度基础设施，故用
+   * 读时补流转（updateMany 单条 SQL，成本可控）。
+   */
+  private async expireDueQuoted(): Promise<void> {
+    await this.prisma.inquiry.updateMany({
+      where: {
+        status: INQUIRY_STATUS.QUOTED,
+        expiresAt: { lte: new Date() },
+        deletedAt: null,
+      },
+      data: { status: INQUIRY_STATUS.EXPIRED },
+    });
+  }
+
+  /** 客户侧状态流转：先按 `inquiryId + customerId` 做所有权校验，再校验合法流转。 */
+  private async transitionForCustomer(
+    customerId: string,
+    inquiryId: string,
+    newStatus: InquiryStatus,
+  ): Promise<InquiryResponseDto> {
+    const existing = await this.prisma.inquiry.findFirst({
+      where: { inquiryId, customerId },
+    });
+    if (!existing || existing.deletedAt) {
+      throw new NotFoundException('INQUIRY_NOT_FOUND');
+    }
+    if (!isValidStatusTransition(existing.status, newStatus)) {
+      throw new ConflictException('INQUIRY_INVALID_STATUS_TRANSITION');
+    }
+
+    const now = new Date();
+    const inquiry = await this.prisma.inquiry.update({
+      where: { inquiryId },
+      data: {
+        status: newStatus,
+        ...(newStatus === INQUIRY_STATUS.SUBMITTED ? { submittedAt: now } : {}),
+        ...(newStatus === INQUIRY_STATUS.CANCELLED
+          ? { cancelledAt: now }
+          : {}),
+      },
+    });
+    return plainToInstance(InquiryResponseDto, inquiry, {
+      excludeExtraneousValues: true,
+    });
+  }
+
   async findAll(
     query: QueryInquiryDto,
   ): Promise<PaginationData<InquiryResponseDto>> {
+    await this.expireDueQuoted();
     const where: Record<string, unknown> = { deletedAt: null };
     if (query.keyword) {
       where.OR = [
@@ -287,9 +390,10 @@ export class InquiriesService extends BaseService {
   }
 
   async findOne(inquiryId: string): Promise<InquiryResponseDto> {
+    await this.expireDueQuoted();
     const inquiry = await this.prisma.inquiry.findUnique({
       where: { inquiryId },
-      include: { inquiryLines: true },
+      include: { inquiryLines: { where: { deletedAt: null } } },
     });
     if (!inquiry || inquiry.deletedAt) {
       throw new NotFoundException('INQUIRY_NOT_FOUND');
@@ -356,6 +460,7 @@ export class InquiriesService extends BaseService {
               ...(dto?.expiresAt ? { expiresAt: new Date(dto.expiresAt) } : {}),
             }
           : {}),
+        ...(newStatus === INQUIRY_STATUS.CANCELLED ? { cancelledAt: now } : {}),
       },
     });
     return plainToInstance(InquiryResponseDto, inquiry, {

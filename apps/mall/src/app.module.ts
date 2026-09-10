@@ -13,6 +13,7 @@ import { AppService } from './app.service';
 import { MallModule } from '@/modules/mall/mall.module';
 import { CustomerAuthModule } from '@/modules/customer-auth/customer-auth.module';
 import { CustomerActivityModule } from '@/modules/customer-activity/customer-activity.module';
+import wechatConfig from '@/config/wechat.config';
 import {
   PrismaModule,
   RedisModule,
@@ -45,7 +46,7 @@ import {
         `apps/mall/.env.${process.env.NODE_ENV}`,
         'apps/mall/.env',
       ],
-      load: [appConfig, databaseConfig, jwtConfig, corsConfig, redisConfig],
+      load: [appConfig, databaseConfig, jwtConfig, corsConfig, redisConfig, wechatConfig],
       validate: validateEnv,
       expandVariables: true,
       cache: true,

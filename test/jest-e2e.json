@@ -10,6 +10,7 @@
     "^@gvray/core$": "<rootDir>/../packages/core/src/index",
     "^@gvray/domain$": "<rootDir>/../packages/domain/src/index",
     "^@/core/(.*)$": ["<rootDir>/../apps/mall/src/core/$1", "<rootDir>/../apps/admin/src/core/$1"],
-    "^@/modules/(.*)$": ["<rootDir>/../apps/mall/src/modules/$1", "<rootDir>/../apps/admin/src/modules/$1"]
+    "^@/modules/(.*)$": ["<rootDir>/../apps/mall/src/modules/$1", "<rootDir>/../apps/admin/src/modules/$1"],
+    "^@/config/(.*)$": ["<rootDir>/../apps/mall/src/config/$1", "<rootDir>/../apps/admin/src/config/$1"]
   }
 }

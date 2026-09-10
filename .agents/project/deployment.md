@@ -38,13 +38,15 @@ pnpm docker:deploy
 
 - `JWT_ACCESS_TOKEN_EXPIRES_IN` / `JWT_REFRESH_TOKEN_EXPIRES_IN` 控制 token 过期，默认 `2h` / `7d`。
 
+- 微信小程序静默登录（仅 mall）：`WECHAT_APPID` / `WECHAT_SECRET`（mall 本地 `registerAs('wechat')` 读取，见 [wechat.config.ts](../../apps/mall/src/config/wechat.config.ts)）。mall 运行环境须可出站 HTTPS 到 `api.weixin.qq.com`。两变量缺省为空串，未配置时换取返回 401，不影响其余客户认证。
+
 - `docker-compose.yml` 的 app healthcheck 使用 `node -e "fetch(...)"`，不依赖 wget/curl。
 
 - 结构化日志相关：`LOG_LEVEL`（级别，默认 info）、`LOG_REDACT`（追加 stdout 脱敏字段，逗号分隔）、`LOG_SLOW_MS`（慢请求阈值，默认 1000）、`LOG_REQ_ID_HEADER`（请求关联 ID 头名，默认 `x-request-id`）；`LOG_RETENTION` 仅用于观测栈的 Loki 保留时长。
 
 ## 数据库迁移策略
 
-- **生产（非 development）**：仅 **admin** 容器启动经 [db-bootstrap](../../scripts/db-bootstrap.ts)（薄 CLI，调用 `packages/core/src/bootstrap/bootstrap.ts` 共享 `bootstrapDatabase`，见 [ADR 0007](../../docs/adr/0007-db-bootstrap-deep-module.md)）执行 `prisma migrate deploy` 并做 fail-closed 校验——`prisma/migrations/` 缺失/为空时打印英文错误并以非零退出，**绝不回退到 `prisma db push`**。mall 容器不执行任何 schema 同步（镜像不含 migrations/schema）。
+- **生产（非 development）**：仅 **admin** 容器启动经 [db-bootstrap](../../scripts/db-bootstrap.ts)（薄 CLI，调用 `packages/core/src/bootstrap/bootstrap.ts` 共享 `bootstrapDatabase`，见 [ADR 0007](../../docs/adr/0007-db-bootstrap-deep-module.md)）执行 `prisma migrate deploy` 并做 fail-closed 校验——`prisma/migrations/` 缺失/为空时打印英文错误并以非零退出，**绝不回退到** **`prisma db push`**。mall 容器不执行任何 schema 同步（镜像不含 migrations/schema）。
 
 - **开发**：dev 容器不做 schema 同步；开发者在本机用 `prisma migrate dev`（生成 + 应用）与 `prisma:seed`。
 

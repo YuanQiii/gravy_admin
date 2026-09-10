@@ -30,7 +30,13 @@ export class HistoryResponseDto {
   createdAt: Date;
 
   @ApiPropertyOptional({
-    description: '滤清器快照（型号/编号/类型名）',
+    description: '滤清器是否当前可用（存在 + enabled + 未软删），供前端置灰失效历史',
+  })
+  @Expose()
+  filterAvailable?: boolean;
+
+  @ApiPropertyOptional({
+    description: '滤清器快照（型号/编号/类型名/图片）',
     type: Object,
   })
   @Expose()
@@ -38,5 +44,6 @@ export class HistoryResponseDto {
     model: string;
     gencode: string;
     typeName: string;
+    photoUuid?: string | null;
   };
 }

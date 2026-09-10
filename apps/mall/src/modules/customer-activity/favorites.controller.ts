@@ -14,7 +14,6 @@ import {
   ApiResponse,
   ApiBearerAuth,
   ApiBody,
-  ApiQuery,
 } from '@nestjs/swagger';
 import { CustomerActivityService } from './customer-activity.service';
 import { CreateFavoriteDto } from './dto/create-favorite.dto';
@@ -69,18 +68,6 @@ export class FavoritesController {
     query.customerId = customer.customerId;
     const pageData = await this.activityService.findFavorites(query);
     return ResponseUtil.paginated(pageData, '获取收藏列表成功');
-  }
-
-  @Delete()
-  @ApiOperation({ summary: '按客户+滤清器取消收藏（幂等，仅限当前客户）' })
-  @ApiQuery({ name: 'filterId', description: '滤清器ID（filterId UUID）' })
-  @ApiResponse({ status: 200, description: '取消收藏成功' })
-  async remove(
-    @CurrentCustomer() customer: ICustomer,
-    @Query('filterId') filterId: string,
-  ) {
-    await this.activityService.removeFavorite(customer.customerId, filterId);
-    return ResponseUtil.deleted(null, '取消收藏成功');
   }
 
   @Delete(':id')

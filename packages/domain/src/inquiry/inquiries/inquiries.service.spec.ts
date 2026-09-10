@@ -1,4 +1,8 @@
-import { NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  NotFoundException,
+  BadRequestException,
+  ConflictException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService, SoftDeleteService } from '@gvray/core';
 
@@ -26,12 +30,14 @@ function makePrisma() {
           create: jest.fn(() => Promise.resolve({ inquiryLineId: 'line-001' })),
         },
         filter: {
-          findUnique: jest.fn(async () => ({
-            filterId: 'flt-001',
-            model: '320D',
-            typeName: 'Hydraulic',
-            deletedAt: null,
-          })),
+          findMany: jest.fn(async () => [
+            {
+              filterId: 'flt-001',
+              model: '320D',
+              typeName: 'Hydraulic',
+              deletedAt: null,
+            },
+          ]),
         },
         $executeRaw: () => Promise.resolve(),
       }),
@@ -43,6 +49,7 @@ function makePrisma() {
     },
     inquiry: {
       findFirst: jest.fn(),
+      updateMany: jest.fn(async () => ({ count: 0 })),
     },
     inquiryLine: {
       create: jest.fn(),
@@ -128,12 +135,14 @@ describe('InquiriesService.createForCustomer', () => {
           create: jest.fn(() => Promise.resolve({ inquiryLineId: 'line-001' })),
         },
         filter: {
-          findUnique: jest.fn(async () => ({
-            filterId: 'flt-001',
-            model: '320D',
-            typeName: 'Hydraulic',
-            deletedAt: null,
-          })),
+          findMany: jest.fn(async () => [
+            {
+              filterId: 'flt-001',
+              model: '320D',
+              typeName: 'Hydraulic',
+              deletedAt: null,
+            },
+          ]),
         },
         $executeRaw: () => Promise.resolve(),
       });
@@ -164,6 +173,99 @@ describe('InquiriesService.createForCustomer', () => {
     const service = buildService(prisma);
     await expect(
       service.findOneForCustomer('cust-A', 'inq-other'),
+    ).rejects.toThrow(NotFoundException);
+  });
+
+  it('引用不可用（不存在/禁用/软删）的 filterId 抛 400，不创建询价', async () => {
+    const prisma = makePrisma();
+    (prisma as any).customer.findUnique.mockResolvedValue({
+      customerId: 'cust-A',
+      nickName: 'Alice',
+      deletedAt: null,
+    });
+    // 空结果 = flt-001 不入 ACTIVE_FILTER_WHERE 门禁
+    (prisma as any).$transaction = (fn: any) =>
+      fn({
+        inquiry: {
+          findFirst: jest.fn(async () => null),
+        },
+        inquiryLine: { create: jest.fn() },
+        filter: { findMany: jest.fn(async () => []) },
+        $executeRaw: () => Promise.resolve(),
+      });
+    const service = buildService(prisma);
+    await expect(
+      service.createForCustomer('cust-A', baseDto, baseDto.lines),
+    ).rejects.toThrow(BadRequestException);
+  });
+});
+
+describe('InquiriesService 客户状态流转', () => {
+  function buildService(prisma: any) {
+    const service = new InquiriesService(
+      prisma,
+      {} as ConfigService,
+      {} as SoftDeleteService,
+    );
+    (service as any).prisma = prisma;
+    return service;
+  }
+
+  function makeFlowPrisma(status: string) {
+    const update = jest.fn((args: any) =>
+      Promise.resolve({
+        inquiryId: 'inq-001',
+        inquiryNo: 'INQ202609-0001',
+        status: args.data.status,
+        submittedAt: args.data.submittedAt ?? null,
+        cancelledAt: args.data.cancelledAt ?? null,
+      }),
+    );
+    return {
+      inquiry: {
+        findFirst: jest.fn(async () => ({
+          inquiryId: 'inq-001',
+          inquiryNo: 'INQ202609-0001',
+          status,
+          deletedAt: null,
+        })),
+        update,
+      },
+      $transaction: undefined,
+    } as any;
+  }
+
+  it('submitForCustomer 本人 draft → submitted 并置 submittedAt', async () => {
+    const prisma = makeFlowPrisma('draft');
+    const service = buildService(prisma);
+    const result = await service.submitForCustomer('cust-A', 'inq-001');
+    expect(result.status).toBe('submitted');
+    expect(result.submittedAt).toBeInstanceOf(Date);
+    expect(prisma.inquiry.update).toHaveBeenCalled();
+  });
+
+  it('cancelForCustomer 本人 submitted → cancelled 并置 cancelledAt', async () => {
+    const prisma = makeFlowPrisma('submitted');
+    const service = buildService(prisma);
+    const result = await service.cancelForCustomer('cust-A', 'inq-001');
+    expect(result.status).toBe('cancelled');
+    expect(result.cancelledAt).toBeInstanceOf(Date);
+  });
+
+  it('quoted 询价不可客户取消（抛 409）', async () => {
+    const prisma = makeFlowPrisma('quoted');
+    const service = buildService(prisma);
+    await expect(
+      service.cancelForCustomer('cust-A', 'inq-001'),
+    ).rejects.toThrow(ConflictException);
+  });
+
+  it('非本人询价 submit/cancel 返回 404，不泄露存在性', async () => {
+    const prisma = makeFlowPrisma('draft');
+    prisma.inquiry.findFirst.mockResolvedValue(null);
+    const service = buildService(prisma);
+    await expect(
+      service.submitForCustomer('cust-A', 'inq-other'),
     ).rejects.toThrow(NotFoundException);
   });
 });

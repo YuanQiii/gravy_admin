@@ -51,6 +51,10 @@ export { BatchDeleteFilterTypesDto } from './equipment/filter-types/dto/batch-de
 
 // ── equipment / 滤清器 ─────────────────────────────────────────────
 export { FiltersService } from './equipment/filters/filters.service';
+export {
+  ACTIVE_FILTER_WHERE,
+  assertFilterBrowseable,
+} from './equipment/filters/active-filter';
 export { FiltersModule } from './equipment/filters/filters.module';
 export { CreateFilterDto } from './equipment/filters/dto/create-filter.dto';
 export { UpdateFilterDto } from './equipment/filters/dto/update-filter.dto';

@@ -46,8 +46,18 @@ export class HistoryController {
     return ResponseUtil.paginated(pageData, '获取浏览历史成功');
   }
 
+  @Delete()
+  @ApiOperation({ summary: '清空当前客户全部浏览历史（硬删），返回删除条数' })
+  @ApiResponse({ status: 200, description: '浏览历史清空成功' })
+  async clearAll(@CurrentCustomer() customer: ICustomer) {
+    const result = await this.activityService.clearAllHistory(
+      customer.customerId,
+    );
+    return ResponseUtil.deleted(result, '浏览历史清空成功');
+  }
+
   @Delete(':id')
-  @ApiOperation({ summary: '删除浏览历史（软删除，仅限当前客户）' })
+  @ApiOperation({ summary: '删除浏览历史（硬删，仅限当前客户）' })
   @ApiResponse({ status: 200, description: '浏览历史删除成功' })
   async remove(
     @CurrentCustomer() customer: ICustomer,

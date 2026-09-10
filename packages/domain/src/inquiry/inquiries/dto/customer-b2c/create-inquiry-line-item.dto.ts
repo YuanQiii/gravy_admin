@@ -36,6 +36,7 @@ export class CreateInquiryLineItemDto {
   @IsOptional()
   @IsInt()
   @Min(1)
+  @Max(99999)
   quantity?: number;
 
   @ApiPropertyOptional({ description: '优先级排序', default: 0, type: 'integer' })

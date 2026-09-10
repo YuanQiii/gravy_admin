@@ -43,7 +43,7 @@ export class InquiryResponseDto {
 
   @ApiPropertyOptional({ description: '总金额' })
   @Expose()
-  totalAmount?: any;
+  totalAmount?: number | null;
 
   @ApiPropertyOptional({ description: '客户ID' })
   @Expose()
@@ -80,6 +80,14 @@ export class InquiryResponseDto {
   })
   @Expose()
   expiresAt?: Date;
+
+  @ApiPropertyOptional({
+    description: '取消时间',
+    type: 'string',
+    format: 'date-time',
+  })
+  @Expose()
+  cancelledAt?: Date;
 
   @ApiProperty({ description: '创建时间', type: 'string', format: 'date-time' })
   @Expose()

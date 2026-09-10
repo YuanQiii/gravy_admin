@@ -29,8 +29,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
     // 认证域互斥显式断言（ADR 0010 D5）：明确拒绝 customer 域 token，
     // 替换"customer token 恰好缺 roleKeys 被间接拒绝"的巧合防线。
-    // 未携带 realm 的历史后台 token 放行（一次性兼容，见 JwtPayload.realm）。
-    if (payload.realm && payload.realm !== AUTH_REALM_USER) {
+    // 凡 realm 非 user（含缺失 realm 的 token）一律拒绝——缺 realm 兼容窗口
+    // 已于收紧后移除，后台唯一签发路径始终携带 realm: AUTH_REALM_USER。
+    if (payload.realm !== AUTH_REALM_USER) {
       throw new UnauthorizedException('无效的 Access Token');
     }
 

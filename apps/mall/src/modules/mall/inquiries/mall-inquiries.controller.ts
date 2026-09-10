@@ -59,6 +59,44 @@ export class MallInquiriesController {
     return ResponseUtil.paginated(pageData, '获取询价单列表成功');
   }
 
+  @Post(':id/submit')
+  @ApiOperation({ summary: '提交当前客户的 draft 询价单（draft→submitted）' })
+  @ApiResponse({
+    status: 200,
+    description: '询价单提交成功',
+    type: InquiryResponseDto,
+  })
+  async submit(
+    @CurrentCustomer() customer: ICustomer,
+    @Param('id') id: string,
+  ) {
+    const data = await this.inquiriesService.submitForCustomer(
+      customer.customerId,
+      id,
+    );
+    return ResponseUtil.updated(data, '询价单提交成功');
+  }
+
+  @Post(':id/cancel')
+  @ApiOperation({
+    summary: '取消当前客户的 draft/submitted 询价单（→cancelled，终态）',
+  })
+  @ApiResponse({
+    status: 200,
+    description: '询价单取消成功',
+    type: InquiryResponseDto,
+  })
+  async cancel(
+    @CurrentCustomer() customer: ICustomer,
+    @Param('id') id: string,
+  ) {
+    const data = await this.inquiriesService.cancelForCustomer(
+      customer.customerId,
+      id,
+    );
+    return ResponseUtil.updated(data, '询价单取消成功');
+  }
+
   @Get(':id')
   @ApiOperation({ summary: '获取当前客户询价单详情（含报价状态）' })
   @ApiResponse({

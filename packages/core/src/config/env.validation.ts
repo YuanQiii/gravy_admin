@@ -64,6 +64,14 @@ class EnvironmentVariables {
 
   @IsString()
   @IsOptional()
+  WECHAT_APPID: string = '';
+
+  @IsString()
+  @IsOptional()
+  WECHAT_SECRET: string = '';
+
+  @IsString()
+  @IsOptional()
   OPLOG_MASK_FIELDS: string =
     'password,oldPassword,newPassword,token,authorization,secret,captcha';
 }

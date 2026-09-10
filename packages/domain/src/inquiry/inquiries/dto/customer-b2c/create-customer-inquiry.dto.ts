@@ -7,6 +7,7 @@ import {
   MaxLength,
   ValidateNested,
   ArrayMinSize,
+  ArrayMaxSize,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { CreateInquiryLineItemDto } from './create-inquiry-line-item.dto';
@@ -48,6 +49,7 @@ export class CreateCustomerInquiryDto {
   })
   @IsArray()
   @ArrayMinSize(1)
+  @ArrayMaxSize(50)
   @ValidateNested({ each: true })
   @Type(() => CreateInquiryLineItemDto)
   lines: CreateInquiryLineItemDto[];

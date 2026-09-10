@@ -695,6 +695,7 @@ model Inquiry {
   submittedAt      DateTime?
   quotedAt         DateTime?
   expiresAt        DateTime?
+  cancelledAt      DateTime?
   deletedAt        DateTime?
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
@@ -824,5 +825,6 @@ model CustomerHistory {
   @@unique([customerId, filterId])
   @@index([filterId])
   @@index([visitedAt])
+  @@index([customerId, visitedAt])
   @@map("customer_history")
 }
