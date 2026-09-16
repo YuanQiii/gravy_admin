@@ -205,6 +205,9 @@ function signAdminToken(secret: string): string {
   return signJwt(
     {
       sub: 'admin-user-id',
+      // 后台域 realm 声明：`JwtStrategy` 强制断言 realm === 'user'
+      //（2026-09-09 enforce-backend-realm-assertion），缺失即 401
+      realm: 'user',
       roleKeys: ['super_admin'],
       status: 'enabled',
       username: 'admin',
