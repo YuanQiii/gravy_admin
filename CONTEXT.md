@@ -80,6 +80,7 @@ _Avoid_: guest,游客 (those refer to the logged-in demo User account `guest/123
 | `Customer ownership-based authorization` | 客户域授权模型（ADR 0011）：`Customer` 无 RBAC/roleKeys/permissions，受保护接口由 `CustomerJwtGuard` + `@CurrentCustomer()` 注入身份，Service 方法以 `customerId` 为首参做**归属校验**（如 `findOneForCustomer(customerId, id)`）。与后台 `User` 的 RBAC 完全隔离。 |
 | `Customer token statelessness` | 客户 access token 无状态取舍（ADR 0011）：`CustomerJwtStrategy.validate` 不查 DB，被禁用/软删的客户在 access TTL（默认 5m）内仍可调用受保护接口；`logout` 仅撤销 refresh token（access JTI），已签发 access 残留至 TTL；业务状态仅在 `refresh` 路径校验（`customer.status`）。即时封禁/强制撤销需重新评估无状态。 |
 | `Customer auth rate limiting` | 客户认证端点限流（ADR 0011）：`login` 10 req/min、`refresh` 30 req/min（`@Throttle`），**仅 IP 级**，不做账户级失败锁定（避免账号枚举/DoS）。全局 `ThrottlerGuard` 1000 req/min 对爆破过宽，故单独收紧。 |
+| `Inquiry response projection` | 询价域响应投影接缝 — `InquiriesService` 内的单一私有接缝，单点拥有「详情怎么读」（`inquiryLines` 的未软删过滤 + `sortOrder`/`createdAt` 排序读取形状，常量 `INQUIRY_DETAIL_INCLUDE`）与「读出来怎么投影」（`projectInquiry` / `projectInquiryDetail`）。9 个出口共用；详情 DTO 继承主体 DTO、明细元素直接复用 `InquiryLineResponseDto`，「详情缺字段」这一危险方向的漂移在结构上不可能发生。对齐 `User response projection` 先例。Admin 明细行端点（`InquiryLinesService`）保留自身投影，不并入。 |
 
 ## Conventions
 

@@ -8,7 +8,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
-import { InquiriesService, QueryInquiryDto, InquiryResponseDto, CreateCustomerInquiryDto } from '@gvray/domain';
+import { InquiriesService, QueryInquiryDto, InquiryResponseDto, InquiryDetailResponseDto, CreateCustomerInquiryDto } from '@gvray/domain';
 import { CustomerJwtGuard } from '@/core/guards/customer-jwt.guard';
 import { CurrentCustomer } from '@/core/decorators/current-customer.decorator';
 import { ICustomer } from '@/core/interfaces/customer.interface';
@@ -98,11 +98,15 @@ export class MallInquiriesController {
   }
 
   @Get(':id')
-  @ApiOperation({ summary: '获取当前客户询价单详情（含报价状态）' })
+  @ApiOperation({
+    summary: '获取当前客户询价单详情（含明细行与报价状态）',
+    description:
+      '响应携带该询价单的全部未软删除明细行，按 sortOrder 升序（同值按 createdAt 升序）；明细金额 unitPrice/subtotal 以数值传输，未报价为 null',
+  })
   @ApiResponse({
     status: 200,
     description: '获取询价单详情成功',
-    type: InquiryResponseDto,
+    type: InquiryDetailResponseDto,
   })
   async findOne(
     @CurrentCustomer() customer: ICustomer,

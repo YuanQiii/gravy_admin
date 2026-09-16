@@ -21,9 +21,27 @@ import { UpdateInquiryDto } from './dto/update-inquiry.dto';
 import { UpdateInquiryStatusDto } from './dto/update-inquiry-status.dto';
 import { QueryInquiryDto } from './dto/query-inquiry.dto';
 import { InquiryResponseDto } from './dto/inquiry-response.dto';
+import { InquiryDetailResponseDto } from './dto/inquiry-detail-response.dto';
 // 类型仅在编译期引用（creates no runtime module edge），避免 b2c → inquiry → b2c 环
 import type { CreateCustomerInquiryDto } from './dto/customer-b2c/create-customer-inquiry.dto';
 import type { CreateInquiryLineItemDto } from './dto/customer-b2c/create-inquiry-line-item.dto';
+
+/**
+ * 详情读取形状 —— `Inquiry response projection` 接缝的「怎么读」一半
+ * （见 CONTEXT.md 词条）。
+ *
+ * 明细行只取未软删除的，排序交给数据库（`sortOrder` 升序、同值 `createdAt`
+ * 升序）而非依赖 `include` 的返回顺序。两个详情方法共用本常量，形状不再各写一份。
+ */
+const INQUIRY_DETAIL_INCLUDE = {
+  inquiryLines: {
+    where: { deletedAt: null },
+    orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+  },
+} satisfies Prisma.InquiryInclude;
+
+/** 投影入参：Prisma 行（含或不含 `inquiryLines` 关联），纯结构类型。 */
+type InquiryProjectionRow = Record<string, unknown>;
 
 @Injectable()
 export class InquiriesService extends BaseService {
@@ -33,6 +51,34 @@ export class InquiriesService extends BaseService {
     private readonly softDelete: SoftDeleteService,
   ) {
     super(prisma, configService);
+  }
+
+  // ==================== 响应投影接缝（Inquiry response projection）====================
+
+  /**
+   * 列表与写路径的响应形状：`InquiryResponseDto`（不含 `inquiryLines`）。
+   *
+   * 本接缝是全部出口**唯一**的映射点：出口 DTO 的选择与字段过滤口径都收在这里，
+   * 调用方只表达「投影这一行」。给 DTO 增删字段不需要碰任何出口。
+   */
+  private projectInquiry(row: InquiryProjectionRow): InquiryResponseDto {
+    return plainToInstance(InquiryResponseDto, row, {
+      excludeExtraneousValues: true,
+    });
+  }
+
+  /**
+   * 详情路径的响应形状：`InquiryDetailResponseDto`（含 `inquiryLines`）。
+   *
+   * 必须与 `INQUIRY_DETAIL_INCLUDE` 配对使用 —— 不带该 include 时
+   * `inquiryLines` 会是 `undefined`。
+   */
+  private projectInquiryDetail(
+    row: InquiryProjectionRow,
+  ): InquiryDetailResponseDto {
+    return plainToInstance(InquiryDetailResponseDto, row, {
+      excludeExtraneousValues: true,
+    });
   }
 
   async create(
@@ -64,9 +110,7 @@ export class InquiriesService extends BaseService {
               ...(expiresAt ? { expiresAt: new Date(expiresAt) } : {}),
             },
           });
-          return plainToInstance(InquiryResponseDto, inquiry, {
-            excludeExtraneousValues: true,
-          });
+          return this.projectInquiry(inquiry);
         } catch (error) {
           if (
             error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -199,9 +243,7 @@ export class InquiriesService extends BaseService {
             });
           }
 
-          return plainToInstance(InquiryResponseDto, inquiry, {
-            excludeExtraneousValues: true,
-          });
+          return this.projectInquiry(inquiry);
         } catch (error) {
           if (
             error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -235,9 +277,7 @@ export class InquiriesService extends BaseService {
     );
     return {
       ...result,
-      items: plainToInstance(InquiryResponseDto, result.items, {
-        excludeExtraneousValues: true,
-      }),
+      items: result.items.map((row) => this.projectInquiry(row)),
     };
   }
 
@@ -248,18 +288,16 @@ export class InquiriesService extends BaseService {
   async findOneForCustomer(
     customerId: string,
     inquiryId: string,
-  ): Promise<InquiryResponseDto> {
+  ): Promise<InquiryDetailResponseDto> {
     await this.expireDueQuoted();
     const inquiry = await this.prisma.inquiry.findFirst({
       where: { inquiryId, customerId },
-      include: { inquiryLines: { where: { deletedAt: null } } },
+      include: INQUIRY_DETAIL_INCLUDE,
     });
     if (!inquiry || inquiry.deletedAt) {
       throw new NotFoundException('INQUIRY_NOT_FOUND');
     }
-    return plainToInstance(InquiryResponseDto, inquiry, {
-      excludeExtraneousValues: true,
-    });
+    return this.projectInquiryDetail(inquiry);
   }
 
   /**
@@ -337,9 +375,7 @@ export class InquiriesService extends BaseService {
           : {}),
       },
     });
-    return plainToInstance(InquiryResponseDto, inquiry, {
-      excludeExtraneousValues: true,
-    });
+    return this.projectInquiry(inquiry);
   }
 
   async findAll(
@@ -383,24 +419,20 @@ export class InquiriesService extends BaseService {
     );
     return {
       ...result,
-      items: plainToInstance(InquiryResponseDto, result.items, {
-        excludeExtraneousValues: true,
-      }),
+      items: result.items.map((row) => this.projectInquiry(row)),
     };
   }
 
-  async findOne(inquiryId: string): Promise<InquiryResponseDto> {
+  async findOne(inquiryId: string): Promise<InquiryDetailResponseDto> {
     await this.expireDueQuoted();
     const inquiry = await this.prisma.inquiry.findUnique({
       where: { inquiryId },
-      include: { inquiryLines: { where: { deletedAt: null } } },
+      include: INQUIRY_DETAIL_INCLUDE,
     });
     if (!inquiry || inquiry.deletedAt) {
       throw new NotFoundException('INQUIRY_NOT_FOUND');
     }
-    return plainToInstance(InquiryResponseDto, inquiry, {
-      excludeExtraneousValues: true,
-    });
+    return this.projectInquiryDetail(inquiry);
   }
 
   async update(
@@ -426,9 +458,7 @@ export class InquiriesService extends BaseService {
           : {}),
       },
     });
-    return plainToInstance(InquiryResponseDto, inquiry, {
-      excludeExtraneousValues: true,
-    });
+    return this.projectInquiry(inquiry);
   }
 
   async updateStatus(
@@ -463,9 +493,7 @@ export class InquiriesService extends BaseService {
         ...(newStatus === INQUIRY_STATUS.CANCELLED ? { cancelledAt: now } : {}),
       },
     });
-    return plainToInstance(InquiryResponseDto, inquiry, {
-      excludeExtraneousValues: true,
-    });
+    return this.projectInquiry(inquiry);
   }
 
   async remove(inquiryId: string): Promise<void> {

@@ -52,6 +52,15 @@
 
 `totalAmount`/`unitPrice`/`subtotal` 的填充与聚合属 **admin 报价模块**边界，Mall 客户路径不承担（客户建询价时无价格输入，价格字段保持 `null`）。响应 DTO 的 `totalAmount?: any` 收紧为精确类型作为清理项。`quoted→expired` 的手动或自动过期机制同样记为 **admin/ops 职责**，Mall 不做自动过期 job、不做被动过期展示。
 
+> **更正注记（2026-09-16，变更 `expose-inquiry-lines-in-detail`）**：「填充与聚合归 admin」的**边界**判断成立，但当时把「价格字段无消费者」只归因为职责划分，漏掉了两层实现缺陷：
+>
+> 1. 价格**可见性**：`InquiryResponseDto` 从未声明 `inquiryLines`，详情端点虽 `include` 了明细行，却在 `plainToInstance(..., { excludeExtraneousValues: true })` 出口被静默剔除 —— 客户看不到自己询价了什么、也看不到报价。这属于响应投影缺陷，不是边界决策。
+> 2. 价格**序列化**：询价域 3 个 `Decimal` 金额字段（`Inquiry.totalAmount`、`InquiryLine.unitPrice` / `subtotal`）漏用 `@Type(() => Number)`（本仓 `FilterResponseDto` / `EquipmentResponseDto` 已写明该陷阱），属性非空即 `DecimalError: Invalid argument` → 500，即**后台录入报价必然失败**。
+>
+> 价格**写入**归 admin 不变；可见性与序列化属客户自助能力，已由上述变更修复。价格聚合仍留在 admin，未变。
+>
+> 另注：本 ADR 决策 2 提到的「`lines` 增 `@ArrayMaxSize(50)`」与决策 4 的「软删明细行过滤展示」均已实现，但受同一投影缺陷遮蔽 —— 过滤后的明细最终在出口被整体丢弃，故当时无法被观测。
+
 ## 备选方案（已否决）
 
 - **不加取消，维持单向 draft→submitted→quoted→expired**：客户询价管控能力缺失，误建/放弃的草稿只能永久滞留。否决。

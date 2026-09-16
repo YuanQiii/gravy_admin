@@ -269,3 +269,176 @@ describe('InquiriesService 客户状态流转', () => {
     ).rejects.toThrow(NotFoundException);
   });
 });
+
+describe('InquiriesService 详情投影（Inquiry response projection 接缝）', () => {
+  function buildService(prisma: any) {
+    const service = new InquiriesService(
+      prisma,
+      {} as ConfigService,
+      {} as SoftDeleteService,
+    );
+    (service as any).prisma = prisma;
+    return service;
+  }
+
+  const detailRow = {
+    id: 7,
+    inquiryId: 'inq-001',
+    inquiryNo: 'INQ202609-0001',
+    title: '采购 320D 液压滤清器',
+    description: null,
+    status: 'quoted',
+    customerName: 'Alice',
+    customerEmail: null,
+    customerPhone: null,
+    totalAmount: null,
+    customerId: 'cust-A',
+    createdById: null,
+    shippingAddressId: null,
+    submittedAt: null,
+    quotedAt: null,
+    expiresAt: null,
+    cancelledAt: null,
+    createdAt: new Date('2026-09-01T00:00:00Z'),
+    updatedAt: new Date('2026-09-02T00:00:00Z'),
+    deletedAt: null,
+    inquiryLines: [
+      {
+        id: 11,
+        inquiryLineId: 'line-1',
+        inquiryId: 'inq-001',
+        filterId: 'flt-001',
+        productName: 'OF-100',
+        model: 'OF-100',
+        typeName: 'oil',
+        quantity: 1,
+        unitPrice: '12.50',
+        subtotal: '12.50',
+        remarks: null,
+        sortOrder: 1,
+        createdById: null,
+        createdAt: new Date('2026-09-01T00:00:00Z'),
+        updatedAt: new Date('2026-09-01T00:00:00Z'),
+        deletedAt: null,
+      },
+      {
+        id: 12,
+        inquiryLineId: 'line-2',
+        inquiryId: 'inq-001',
+        filterId: null,
+        productName: '手工填写件',
+        model: null,
+        typeName: null,
+        quantity: 4,
+        unitPrice: null,
+        subtotal: null,
+        remarks: '未报价',
+        sortOrder: 2,
+        createdById: null,
+        createdAt: new Date('2026-09-01T00:00:00Z'),
+        updatedAt: new Date('2026-09-01T00:00:00Z'),
+        deletedAt: null,
+      },
+    ],
+  };
+
+  function makeDetailPrisma() {
+    return {
+      inquiry: {
+        findFirst: jest.fn(async () => detailRow),
+        findUnique: jest.fn(async () => detailRow),
+        updateMany: jest.fn(async () => ({ count: 0 })),
+      },
+    } as any;
+  }
+
+  it('详情读取形状携带未软删过滤与稳定排序（排序交给数据库）', async () => {
+    const prisma = makeDetailPrisma();
+    const service = buildService(prisma);
+
+    await service.findOneForCustomer('cust-A', 'inq-001');
+
+    expect(prisma.inquiry.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { inquiryId: 'inq-001', customerId: 'cust-A' },
+        include: {
+          inquiryLines: {
+            where: { deletedAt: null },
+            orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+          },
+        },
+      }),
+    );
+  });
+
+  it('Admin 详情使用同一读取形状（共用接缝常量）', async () => {
+    const prisma = makeDetailPrisma();
+    const service = buildService(prisma);
+
+    await service.findOne('inq-001');
+
+    expect(prisma.inquiry.findUnique).toHaveBeenCalledWith(
+      expect.objectContaining({
+        include: {
+          inquiryLines: {
+            where: { deletedAt: null },
+            orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+          },
+        },
+      }),
+    );
+  });
+
+  it('详情投影保留查询返回的行序、逐行数值化金额，并剔除自增 id', async () => {
+    const prisma = makeDetailPrisma();
+    const service = buildService(prisma);
+
+    const result = await service.findOneForCustomer('cust-A', 'inq-001');
+
+    expect(result.inquiryLines?.map((l) => l.inquiryLineId)).toEqual([
+      'line-1',
+      'line-2',
+    ]);
+    expect(result.inquiryLines?.[0].unitPrice).toBe(12.5);
+    expect(typeof result.inquiryLines?.[0].unitPrice).toBe('number');
+    expect((result as any).id).toBeUndefined();
+    expect((result.inquiryLines?.[0] as any).id).toBeUndefined();
+  });
+
+  it('未报价明细在线上为 null（非 0、非字段缺失）', async () => {
+    const prisma = makeDetailPrisma();
+    const service = buildService(prisma);
+
+    const result = await service.findOneForCustomer('cust-A', 'inq-001');
+    const body = JSON.parse(JSON.stringify(result)) as any;
+
+    expect(body.inquiryLines).toHaveLength(2);
+    expect(body.inquiryLines[1]).toHaveProperty('unitPrice', null);
+    expect(body.inquiryLines[1]).toHaveProperty('subtotal', null);
+    expect(body.inquiryLines[1].unitPrice).not.toBe(0);
+  });
+
+  it('列表出口不携带 inquiryLines（结构稳定）', async () => {
+    const rows = [{ ...detailRow, inquiryLines: undefined }];
+    const prisma = {
+      inquiry: {
+        findFirst: jest.fn(async () => detailRow),
+        updateMany: jest.fn(async () => ({ count: 0 })),
+        findMany: jest.fn(async () => rows),
+        count: jest.fn(async () => 1),
+      },
+    } as any;
+    const service = buildService(prisma);
+
+    const page = await service.findMyInquiries('cust-A', {
+      page: 1,
+      pageSize: 10,
+      getSkip: () => 0,
+      getTake: () => 10,
+      getOrderBy: () => ({ createdAt: 'desc' }),
+    } as any);
+
+    expect(page.items).toHaveLength(1);
+    expect(page.items[0]).not.toHaveProperty('inquiryLines');
+  });
+});

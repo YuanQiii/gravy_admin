@@ -1,6 +1,14 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Exclude, Expose } from 'class-transformer';
+import { Exclude, Expose, Type } from 'class-transformer';
 
+/**
+ * 询价单响应形状（列表与写路径）。
+ *
+ * ⚠️ `totalAmount` 是 Prisma `Decimal`，**必须**带 `@Type(() => Number)`：
+ * 不加时 class-transformer 会以 `value.constructor`（Decimal）重建实例，
+ * `new Decimal(undefined)` 抛 `Invalid argument` —— 属性有值时整个响应 500。
+ * 与 `FilterResponseDto` / `EquipmentResponseDto` 的既有约定一致。
+ */
 export class InquiryResponseDto {
   @ApiProperty({ type: 'integer' })
   @Exclude()
@@ -41,8 +49,13 @@ export class InquiryResponseDto {
   @Expose()
   customerPhone?: string;
 
-  @ApiPropertyOptional({ description: '总金额' })
+  @ApiPropertyOptional({
+    description: '总金额（由后台报价填写；未报价为 null）。数值类型',
+    type: 'number',
+    nullable: true,
+  })
   @Expose()
+  @Type(() => Number)
   totalAmount?: number | null;
 
   @ApiPropertyOptional({ description: '客户ID' })

@@ -23,6 +23,7 @@ import {
   UpdateInquiryStatusDto,
   QueryInquiryDto,
   InquiryResponseDto,
+  InquiryDetailResponseDto,
   BatchDeleteInquiriesDto,
 } from '@gvray/domain';
 import { RequirePermissions, OperationLog, CurrentUser, ResponseUtil, INQUIRY_PERMISSIONS, AccessGuard } from '@gvray/core';
@@ -68,11 +69,15 @@ export class InquiriesController {
 
   @Get(':id')
   @RequirePermissions(INQUIRY_PERMISSIONS.VIEW)
-  @ApiOperation({ summary: '获取询价单详情' })
+  @ApiOperation({
+    summary: '获取询价单详情',
+    description:
+      '响应携带该询价单的全部未软删除明细行，按 sortOrder 升序（同值按 createdAt 升序）；明细金额 unitPrice/subtotal 以数值传输，未报价为 null',
+  })
   @ApiResponse({
     status: 200,
     description: '获取询价单详情成功',
-    type: InquiryResponseDto,
+    type: InquiryDetailResponseDto,
   })
   async findOne(@Param('id') id: string) {
     const data = await this.inquiriesService.findOne(id);
