@@ -37,6 +37,8 @@
 
 当创建请求提供 `shippingAddressId` 时，系统 SHALL 在同一事务内读取该地址并把其内容写入上述快照字段；快照一经写入 SHALL 保持不可变——后续对地址的修改或删除 SHALL NOT 改变已创建询价单的快照值。询价单查询响应 SHALL 返回地址快照字段。
 
+当创建请求同时提供 `shippingAddressId` 与 `customerId` 时，系统 SHALL 校验该地址存在、未软删、且属于 `customerId` 后方可写入；二者不满足时 SHALL 返回 400 **而非** 500。`shippingAddressId` 非空时 `customerId` 必须非空——仅提供 `shippingAddressId` 而未提供 `customerId` 的请求 SHALL 在 DTO 校验层被拒绝（400）。匿名询价（`customerId` 与 `shippingAddressId` 均为空）SHALL 仍被允许。
+
 `totalAmount` SHALL 由系统按该询价单**未软删除明细行的 `subtotal` 之和**派生，SHALL NOT 接受客户端传入；无未软删明细行或各行 `subtotal` 全为空时 SHALL 为 `null`。派生 SHALL 在每次明细行写入（新增/修改/删除/批量删除）与报价状态流转（`submitted → quoted`）后于同一事务内重算，使读取方永不观察到合计与各行小计之和不等的询价单。
 
 `shippingAddressId`（及其快照）与 `totalAmount` SHALL 仅在创建时确定，属于**创建期不可变字段**：询价单更新端点 SHALL NOT 接受这两个字段，客户端传入时 SHALL 被 DTO 白名单拒绝（400）；换址或改价 SHALL 通过新建询价单表达，而不是就地改写既有单据的履约依据。
@@ -53,8 +55,8 @@
 
 #### Scenario: 匿名询价
 
-- **WHEN** 未注册客户提交询价单，仅提供 `customerName`/`customerEmail`/`customerPhone`，不提供 `customerId`
-- **THEN** 系统创建询价单，`customerId` 为空，联系人快照字段非空
+- **WHEN** 未注册客户提交询价单，仅提供 `customerName`/`customerEmail`/`customerPhone`，不提供 `customerId` 也不提供 `shippingAddressId`
+- **THEN** 系统创建询价单，`customerId` 为空，`shippingAddressId` 为空，联系人快照字段非空
 
 #### Scenario: 创建时写入地址快照
 
@@ -65,6 +67,16 @@
 
 - **WHEN** 创建请求不携带 `shippingAddressId`
 - **THEN** 询价单的地址快照字段均为 `null`，创建成功，不报错
+
+#### Scenario: 管理端代客下单携带有效地址
+
+- **WHEN** 后台管理员代某客户创建询价单，提供该客户名下的 `shippingAddressId` 与同一 `customerId`
+- **THEN** 系统在事务内校验地址归属通过后创建询价单，写入该地址引用与对应快照字段
+
+#### Scenario: 管理端仅传地址不传客户被拒
+
+- **WHEN** 后台管理员创建询价单时提供 `shippingAddressId` 但不提供 `customerId`
+- **THEN** 系统在 DTO 校验层拒绝请求（400），不创建询价单
 
 #### Scenario: 合计随明细行变化重算
 
@@ -85,3 +97,4 @@
 
 - **WHEN** 后台通过 `PATCH /inquiry/inquiries/:id` 携带 `shippingAddressId`（指向另一张地址）
 - **THEN** 系统返回 400（`forbidNonWhitelisted`），该单据的地址引用与 7 个快照字段均保持不变
+

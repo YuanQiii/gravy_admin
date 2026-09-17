@@ -10,6 +10,8 @@
 
 当创建请求提供 `shippingAddressId` 时，系统 SHALL 在同一事务内读取该地址并把其内容写入上述快照字段；快照一经写入 SHALL 保持不可变——后续对地址的修改或删除 SHALL NOT 改变已创建询价单的快照值。询价单查询响应 SHALL 返回地址快照字段。
 
+当创建请求同时提供 `shippingAddressId` 与 `customerId` 时，系统 SHALL 校验该地址存在、未软删、且属于 `customerId` 后方可写入；二者不满足时 SHALL 返回 400 **而非** 500。`shippingAddressId` 非空时 `customerId` 必须非空——仅提供 `shippingAddressId` 而未提供 `customerId` 的请求 SHALL 在 DTO 校验层被拒绝（400）。匿名询价（`customerId` 与 `shippingAddressId` 均为空）SHALL 仍被允许。
+
 #### Scenario: 已注册客户自助下单
 
 - **WHEN** 客户提交询价单（带 `customerId`），无管理员介入
@@ -22,8 +24,8 @@
 
 #### Scenario: 匿名询价
 
-- **WHEN** 未注册客户提交询价单，仅提供 `customerName`/`customerEmail`/`customerPhone`，不提供 `customerId`
-- **THEN** 系统创建询价单，`customerId` 为空，联系人快照字段非空
+- **WHEN** 未注册客户提交询价单，仅提供 `customerName`/`customerEmail`/`customerPhone`，不提供 `customerId` 也不提供 `shippingAddressId`
+- **THEN** 系统创建询价单，`customerId` 为空，`shippingAddressId` 为空，联系人快照字段非空
 
 #### Scenario: 创建时写入地址快照
 
@@ -34,6 +36,35 @@
 
 - **WHEN** 创建请求不携带 `shippingAddressId`
 - **THEN** 询价单的地址快照字段均为 `null`，创建成功，不报错
+
+#### Scenario: 管理端代客下单携带有效地址
+
+- **WHEN** 后台管理员代某客户创建询价单，提供该客户名下的 `shippingAddressId` 与同一 `customerId`
+- **THEN** 系统在事务内校验地址归属通过后创建询价单，写入该地址引用与对应快照字段
+
+#### Scenario: 管理端仅传地址不传客户被拒
+
+- **WHEN** 后台管理员创建询价单时提供 `shippingAddressId` 但不提供 `customerId`
+- **THEN** 系统在 DTO 校验层拒绝请求（400），不创建询价单
+
+### Requirement: 管理端询价单收货地址归属校验
+
+系统 SHALL 在管理端 `create` 路径的 `$transaction` 内（与编号生成、询价单主体同一事务）通过既有 `resolveShippingSnapshot(tx, addressId, ownerCustomerId)` 接缝校验收货地址：当 `shippingAddressId` 非空时，地址必须存在、未被软删、且 `address.customerId === ownerCustomerId`（即 `dto.customerId`）。任一条件不满足 SHALL 返回 400 `INVALID_SHIPPING_ADDRESS`，SHALL NOT 以数据库外键错误返回的 500 暴露。该接缝由 P0-2 引入，客户自助路径复用同一实现，管理端路径 SHALL NOT 另写平行校验。
+
+#### Scenario: 管理端错挂他人地址被拒
+
+- **WHEN** 后台管理员创建询价单，提供的 `shippingAddressId` 属于另一客户
+- **THEN** 系统返回 400 `INVALID_SHIPPING_ADDRESS`，不创建询价单，不写入任何地址引用
+
+#### Scenario: 管理端地址不存在返回 400 而非 500
+
+- **WHEN** 后台管理员创建询价单，提供不存在的 `shippingAddressId`（连同有效的 `customerId`）
+- **THEN** 系统返回 400 `INVALID_SHIPPING_ADDRESS`，而非数据库外键错误导致的 500
+
+#### Scenario: 管理端地址已软删被拒
+
+- **WHEN** 后台管理员创建询价单，提供的 `shippingAddressId` 对应记录已被软删（`deletedAt` 非空）
+- **THEN** 系统返回 400 `INVALID_SHIPPING_ADDRESS`，不创建询价单
 
 ### Requirement: 询价单编号生成
 
@@ -72,6 +103,8 @@
 
 系统 SHALL 强制询价单状态按 `draft → submitted → quoted → expired` 单向流转；反向流转（如 `quoted → submitted`）SHALL 被拒绝。`draft → submitted` 时记录 `submittedAt`；`submitted → quoted` 时记录 `quotedAt` 与可选 `expiresAt`；`quoted → expired` 由定时任务或人工触发。
 
+状态流转 SHALL 以原子方式执行：系统 SHALL 把「期望的当前状态」作为写入的前置条件，使校验与写入构成单一操作；任一并发写入不得使询价单落入「状态与时间戳互斥」的非法组合。当写入前置条件不再成立（状态已被并发操作改变）时，系统 SHALL 返回 409 且 SHALL NOT 写入任何字段。时间戳 SHALL 与状态保持一致：`submitted` 对应 `submittedAt`、`quoted` 对应 `quotedAt`（及可选 `expiresAt`）、`cancelled` 对应 `cancelledAt`；`expired` 不产生新时间戳。
+
 #### Scenario: 提交询价单
 
 - **WHEN** 客户/管理员将 draft 询价单状态改为 submitted
@@ -81,6 +114,21 @@
 
 - **WHEN** 尝试将 quoted 询价单改回 submitted
 - **THEN** 系统返回 409 Conflict，错误码 `INQUIRY_INVALID_STATUS_TRANSITION`
+
+#### Scenario: 并发流转只有一个成功
+
+- **WHEN** 两个请求并发对同一 `status = "draft"` 的询价单分别执行提交与取消，且提交先完成
+- **THEN** 提交请求成功（`status = "submitted"`、`submittedAt` 非空）；取消请求返回 409；该记录 SHALL NOT 同时具备 `status = "submitted"` 与 `cancelledAt ≠ null`
+
+#### Scenario: 失效更新不写入任何字段
+
+- **WHEN** 一个请求基于已过期的状态视图发起流转，实际状态已被并发操作改变
+- **THEN** 系统返回 409，该记录的 `status`、`submittedAt`、`quotedAt`、`expiresAt`、`cancelledAt` 全部保持并发操作后的值不变
+
+#### Scenario: 重复提交被拒
+
+- **WHEN** 对已处于 `submitted` 的询价单再次执行提交
+- **THEN** 系统返回 409，状态与 `submittedAt` 均不变
 
 ### Requirement: 询价单查询
 
@@ -163,19 +211,34 @@
 - **WHEN** 已登录客户请求 `GET /inquiries/:id`，该询价单不属于本人
 - **THEN** 系统返回 404，不泄露任何询价信息
 
-### Requirement: 询价单状态只读约束
+### Requirement: 客户提交与取消权限边界
 
-B2C 客户端点 SHALL 不提供询价单状态流转能力：客户创建的询价单 `status` 恒为 `"draft"`，由后台运营人员（具备相应权限码）执行 `draft → submitted` 的提交与后续报价流程；客户仅通过查询端点查看状态变化。Admin 应用 `inquiry/*` 端点行为与权限保持不变。
+客户 SHALL 仅能执行两种状态流转：把本人 `draft` 询价单提交为 `submitted`（`POST /inquiries/:id/submit`），以及把本人 `draft`/`submitted` 询价单取消为 `cancelled`（`POST /inquiries/:id/cancel`，终态）。报价（`submitted → quoted`）、过期（`quoted → expired`）与软删除 SHALL 仅由后台具备相应权限码的运营人员执行；客户 SHALL NOT 能设置 `totalAmount`、`quotedAt`、`expiresAt`。客户对非本人询价单执行流转 SHALL 返回 404，不泄露存在性。Admin 应用 `inquiry/*` 端点行为与权限保持不变。
 
-#### Scenario: 客户无法直接提交询价单
+#### Scenario: 客户提交本人询价单
 
-- **WHEN** 已登录客户尝试通过 B2C 端点将询价单状态改为 `submitted`
-- **THEN** 系统返回 404 或 405（B2C 端点不提供状态流转接口）
+- **WHEN** 已登录客户对本人 `draft` 询价单调用 `POST /inquiries/:id/submit`
+- **THEN** 状态变为 `"submitted"` 并记录 `submittedAt`，后台可查询到该状态
 
-#### Scenario: 后台运营提交询价单
+#### Scenario: 客户取消本人询价单
 
-- **WHEN** 具备询价单更新权限的后台管理员对 draft 询价单执行提交
-- **THEN** 系统记录 `submittedAt = now()`，状态变为 `"submitted"`，客户随后通过 `GET /inquiries/:id` 可见该状态
+- **WHEN** 已登录客户对本人 `draft` 或 `submitted` 询价单调用 `POST /inquiries/:id/cancel`
+- **THEN** 状态变为 `"cancelled"` 并记录 `cancelledAt`，该状态为终态
+
+#### Scenario: 客户不能报价或过期
+
+- **WHEN** 客户尝试把本人询价单置为 `quoted` 或 `expired`（无对应 B2C 端点，或以任何方式构造该意图）
+- **THEN** 系统不提供该能力（404/405），报价与过期只能由后台执行
+
+#### Scenario: 客户流转他人询价单
+
+- **WHEN** 已登录客户对不属于本人的询价单调用 `submit` 或 `cancel`
+- **THEN** 系统返回 404，不泄露该询价单是否存在
+
+#### Scenario: 后台运营执行报价
+
+- **WHEN** 具备询价单更新权限的后台管理员把 `submitted` 询价单置为 `quoted`
+- **THEN** 系统记录 `quotedAt` 与可选 `expiresAt`，客户随后通过 `GET /inquiries/:id` 可见该状态
 
 ### Requirement: 询价单列表与详情的响应结构区分
 

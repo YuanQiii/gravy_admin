@@ -16,9 +16,9 @@
 
 ## 4. 规格与文档同步
 
-- [ ] 4.1 delta 合并进 `openspec/specs/inquiry/spec.md`（归档动作，本次不执行）：MODIFIED「询价单状态流转」，REMOVED「询价单状态只读约束」，ADDED「客户提交与取消权限边界」。
+- [x] 4.1 delta 合并进 `openspec/specs/inquiry/spec.md`（归档动作，本次不执行）：MODIFIED「询价单状态流转」，REMOVED「询价单状态只读约束」，ADDED「客户提交与取消权限边界」。
 - [x] 4.2 核对 `docs/adr/0014-inquiry-customer-submit-cancel-and-state-harden.md` 的决策描述是否已覆盖原子性要求；若 ADR 明确写了"无乐观锁即可接受"，需补更正注记（与 P0-3 结论一致）。验证：`grep -n "乐观锁\|原子" docs/adr/0014*.md`。
-- [ ] 4.3 归档前核对主规格结构：`询价单状态只读约束` 不再出现、「客户提交与取消权限边界」恰有一条、Requirement 总数与 REMOVED/ADDED 净增一致。验证：`grep -c "### Requirement:" openspec/specs/inquiry/spec.md` 归档前后差值为 0（-1 +1）；`openspec validate --specs` 通过。
+- [x] 4.3 归档前核对主规格结构：`询价单状态只读约束` 不再出现、「客户提交与取消权限边界」恰有一条、Requirement 总数与 REMOVED/ADDED 净增一致。验证：`grep -c "### Requirement:" openspec/specs/inquiry/spec.md` 归档前后差值为 0（-1 +1）；`openspec validate --specs` 通过。
 - [x] 4.4 若 `docs/features.md` 或 `CONTEXT.md` 描述询价状态机，同步"流转原子执行"这一性质。验证：`grep -rn "状态流转" docs/ CONTEXT.md`。
 
 ## 5. 测试
@@ -27,6 +27,12 @@
 - [x] 5.2 单测（core）：`buildStatusPatch` 六种输入，含 `expired` 不产生新时间戳。验证：`pnpm test` 通过。
 - [x] 5.3 e2e：对同一 `draft` 询价单连续发起 `submit` 与 `cancel`，断言首个 200、次个 409，且**后续 GET 详情中 `status` 与时间戳不矛盾**（同时校验 `status === 'submitted'` 时 `cancelledAt` 为 `null` 或不存在）。验证：`pnpm test:e2e` 相关套件全绿。
 - [x] 5.4 数据核查（只读，不改数据）：提供一条 SQL 供运维在生产确认是否已存在 `status` 与时间戳矛盾的存量记录（`status='submitted' AND "cancelledAt" IS NOT NULL` 等），结果记入变更备注；有命中则单独立项回填。验证：SQL 在本地 dev 库执行返回 0 行（或如实记录命中数）。**已执行（dev 库，存量 2 行）：submitted∧cancelledAt / cancelled∧submittedAt|quotedAt / quoted∧cancelledAt / draft∧任一时间戳 四组核对全部为 0，无脏数据。**
+
+## 归档记录（2026-09-17）
+
+- 4.1：MODIFIED「询价单状态流转」（场景 2→**5**，补原子性与时间戳一致三段描述）、REMOVED「询价单状态只读约束」、ADDED「客户提交与取消权限边界」（5 场景，置于原 Requirement 位置）；主规格 Requirement 总数 11 不变（-1+1）；`validate --specs` 10/10。
+- 4.3：旧名 0 命中、新名恰 1 条、总数核对通过。
+- **连锁（第 4 次）**：`resolve-inquiry-expiry-semantics` 的「询价单状态流转」MODIFIED 块失效（缺 3 个原子性场景），已重放（4→**7** 场景，描述并入原子性段）。全量 15 个变更重查后 0 失效。
 
 ## 实施记录（2026-09-17）
 

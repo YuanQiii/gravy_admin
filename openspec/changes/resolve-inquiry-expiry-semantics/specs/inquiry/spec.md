@@ -4,6 +4,8 @@
 
 系统 SHALL 强制询价单状态按 `draft → submitted → quoted → expired` 单向流转；反向流转（如 `quoted → submitted`）SHALL 被拒绝。`draft → submitted` 时记录 `submittedAt`；`submitted → quoted` 时记录 `quotedAt` 并 SHALL 强制提供 `expiresAt`（不可为空），否则系统 SHALL 拒绝该流转；`quoted → expired` SHALL 仅由后台人工状态流转（admin/ops 显式执行）抵达，系统 SHALL NOT 在任一读路径（列表/详情查询）中对 `quoted` 行执行任何过期写操作。
 
+状态流转 SHALL 以原子方式执行：系统 SHALL 把「期望的当前状态」作为写入的前置条件，使校验与写入构成单一操作；任一并发写入不得使询价单落入「状态与时间戳互斥」的非法组合。当写入前置条件不再成立（状态已被并发操作改变）时，系统 SHALL 返回 409 且 SHALL NOT 写入任何字段。时间戳 SHALL 与状态保持一致：`submitted` 对应 `submittedAt`、`quoted` 对应 `quotedAt`（及可选 `expiresAt`）、`cancelled` 对应 `cancelledAt`；`expired` 不产生新时间戳。
+
 #### Scenario: 提交询价单
 
 - **WHEN** 客户/管理员将 draft 询价单状态改为 submitted
@@ -13,6 +15,21 @@
 
 - **WHEN** 尝试将 quoted 询价单改回 submitted
 - **THEN** 系统返回 409 Conflict，错误码 `INQUIRY_INVALID_STATUS_TRANSITION`
+
+#### Scenario: 并发流转只有一个成功
+
+- **WHEN** 两个请求并发对同一 `status = "draft"` 的询价单分别执行提交与取消，且提交先完成
+- **THEN** 提交请求成功（`status = "submitted"`、`submittedAt` 非空）；取消请求返回 409；该记录 SHALL NOT 同时具备 `status = "submitted"` 与 `cancelledAt ≠ null`
+
+#### Scenario: 失效更新不写入任何字段
+
+- **WHEN** 一个请求基于已过期的状态视图发起流转，实际状态已被并发操作改变
+- **THEN** 系统返回 409，该记录的 `status`、`submittedAt`、`quotedAt`、`expiresAt`、`cancelledAt` 全部保持并发操作后的值不变
+
+#### Scenario: 重复提交被拒
+
+- **WHEN** 对已处于 `submitted` 的询价单再次执行提交
+- **THEN** 系统返回 409，状态与 `submittedAt` 均不变
 
 #### Scenario: 报价必须携带有效期
 
