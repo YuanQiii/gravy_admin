@@ -130,6 +130,7 @@ export {
   INQUIRY_STATUS_VALUES,
   INQUIRY_STATUS_TRANSITIONS,
   isValidStatusTransition,
+  buildStatusPatch,
   INQUIRY_NO_PREFIX,
   INQUIRY_NO_FORMAT,
 } from './shared/constants/inquiry.constant';

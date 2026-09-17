@@ -353,45 +353,156 @@ describe('InquiriesService 客户状态流转', () => {
     return service;
   }
 
-  function makeFlowPrisma(status: string) {
-    const update = jest.fn((args: any) =>
-      Promise.resolve({
+  /**
+   * 流转用例的 Prisma 代理：模拟**接缝**的调用面 —— 条件写（`updateMany`）+
+   * 回读（`findUnique`）+ 失败归因重读（`findFirst`）。
+   *
+   * - `count` 控制条件写的影响行数（0 = 前置状态已失效）
+   * - `currentStatus` 控制**第二次** `findFirst` 返回的状态（即并发改变后的现状）
+   * - `findFirstNull` 模拟"单据不存在/不在作用域内"
+   */
+  function makeFlowPrisma(
+    status: string,
+    overrides: {
+      count?: number;
+      currentStatus?: string;
+      findFirstNull?: boolean;
+    } = {},
+  ) {
+    const state = { patch: {} as any };
+    let findFirstCalls = 0;
+
+    const updateMany = jest.fn(async (args: any) => {
+      state.patch = args.data;
+      return { count: overrides.count ?? 1 };
+    });
+
+    const findFirst = jest.fn(async () => {
+      if (overrides.findFirstNull) return null;
+      const current =
+        findFirstCalls++ === 0
+          ? status
+          : (overrides.currentStatus ?? status);
+      return {
         inquiryId: 'inq-001',
         inquiryNo: 'INQ202609-0001',
-        status: args.data.status,
-        submittedAt: args.data.submittedAt ?? null,
-        cancelledAt: args.data.cancelledAt ?? null,
-      }),
+        status: current,
+        deletedAt: null,
+      };
+    });
+
+    // `findUnique` 被两种语义复用：① `updateStatus` 的前置读取（当前状态）；
+    // ② 接缝写入后的回读（写入结果）。按"是否已发生写入"区分，而不是调用次序
+    // —— 客户路径不调前置 `findUnique`，两次调用序不同。
+    const findUnique = jest.fn(async () =>
+      Object.keys(state.patch).length > 0
+        ? {
+            inquiryId: 'inq-001',
+            inquiryNo: 'INQ202609-0001',
+            submittedAt: null,
+            cancelledAt: null,
+            ...state.patch,
+          }
+        : {
+            inquiryId: 'inq-001',
+            inquiryNo: 'INQ202609-0001',
+            status: overrides.currentStatus ?? status,
+            deletedAt: null,
+            submittedAt: null,
+            cancelledAt: null,
+          },
     );
+
     return {
-      inquiry: {
-        findFirst: jest.fn(async () => ({
-          inquiryId: 'inq-001',
-          inquiryNo: 'INQ202609-0001',
-          status,
-          deletedAt: null,
-        })),
-        update,
-      },
+      inquiry: { findFirst, findUnique, updateMany },
       $transaction: undefined,
     } as any;
   }
 
-  it('submitForCustomer 本人 draft → submitted 并置 submittedAt', async () => {
+  it('submitForCustomer 本人 draft → submitted 并置 submittedAt（条件写带前置状态）', async () => {
     const prisma = makeFlowPrisma('draft');
     const service = buildService(prisma);
     const result = await service.submitForCustomer('cust-A', 'inq-001');
+
     expect(result.status).toBe('submitted');
     expect(result.submittedAt).toBeInstanceOf(Date);
-    expect(prisma.inquiry.update).toHaveBeenCalled();
+    // 原子性依据：where 必须带前置状态与软删条件
+    expect(prisma.inquiry.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { inquiryId: 'inq-001', status: 'draft', deletedAt: null },
+        data: expect.objectContaining({ status: 'submitted' }),
+      }),
+    );
   });
 
   it('cancelForCustomer 本人 submitted → cancelled 并置 cancelledAt', async () => {
     const prisma = makeFlowPrisma('submitted');
     const service = buildService(prisma);
     const result = await service.cancelForCustomer('cust-A', 'inq-001');
+
     expect(result.status).toBe('cancelled');
     expect(result.cancelledAt).toBeInstanceOf(Date);
+  });
+
+  it('失效更新：前置状态已被并发改变 → 409，且不写入任何字段', async () => {
+    // 读到 draft，但条件写影响 0 行（此时库中已是 cancelled）
+    const prisma = makeFlowPrisma('draft', {
+      count: 0,
+      currentStatus: 'cancelled',
+    });
+    const service = buildService(prisma);
+
+    await expect(
+      service.submitForCustomer('cust-A', 'inq-001'),
+    ).rejects.toThrow(ConflictException);
+
+    // 接缝只做条件写与回读归因，不存在「按 inquiryId 无条件 update」的退路
+    expect(prisma.inquiry.update).toBeUndefined();
+  });
+
+  it('重复提交：已 submitted 再提交 → 409，且不触达写入', async () => {
+    const prisma = makeFlowPrisma('submitted');
+    const service = buildService(prisma);
+
+    await expect(
+      service.submitForCustomer('cust-A', 'inq-001'),
+    ).rejects.toThrow(ConflictException);
+    expect(prisma.inquiry.updateMany).not.toHaveBeenCalled();
+  });
+
+  it('管理端 updateStatus 流转到 quoted：写 quotedAt / expiresAt / updatedById', async () => {
+    const prisma = makeFlowPrisma('submitted');
+    const service = buildService(prisma);
+
+    const result = await service.updateStatus(
+      'inq-001',
+      'quoted',
+      { expiresAt: '2026-12-31' } as any,
+      'admin-1',
+    );
+
+    expect(result.status).toBe('quoted');
+    expect(result.quotedAt).toBeInstanceOf(Date);
+    expect(prisma.inquiry.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { inquiryId: 'inq-001', status: 'submitted', deletedAt: null },
+        data: expect.objectContaining({
+          status: 'quoted',
+          updatedById: 'admin-1',
+          expiresAt: expect.any(Date),
+        }),
+      }),
+    );
+  });
+
+  it('管理端 updateStatus 不传 expiresAt：不写该字段（不是清空）', async () => {
+    const prisma = makeFlowPrisma('submitted');
+    const service = buildService(prisma);
+
+    await service.updateStatus('inq-001', 'quoted', undefined, 'admin-1');
+
+    const patch = prisma.inquiry.updateMany.mock.calls[0][0].data;
+    expect(patch).not.toHaveProperty('expiresAt');
   });
 
   it('quoted 询价不可客户取消（抛 409）', async () => {

@@ -182,7 +182,10 @@ describe('询价单详情明细行 e2e（Mall）', () => {
       ...DETAIL_ROW,
       status: 'draft',
     });
-    (harness.prisma as any).inquiry.update.mockResolvedValue({
+    // 状态流转已改为「条件写 + 回读」接缝（atomic-inquiry-status-transition），
+    // 不再调用 inquiry.update
+    (harness.prisma as any).inquiry.updateMany.mockResolvedValue({ count: 1 });
+    (harness.prisma as any).inquiry.findUnique.mockResolvedValue({
       ...DETAIL_ROW,
       status: 'submitted',
       inquiryLines: undefined,

@@ -46,7 +46,7 @@ _Avoid_: guest,游客 (those refer to the logged-in demo User account `guest/123
 
 | Term          | Meaning                                                                                                                                 |
 | ------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| `Inquiry`     | RFQ (询价单). Customer face: create lands `draft`, submit pushes `submitted`, may cancel until quoted. Status flow: `draft → submitted → quoted → expired`, plus `draft/submitted → cancelled` (cancellation is terminal). `quoted`/`expired` are not cancelleable by the customer. Generated inquiry number format: `INQ{YYYYMM}-{4-digit seq}`. Owns `totalAmount`, but price snapshot/aggregation is the admin-quote domain — Mall leaves prices null. See ADR 0014. |
+| `Inquiry`     | RFQ (询价单). Customer face: create lands `draft`, submit pushes `submitted`, may cancel until quoted. Status flow: `draft → submitted → quoted → expired`, plus `draft/submitted → cancelled` (cancellation is terminal). `quoted`/`expired` are not cancelleable by the customer. Transitions execute **atomically** (conditional write on the expected status); a conflicting concurrent transition returns 409 and writes nothing. Generated inquiry number format: `INQ{YYYYMM}-{4-digit seq}`. Owns `totalAmount`, but price snapshot/aggregation is the admin-quote domain — Mall leaves prices null. See ADR 0014. |
 | `InquiryLine` | Inquiry line item. Snapshots productName/model/typeName from Filter at creation. Survives Filter hard-delete (filterId set null). Referencing a `filterId` gates on `assertFilterBrowseable` (exists + `status='enabled'` + not soft-deleted). |
 
 ### Customer activity domain

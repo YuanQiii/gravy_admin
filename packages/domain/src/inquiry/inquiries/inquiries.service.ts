@@ -8,7 +8,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { plainToInstance } from 'class-transformer';
 import { Prisma } from '@prisma/client';
-import { PrismaService, BaseService, SoftDeleteService, PaginationData, startOfDay, endOfDay, INQUIRY_STATUS, InquiryStatus, isValidStatusTransition } from '@gvray/core';
+import { PrismaService, BaseService, SoftDeleteService, PaginationData, startOfDay, endOfDay, INQUIRY_STATUS, InquiryStatus, isValidStatusTransition, buildStatusPatch } from '@gvray/core';
 import { ACTIVE_FILTER_WHERE } from '../../equipment/filters/active-filter';
 
 
@@ -420,34 +420,90 @@ export class InquiriesService extends BaseService {
     });
   }
 
+  /**
+   * 状态流转的**执行接缝**（`atomic-inquiry-status-transition`）。
+   *
+   * 把「期望的当前状态」作为写入的前置条件，使校验与写入成为**单一操作**：
+   * 并发下的失效更新影响 0 行，因此不会写入任何字段 —— `status` 与时间戳
+   * 互斥这一不变量由写入语句本身保证，而不是靠"调用方不并发"。
+   *
+   * - `expectedStatus` 进 `WHERE` 是原子性的**全部依据**；`count !== 1` 即前置条件
+   *   失效，**不得**退回「按 `inquiryId` 无条件 `update`」。
+   * - 失败归因由本接缝负责（`scope`）：行不存在/已软删/不在 scope 内 → 404；
+   *   其余（状态已被并发改变）→ 409。归因与原子性保证是同一件事的两半，
+   *   拆到两个调用方就无法在这里测。
+   * - 字段映射交给 `buildStatusPatch`（@gvray/core），本接缝不自己拼 `data`。
+   *
+   * @param client 事务客户端或 PrismaService —— 事务边界由调用方决定
+   * @param scope  仅用于失败归因：客户路径传 `{ customerId }`（他人单据视为不存在）
+   */
+  private async applyStatusTransition(
+    client: Prisma.TransactionClient | PrismaService,
+    args: {
+      inquiryId: string;
+      expectedStatus: string;
+      newStatus: InquiryStatus;
+      now: Date;
+      expiresAt?: string | Date | null;
+      updatedById?: string | null;
+      scope?: { customerId: string };
+    },
+  ): Promise<InquiryResponseDto> {
+    const { inquiryId, expectedStatus, newStatus, now, scope } = args;
+
+    const { count } = await client.inquiry.updateMany({
+      where: { inquiryId, status: expectedStatus, deletedAt: null },
+      data: buildStatusPatch(newStatus, {
+        now,
+        expiresAt: args.expiresAt,
+        updatedById: args.updatedById,
+      }),
+    });
+
+    if (count !== 1) {
+      // 归因：重读一次即可区分「不可见」与「已被并发改变」。
+      const current = await client.inquiry.findFirst({
+        where: scope ? { inquiryId, ...scope } : { inquiryId },
+      });
+      if (!current || current.deletedAt) {
+        throw new NotFoundException('INQUIRY_NOT_FOUND');
+      }
+      throw new ConflictException('INQUIRY_INVALID_STATUS_TRANSITION');
+    }
+
+    const updated = await client.inquiry.findUnique({ where: { inquiryId } });
+    if (!updated) {
+      throw new NotFoundException('INQUIRY_NOT_FOUND');
+    }
+    return this.projectInquiry(updated);
+  }
+
   /** 客户侧状态流转：先按 `inquiryId + customerId` 做所有权校验，再校验合法流转。 */
   private async transitionForCustomer(
     customerId: string,
     inquiryId: string,
     newStatus: InquiryStatus,
   ): Promise<InquiryResponseDto> {
+    // 前置读取保留：所有权语义（他人单据 → 404，不泄露存在性）
     const existing = await this.prisma.inquiry.findFirst({
       where: { inquiryId, customerId },
     });
     if (!existing || existing.deletedAt) {
       throw new NotFoundException('INQUIRY_NOT_FOUND');
     }
+    // 快速失败：非法的目标状态在写入前就被拒（不必降级成"写入失败"）
     if (!isValidStatusTransition(existing.status, newStatus)) {
       throw new ConflictException('INQUIRY_INVALID_STATUS_TRANSITION');
     }
 
-    const now = new Date();
-    const inquiry = await this.prisma.inquiry.update({
-      where: { inquiryId },
-      data: {
-        status: newStatus,
-        ...(newStatus === INQUIRY_STATUS.SUBMITTED ? { submittedAt: now } : {}),
-        ...(newStatus === INQUIRY_STATUS.CANCELLED
-          ? { cancelledAt: now }
-          : {}),
-      },
+    // 执行交给接缝：以刚读到的状态为前置条件 —— 并发失效更新不会写入任何字段
+    return this.applyStatusTransition(this.prisma, {
+      inquiryId,
+      expectedStatus: existing.status,
+      newStatus,
+      now: new Date(),
+      scope: { customerId },
     });
-    return this.projectInquiry(inquiry);
   }
 
   async findAll(
@@ -549,23 +605,15 @@ export class InquiriesService extends BaseService {
       throw new ConflictException('INQUIRY_INVALID_STATUS_TRANSITION');
     }
 
-    const now = new Date();
-    const inquiry = await this.prisma.inquiry.update({
-      where: { inquiryId },
-      data: {
-        status: newStatus,
-        updatedById: updatedById ?? null,
-        ...(newStatus === INQUIRY_STATUS.SUBMITTED ? { submittedAt: now } : {}),
-        ...(newStatus === INQUIRY_STATUS.QUOTED
-          ? {
-              quotedAt: now,
-              ...(dto?.expiresAt ? { expiresAt: new Date(dto.expiresAt) } : {}),
-            }
-          : {}),
-        ...(newStatus === INQUIRY_STATUS.CANCELLED ? { cancelledAt: now } : {}),
-      },
+    // 执行交给接缝。管理端按权限码可见，失败归因无需 scope（一律 409）。
+    return this.applyStatusTransition(this.prisma, {
+      inquiryId,
+      expectedStatus: existing.status,
+      newStatus: newStatus as InquiryStatus,
+      now: new Date(),
+      expiresAt: dto?.expiresAt,
+      updatedById: updatedById ?? null,
     });
-    return this.projectInquiry(inquiry);
   }
 
   async remove(inquiryId: string): Promise<void> {

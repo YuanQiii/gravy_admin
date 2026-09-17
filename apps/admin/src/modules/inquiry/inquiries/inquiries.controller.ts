@@ -111,6 +111,11 @@ export class InquiriesController {
     description: '询价单状态更新成功',
     type: InquiryResponseDto,
   })
+  @ApiResponse({
+    status: 409,
+    description:
+      '流转不合法或前置状态已失效（INQUIRY_INVALID_STATUS_TRANSITION）——状态已被并发流转改变时不写入任何字段',
+  })
   async updateStatus(
     @Param('id') id: string,
     @Body() dto: UpdateInquiryStatusDto,
