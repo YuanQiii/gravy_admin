@@ -249,22 +249,22 @@ export class InquiriesService extends BaseService {
     dto: CreateCustomerInquiryDto,
     lines: CreateInquiryLineItemDto[],
   ): Promise<InquiryResponseDto> {
-    const customer = await this.prisma.customer.findUnique({
-      where: { customerId },
-      // 白名单投影，避免把 password 哈希带进内存（仅定位/快照所需字段）
-      select: {
-        customerId: true,
-        deletedAt: true,
-        nickName: true,
-        email: true,
-        phoneNumber: true,
-      },
-    });
-    if (!customer || customer.deletedAt) {
-      throw new NotFoundException('CUSTOMER_NOT_FOUND');
-    }
-
     return this.prisma.$transaction(async (tx) => {
+      // 客户快照（轻量查询，无可用性/存在性断言）：unify-customer-availability-gate
+      // 决策 2/3 —— 受保护写路径在 access token TTL 内一致**不**校验客户可用性
+      // （存在性/`status`/`deletedAt`），业务状态仅在 refresh 路径校验。
+      // 客户行必存在（登录即建号；软删保留行），查询只取快照所需字段；
+      // 极端的"行不存在"按无快照处理（与匿名询价的空快照口径一致），不返回 404。
+      const customer = await tx.customer.findUnique({
+        where: { customerId },
+        // 白名单投影，避免把 password 哈希带进内存（仅快照所需字段）
+        select: {
+          nickName: true,
+          email: true,
+          phoneNumber: true,
+        },
+      });
+
       // 收货地址快照：归属断言与读取同在 `resolveShippingSnapshot` 内、同在事务内。
       // 原先事务外的归属校验已**净删除** —— 同一不变量不再表达两次（状态码与消息不变）。
       const shippingSnapshot = dto.shippingAddressId
@@ -319,9 +319,9 @@ export class InquiriesService extends BaseService {
               status: INQUIRY_STATUS.DRAFT,
               customerId,
               createdById: null,
-              customerName: customer.nickName ?? null,
-              customerEmail: customer.email ?? null,
-              customerPhone: customer.phoneNumber ?? null,
+              customerName: customer?.nickName ?? null,
+              customerEmail: customer?.email ?? null,
+              customerPhone: customer?.phoneNumber ?? null,
               ...(shippingSnapshot ?? {}),
               shippingAddressId: dto.shippingAddressId ?? null,
             },

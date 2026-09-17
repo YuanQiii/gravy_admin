@@ -13,6 +13,7 @@ import { AppService } from './app.service';
 import { MallModule } from '@/modules/mall/mall.module';
 import { CustomerAuthModule } from '@/modules/customer-auth/customer-auth.module';
 import { CustomerActivityModule } from '@/modules/customer-activity/customer-activity.module';
+import { CustomerAvailabilityModule } from '@/core/customer-availability/customer-availability.module';
 import wechatConfig from '@/config/wechat.config';
 import {
   PrismaModule,
@@ -59,6 +60,8 @@ import {
     PrismaModule,
     RedisModule,
     SoftDeleteModule,
+    // 客户可用性政策（@Global）：守卫在多个模块上下文实例化，政策必须全局可见
+    CustomerAvailabilityModule,
     MallModule,
     CustomerAuthModule,
     CustomerActivityModule,

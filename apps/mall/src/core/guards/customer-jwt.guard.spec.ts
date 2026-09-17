@@ -5,6 +5,8 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { CustomerJwtStrategy } from '@/core/strategies/customer-jwt.strategy';
 import { CustomerJwtGuard } from './customer-jwt.guard';
+import { CustomerAvailabilityModule } from '../customer-availability/customer-availability.module';
+import { AVAILABILITY_GATE } from '../customer-availability/customer-availability.policy';
 
 const SECRET = 'test-secret';
 
@@ -24,10 +26,14 @@ function createContext(request: object): ExecutionContext {
 
 describe('CustomerJwtGuard (integration)', () => {
   let guard: CustomerJwtGuard;
+  let availabilityGate: { assertWithinTtl: jest.Mock };
 
   beforeAll(async () => {
     const moduleRef: TestingModule = await Test.createTestingModule({
-      imports: [PassportModule.register({ defaultStrategy: 'customer-jwt' })],
+      imports: [
+        PassportModule.register({ defaultStrategy: 'customer-jwt' }),
+        CustomerAvailabilityModule,
+      ],
       providers: [
         CustomerJwtStrategy,
         {
@@ -38,6 +44,13 @@ describe('CustomerJwtGuard (integration)', () => {
       ],
     }).compile();
     guard = moduleRef.get<CustomerJwtGuard>(CustomerJwtGuard);
+    // 守卫只依赖 AvailabilityGate 接口（T8 seam）：把 no-op gate 换成可断言的
+    // spy —— 测试与实现都不绑定具体类。
+    availabilityGate = { assertWithinTtl: jest.fn() };
+    const gate = moduleRef.get<any>(AVAILABILITY_GATE as any);
+    jest
+      .spyOn(gate, 'assertWithinTtl')
+      .mockImplementation(availabilityGate.assertWithinTtl);
   });
 
   it('customer token 放行并把 request.customer.customerId 注入', async () => {
@@ -50,6 +63,10 @@ describe('CustomerJwtGuard (integration)', () => {
     const allowed = await guard.canActivate(createContext(request));
     expect(allowed).toBe(true);
     expect(request.customer.customerId).toBe('customer-uuid-1');
+    // 守卫经过 AvailabilityGate seam（T8）：no-op 放行，但调用点存在且带 customerId
+    expect(availabilityGate.assertWithinTtl).toHaveBeenCalledWith(
+      'customer-uuid-1',
+    );
   });
 
   it('user token（realm 非 customer）拒绝，抛 401', async () => {

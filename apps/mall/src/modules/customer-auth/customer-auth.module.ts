@@ -11,6 +11,7 @@ import { WechatCode2SessionClient } from './wechat-code2session.client';
 import { CustomerJwtStrategy } from '@/core/strategies/customer-jwt.strategy';
 import { CustomerJwtGuard } from '@/core/guards/customer-jwt.guard';
 import { OptionalCustomerGuard } from '@/core/guards/optional-customer.guard';
+import { CustomerAvailabilityModule } from '@/core/customer-availability/customer-availability.module';
 
 /**
  * B2C 客户认证模块：注册客户 JWT 策略（`customer-jwt`）与会话存储。
@@ -38,6 +39,7 @@ import { OptionalCustomerGuard } from '@/core/guards/optional-customer.guard';
       defaultStrategy: 'customer-jwt',
       session: false,
     }),
+    CustomerAvailabilityModule,
   ],
   controllers: [CustomerAuthController],
   providers: [
@@ -56,6 +58,8 @@ import { OptionalCustomerGuard } from '@/core/guards/optional-customer.guard';
     CustomerJwtStrategy,
     CustomerJwtGuard,
     OptionalCustomerGuard,
+    // 整体再导出政策 module（providers 不能跨 module 转发）
+    CustomerAvailabilityModule,
   ],
 })
 export class CustomerAuthModule {}

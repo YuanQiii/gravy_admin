@@ -32,6 +32,8 @@ Mall 与后台共用同一 `jwt.secret`（YAGNI，ADR 0009 已接受），两端
 
 `CustomerJwtStrategy.validate` 不查 DB。被禁用/软删的客户在 access token TTL（默认 5m）内仍可调用受保护接口；`customer-auth.service` 的 `refresh` 路径会查 `customer.status`，禁用在下一次刷新即生效。无状态是已知取舍（免去每请求 DB/Redis 校验）。
 
+> **补充说明（2026-09-17，变更 `unify-customer-availability-gate`）**：TTL 内「不校验客户可用性」是**全路径一致**的策略，不是逐路径的实现巧合——所有受 `CustomerJwtGuard` 保护的写路径（询价创建、收藏、浏览历史、地址）在 access token TTL 内**均不**校验客户可用性（存在性/`status`/`deletedAt`），业务状态仅在 refresh 路径校验。该策略的单一来源是 Mall 侧 `CustomerAvailabilityPolicy`（`apps/mall/src/core/customer-availability/`），守卫边界预置 `AvailabilityGate` 适配 seam（当前 no-op）。触发条件：出现「要求即时封禁」需求时，改为守卫层缓存校验路线（替换 `AvailabilityGate` provider 即可），届时需重新评估本决策。
+
 ### 4. 登出只撤销 refresh token
 
 `logout` 通过 access JTI 撤销 refresh token（`CustomerTokenService`）；已签发 access token 残留至 TTL。与 access 无状态语义一致，会话语义简单；强制即时撤销需每请求查 SessionStore，本期视为过度设计。

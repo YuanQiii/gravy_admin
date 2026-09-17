@@ -124,6 +124,41 @@ describe('B2C Customer HTTP e2e (inquiries + addresses)', () => {
         .set('Authorization', `Bearer ${userToken}`)
         .expect(401);
     });
+
+    it('软删/禁用客户 TTL 内写请求不被任何路径以可用性拦截（T6，统一不校验）', async () => {
+      // 软删客户行：createForCustomer 的快照读取会拿到 deletedAt 非空的行，
+      // 但 P2-3 起该读取**不做**可用性断言 → 请求正常处理，绝不 404 CUSTOMER_NOT_FOUND
+      (harness.prisma as any).customer.findUnique.mockResolvedValue({
+        customerId: 'cust-A',
+        nickName: 'Alice',
+        deletedAt: new Date('2026-01-01'), // 软删
+        status: 'disabled', // 禁用
+      });
+
+      // ① 创建询价单：不再因客户可用性被拒
+      const inquiryRes = await request(harness.app.getHttpServer())
+        .post('/inquiries')
+        .set('Authorization', `Bearer ${tokenA}`)
+        .send({ title: '软删客户的询价', lines: [lineItem] });
+      expect(inquiryRes.status).not.toBe(401);
+      expect(JSON.stringify(inquiryRes.body)).not.toContain(
+        'CUSTOMER_NOT_FOUND',
+      );
+
+      // ② 新增地址：本就无可用性校验（维持现状）
+      const addrRes = await request(harness.app.getHttpServer())
+        .post('/addresses')
+        .set('Authorization', `Bearer ${tokenA}`)
+        .send({
+          receiver: '张三',
+          phone: '138',
+          province: '广东',
+          city: '深圳',
+          detailAddress: 'xxx',
+        });
+      expect(addrRes.status).not.toBe(401);
+      expect(JSON.stringify(addrRes.body)).not.toContain('CUSTOMER_NOT_FOUND');
+    });
   });
 
   /* ── 请求体携带身份字段 → forbidNonWhitelisted 400 ─────────── */

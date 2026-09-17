@@ -47,6 +47,14 @@ function makePrisma() {
       // 快照读取的唯一入口（resolveShippingSnapshot 内、事务内）
       findUnique: jest.fn(async () => null),
     },
+    // 客户快照读取（createForCustomer 内、事务内；P2-3 起无可用性断言）
+    customer: {
+      findUnique: jest.fn(async () => ({
+        nickName: 'Alice',
+        email: 'alice@example.com',
+        phoneNumber: '13800000000',
+      })),
+    },
     $executeRaw: () => Promise.resolve(),
   };
   const prisma: any = {
@@ -97,21 +105,30 @@ describe('InquiriesService.createForCustomer', () => {
     return service;
   }
 
-  it('客户不存在抛 404（身份必须落在已存在客户上）', async () => {
+  it('客户行不存在：不 404、不拦截（TTL 内无可用性/存在性断言），按空快照处理', async () => {
     const prisma = makePrisma();
-    (prisma as any).customer.findUnique.mockResolvedValue(null);
+    ((prisma as any).__tx ?? (prisma as any)).customer.findUnique.mockResolvedValue(null);
     const service = buildService(prisma);
-    await expect(
-      service.createForCustomer('cust-A', baseDto, baseDto.lines),
-    ).rejects.toThrow(NotFoundException);
+    await service.createForCustomer('cust-A', baseDto, baseDto.lines);
+    // 空快照落库：customerName/email/phone 均为 null；主体创建仍带登录态 customerId
+    expect((prisma as any).__tx.inquiry.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          customerId: 'cust-A',
+          customerName: null,
+          customerEmail: null,
+          customerPhone: null,
+        }),
+      }),
+    );
   });
 
   it('他人 shippingAddressId：归属断言失败抛 400，不创建询价', async () => {
     const prisma = makePrisma();
-    (prisma as any).customer.findUnique.mockResolvedValue({
-      customerId: 'cust-A',
+    (prisma as any).__tx.customer.findUnique.mockResolvedValue({
       nickName: 'Alice',
-      deletedAt: null,
+      email: 'alice@example.com',
+      phoneNumber: '13800000000',
     });
     (prisma as any).__tx.customerAddress.findUnique.mockResolvedValue(
       addressRow({ customerId: 'cust-B' }), // 他人
@@ -129,10 +146,10 @@ describe('InquiriesService.createForCustomer', () => {
 
   it('地址不存在：抛 400（而不是让外键报错 500）', async () => {
     const prisma = makePrisma();
-    (prisma as any).customer.findUnique.mockResolvedValue({
-      customerId: 'cust-A',
+    (prisma as any).__tx.customer.findUnique.mockResolvedValue({
       nickName: 'Alice',
-      deletedAt: null,
+      email: 'alice@example.com',
+      phoneNumber: '13800000000',
     });
     (prisma as any).__tx.customerAddress.findUnique.mockResolvedValue(null);
     const service = buildService(prisma);
@@ -147,10 +164,10 @@ describe('InquiriesService.createForCustomer', () => {
 
   it('地址已软删：抛 400', async () => {
     const prisma = makePrisma();
-    (prisma as any).customer.findUnique.mockResolvedValue({
-      customerId: 'cust-A',
+    (prisma as any).__tx.customer.findUnique.mockResolvedValue({
       nickName: 'Alice',
-      deletedAt: null,
+      email: 'alice@example.com',
+      phoneNumber: '13800000000',
     });
     (prisma as any).__tx.customerAddress.findUnique.mockResolvedValue(
       addressRow({ deletedAt: new Date() }),
@@ -219,10 +236,10 @@ describe('InquiriesService.createForCustomer', () => {
 
   it('未提供 shippingAddressId：快照字段不写入（落库为 NULL），引用显式为 null', async () => {
     const prisma = makePrisma();
-    (prisma as any).customer.findUnique.mockResolvedValue({
-      customerId: 'cust-A',
+    (prisma as any).__tx.customer.findUnique.mockResolvedValue({
       nickName: 'Alice',
-      deletedAt: null,
+      email: 'alice@example.com',
+      phoneNumber: '13800000000',
     });
     const service = buildService(prisma);
     await service.createForCustomer('cust-A', { ...baseDto }, baseDto.lines);
@@ -325,14 +342,17 @@ describe('InquiriesService.createForCustomer', () => {
 
   it('引用不可用（不存在/禁用/软删）的 filterId 抛 400，不创建询价', async () => {
     const prisma = makePrisma();
-    (prisma as any).customer.findUnique.mockResolvedValue({
-      customerId: 'cust-A',
-      nickName: 'Alice',
-      deletedAt: null,
-    });
     // 空结果 = flt-001 不入 ACTIVE_FILTER_WHERE 门禁
     (prisma as any).$transaction = (fn: any) =>
       fn({
+        // 客户快照读取（事务内；P2-3 起无可用性断言）
+        customer: {
+          findUnique: jest.fn(async () => ({
+            nickName: 'Alice',
+            email: 'alice@example.com',
+            phoneNumber: '13800000000',
+          })),
+        },
         inquiry: {
           findFirst: jest.fn(async () => null),
         },
