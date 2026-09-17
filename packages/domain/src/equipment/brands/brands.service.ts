@@ -15,6 +15,10 @@ import { HotStatusBrandsDto } from './dto/hot-status-brands.dto';
 import { HotBrandQueryDto } from './dto/hot-brand-query.dto';
 import { HotBrandResponseDto } from './dto/hot-brand-response.dto';
 import { rankHotBrands } from './hot-ranking';
+import {
+  HotBrandCandidateSource,
+  SqlHotBrandCandidateSource,
+} from './hot-candidate-source';
 
 /**
  * 品牌-字段错误码前缀映射，用于 P2002 兜底时按 meta.target 选前缀。
@@ -30,6 +34,7 @@ export class BrandsService extends BaseService {
     protected readonly prisma: PrismaService,
     protected readonly configService: ConfigService,
     private readonly softDelete: SoftDeleteService,
+    private readonly hotCandidateSource: HotBrandCandidateSource,
   ) {
     super(prisma, configService);
   }
@@ -203,48 +208,17 @@ export class BrandsService extends BaseService {
   }
 
   /**
-   * 公开热门品牌列表：候选品牌（经 applyVisibility 强制 status='enabled'）
-   * + equipment 生效设备数聚合，随后交由纯函数 rankHotBrands 合并排序。
+   * 公开热门品牌列表：候选品牌与生效设备数经 `HotBrandCandidateSource`
+   * 取出（两段受限查询，候选量受 `HOT_BRAND_CANDIDATE_CAP` 约束——只截断
+   * 候选量、不改对外结果），随后交由纯函数 rankHotBrands 合并排序。
    * 排序不变量只存在于 hot-ranking.ts，本方法不复述排序逻辑。
    */
   async findHot(query: HotBrandQueryDto): Promise<HotBrandResponseDto[]> {
     const limit = query.limit ?? 8;
     const anonymous: VisibilityOpts = { visibility: 'anonymous' };
 
-    const brandWhere: Record<string, unknown> = { deletedAt: null };
-    this.applyVisibility(brandWhere, anonymous);
-
-    const [brands, grouped] = await Promise.all([
-      this.prisma.equipmentBrand.findMany({
-        where: brandWhere,
-        select: {
-          brandId: true,
-          name: true,
-          slug: true,
-          isHot: true,
-          hotOrder: true,
-          createdAt: true,
-        },
-      }),
-      (async () => {
-        const equipmentWhere: Record<string, unknown> = {
-          deletedAt: null,
-          brandId: { not: null },
-        };
-        this.applyVisibility(equipmentWhere, anonymous);
-        return this.prisma.equipment.groupBy({
-          by: ['brandId'],
-          where: equipmentWhere,
-          _count: { _all: true },
-        });
-      })(),
-    ]);
-
-    const deviceCounts = new Map<string, number>(
-      grouped
-        .filter((g): g is typeof g & { brandId: string } => g.brandId !== null)
-        .map((g) => [g.brandId, g._count._all]),
-    );
+    const { brands, deviceCounts } =
+      await this.hotCandidateSource.fetchCandidates(anonymous);
 
     const ranked = rankHotBrands(brands, deviceCounts, limit);
     return plainToInstance(HotBrandResponseDto, ranked, {

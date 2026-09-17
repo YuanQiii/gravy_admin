@@ -1,5 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsInt, IsOptional, Max, Min } from 'class-validator';
+import { Type } from 'class-transformer';
 
 /** 热门品牌列表 query 参数。 */
 export class HotBrandQueryDto {
@@ -8,6 +9,7 @@ export class HotBrandQueryDto {
     type: 'integer',
   })
   @IsOptional()
+  @Type(() => Number)
   @IsInt()
   @Min(1)
   @Max(50)

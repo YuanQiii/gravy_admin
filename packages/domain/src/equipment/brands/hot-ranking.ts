@@ -2,10 +2,23 @@
  * 热门品牌排序 —— 排序不变量单点（纯函数，零 I/O、零 prisma）。
  *
  * 与 weighted-sort 同属"排序策略与 I/O 分离"先例：Service 只负责选题
- * （候选品牌 + 生效设备数聚合），排序规则唯一收敛在本文件的 rankHotBrands。
+ * （候选品牌 + 生效设备数聚合，经 `HotBrandCandidateSource` 取出且受
+ * `HOT_BRAND_CANDIDATE_CAP` 约束——上限只截断候选量，两段排序键序与
+ * 全量一致，故 `rankHotBrands` 输出恒等），排序规则唯一收敛在本文件的 rankHotBrands。
  * 纯函数可脱离 prisma/DB 直接单测——构造 (brands, deviceCounts, limit)
  * 断言输出顺序即可，不需要 mock 任何数据库访问。
  */
+
+/**
+ * 候选集取出上限（bound-hot-brand-candidate-set A2）。
+ *
+ * 取值依据：展示上限 `HotBrandQueryDto.limit` 最大 50，4× 余量覆盖
+ * "标记段或未标记段各自极端倾斜"的分布；**N ≥ limit 时 `rankHotBrands`
+ * 的输出与全量取出恒等**（两段各自的排序键序与全量一致，合并切片结果
+ * 不可能因截断而变）。仅约束候选取出量、不改变对外结果 —— 取数成本
+ * 从 O(全表) 变为 O(CAP)。
+ */
+export const HOT_BRAND_CANDIDATE_CAP = 200;
 
 /**
  * 参与排序的品牌最小形状。函数只读这些字段，传入的行可带更多属性（额外

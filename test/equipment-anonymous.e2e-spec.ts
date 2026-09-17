@@ -945,9 +945,69 @@ describe('Equipment Anonymous Access (e2e)', () => {
     });
   });
 
+  /* ── 5.11: Hot brands 候选集上限冒烟（P2-6 3.5）──────────────────── */
+
+  describe('5.11 Hot brands candidate cap smoke', () => {
+    it('GET /brands/hot：raw SQL 候选源路径返回 ≤ limit 且标记段优先', async () => {
+      // 模拟 SqlHotBrandCandidateSource 的三条 raw 查询产物：
+      // [hotRows, fallbackRows, countRows]（Promise.all 顺序）
+      const hotRow = (brandId: string, hotOrder: number | null) => ({
+        brandId,
+        name: '品牌' + brandId,
+        slug: brandId,
+        isHot: true,
+        hotOrder,
+        createdAt: new Date('2026-09-01T00:00:00Z'),
+        deviceCount: 10,
+      });
+      const fallbackRow = (brandId: string, cnt: bigint) => ({
+        brandId,
+        name: '品牌' + brandId,
+        slug: brandId,
+        isHot: false,
+        hotOrder: null,
+        createdAt: new Date('2026-09-01T00:00:00Z'),
+        deviceCount: cnt,
+      });
+      const hotRows = [hotRow('hot-1', 1), hotRow('hot-2', null)];
+      const fallbackRows = [
+        fallbackRow('p-1', 30n),
+        fallbackRow('p-2', 5n),
+      ];
+      const countRows = [
+        { brandId: 'hot-1', cnt: 10n },
+        { brandId: 'hot-2', cnt: 10n },
+        { brandId: 'p-1', cnt: 30n },
+        { brandId: 'p-2', cnt: 5n },
+      ];
+      (mallHarness.prisma as any).$queryRaw = jest
+        .fn()
+        .mockResolvedValueOnce(hotRows)
+        .mockResolvedValueOnce(fallbackRows)
+        .mockResolvedValueOnce(countRows);
+      // 清空同 spec 早前用例遗留的 findMany 调用记录
+      (mallHarness.prisma as any).equipmentBrand.findMany.mockClear();
+
+      const res = await request(mallHarness.app.getHttpServer())
+        .get('/brands/hot?limit=2')
+        .expect(200);
+
+      const items = res.body.data;
+      expect(items.length).toBeLessThanOrEqual(2);
+      // 标记段优先（hotOrder 升序），未标记按 deviceCount 补足
+      expect(items[0].brandId).toBe('hot-1');
+      expect(items[0].deviceCount).toBe(10);
+      // 候选查询次数 = 3（hot 段 / fallback 段 / 设备计数），不再是全表 findMany
+      expect(
+        (mallHarness.prisma as any).equipmentBrand.findMany,
+      ).not.toHaveBeenCalled();
+    });
+  });
+
 });
 
 /* ── 5.5: Rate limiting ──────────────────────────────────────────── */
+
 
 
 describe('Equipment Anonymous Rate Limiting (e2e)', () => {
@@ -980,4 +1040,7 @@ describe('Equipment Anonymous Rate Limiting (e2e)', () => {
     expect(res.headers['retry-after']).toBeDefined();
   });
 
+
+
 });
+
