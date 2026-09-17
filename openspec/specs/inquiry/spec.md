@@ -101,7 +101,7 @@
 
 ### Requirement: 询价单状态流转
 
-系统 SHALL 强制询价单状态按 `draft → submitted → quoted → expired` 单向流转；反向流转（如 `quoted → submitted`）SHALL 被拒绝。`draft → submitted` 时记录 `submittedAt`；`submitted → quoted` 时记录 `quotedAt` 与可选 `expiresAt`；`quoted → expired` 由定时任务或人工触发。
+系统 SHALL 强制询价单状态按 `draft → submitted → quoted → expired` 单向流转；反向流转（如 `quoted → submitted`）SHALL 被拒绝。`draft → submitted` 时记录 `submittedAt`；`submitted → quoted` 时记录 `quotedAt` 并 SHALL 强制提供 `expiresAt`（不可为空），否则系统 SHALL 拒绝该流转；`quoted → expired` SHALL 仅由后台人工状态流转（admin/ops 显式执行）抵达，系统 SHALL NOT 在任一读路径（列表/详情查询）中对 `quoted` 行执行任何过期写操作。
 
 状态流转 SHALL 以原子方式执行：系统 SHALL 把「期望的当前状态」作为写入的前置条件，使校验与写入构成单一操作；任一并发写入不得使询价单落入「状态与时间戳互斥」的非法组合。当写入前置条件不再成立（状态已被并发操作改变）时，系统 SHALL 返回 409 且 SHALL NOT 写入任何字段。时间戳 SHALL 与状态保持一致：`submitted` 对应 `submittedAt`、`quoted` 对应 `quotedAt`（及可选 `expiresAt`）、`cancelled` 对应 `cancelledAt`；`expired` 不产生新时间戳。
 
@@ -129,6 +129,35 @@
 
 - **WHEN** 对已处于 `submitted` 的询价单再次执行提交
 - **THEN** 系统返回 409，状态与 `submittedAt` 均不变
+
+#### Scenario: 报价必须携带有效期
+
+- **WHEN** 后台将 submitted 询价单状态改为 quoted 且未提供 `expiresAt`
+- **THEN** 系统拒绝该流转（校验失败，返回 400 类错误），询价单保持 `submitted`
+
+#### Scenario: 读路径不触发过期写
+
+- **WHEN** 调用任一询价单列表或详情查询端点（Admin 或 Mall）
+- **THEN** 查询返回后，数据库中 `status='quoted'` 的行不因该查询而变为 `expired`（查询端点不修改任何行状态）
+
+### Requirement: 询价单过期派生展示态
+
+系统 SHALL 在询价单响应（Admin 与 Mall 的列表与详情）中提供派生只读布尔 `isExpired`：`status='quoted'` 且 `expiresAt` 非空且早于当前时间时为真；其余情况（含 `status` 非 `quoted`，或 `expiresAt` 为空/未到）为假。`isExpired` SHALL NOT 修改 `status` 字段、SHALL NOT 落库，仅用于展示。物理 `expired` 状态仍仅由后台人工状态流转产生。
+
+#### Scenario: 管理员见派生过期标记
+
+- **WHEN** 一张 `status='quoted'` 且 `expiresAt` 早于当前时间的询价单被查询
+- **THEN** 响应携带 `isExpired = true`，且 `status` 保持 `'quoted'` 不变
+
+#### Scenario: 未过期报价标记为假
+
+- **WHEN** 一张 `status='quoted'` 且 `expiresAt` 晚于当前时间的询价单被查询
+- **THEN** 响应携带 `isExpired = false`
+
+#### Scenario: 非 quoted 状态标记恒为假
+
+- **WHEN** 一张 `status` 为 draft/submitted/expired/cancelled（或 quoted 但 `expiresAt` 为空）的询价单被查询
+- **THEN** 响应携带 `isExpired = false`
 
 ### Requirement: 询价单查询
 
