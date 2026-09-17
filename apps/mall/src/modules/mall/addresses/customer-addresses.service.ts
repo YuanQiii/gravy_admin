@@ -3,6 +3,11 @@ import { Prisma } from '@prisma/client';
 import { ConfigService } from '@nestjs/config';
 import { plainToInstance } from 'class-transformer';
 import { PrismaService, BaseService } from '@gvray/core';
+// 删除 module 与可见性谓词在 domain（对标 ACTIVE_FILTER_WHERE 在 domain 的先例）
+import {
+  CustomerAddressDeletionService,
+  ADDRESS_ACTIVE_WHERE,
+} from '@gvray/domain';
 
 
 import { AddressResponseDto } from './dto/address-response.dto';
@@ -25,6 +30,7 @@ export class CustomerAddressesService extends BaseService {
   constructor(
     protected readonly prisma: PrismaService,
     protected readonly configService: ConfigService,
+    private readonly deletion: CustomerAddressDeletionService,
   ) {
     super(prisma, configService);
   }
@@ -70,7 +76,8 @@ export class CustomerAddressesService extends BaseService {
   }
 
   async findMyAddresses(customerId: string, query: QueryAddressSelfDto) {
-    const where = { deletedAt: null, customerId } as Record<string, unknown>;
+    // CustomerAddress 有意硬删（ADR 0016）：无软删态，谓词只有归属维度
+    const where = { ...ADDRESS_ACTIVE_WHERE, customerId } as Record<string, unknown>;
     const result = await this.paginateWithSort(
       this.prisma.customerAddress,
       query,
@@ -123,10 +130,11 @@ export class CustomerAddressesService extends BaseService {
     addressId: string,
   ): Promise<void> {
     await this.assertOwned(customerId, addressId);
-    await this.prisma.customerAddress.delete({ where: { addressId } });
+    // 硬删唯一入口（P3-2 2.5 owner adapter）：delete 不再出现在本文件
+    await this.deletion.removeForOwner(customerId, addressId);
   }
 
-  /** 归属校验：他人 addressId 视为不可见 → 404。 */
+  /** 归属校验：他人 addressId 视为不可见 → 404。无软删态（ADR 0016 硬删）。 */
   private async assertOwned(
     customerId: string,
     addressId: string,
@@ -134,7 +142,7 @@ export class CustomerAddressesService extends BaseService {
     const address = await this.prisma.customerAddress.findUnique({
       where: { addressId },
     });
-    if (!address || address.deletedAt || address.customerId !== customerId) {
+    if (!address || address.customerId !== customerId) {
       throw new NotFoundException('地址不存在');
     }
   }

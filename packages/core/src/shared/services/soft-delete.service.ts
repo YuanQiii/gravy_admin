@@ -107,6 +107,35 @@ export class SoftDeleteService {
   }
 
   /**
+   * 批量软删除：设 deletedAt = now()（unify-soft-delete-mechanics 1.1）。
+   *
+   * 与单条 `softDelete` 同址构成"软删除"module 的批量半；`deletedAt: null`
+   * 前置在 where 中使已软删记录被幂等跳过（不报错、不重复盖时间戳）。
+   * 事件型表（无 deletedAt 字段）不得调用。
+   *
+   * @param model Prisma model delegate
+   * @param idField 业务 ID 字段名（如 inquiryId）
+   * @param ids 业务 ID 列表
+   * @returns 实际被软删的行数
+   */
+  async softDeleteMany(
+    model: {
+      updateMany: (args: {
+        where: Record<string, unknown>;
+        data: Record<string, unknown>;
+      }) => Promise<{ count: number }>;
+    },
+    idField: string,
+    ids: string[],
+  ): Promise<number> {
+    const result = await model.updateMany({
+      where: { [idField]: { in: ids }, deletedAt: null },
+      data: { deletedAt: new Date() },
+    });
+    return result.count;
+  }
+
+  /**
    * 处理 Prisma 唯一约束冲突（P2002）
    *
    * - P2002 → 抛 ConflictException({errorPrefix}_DUPLICATED)

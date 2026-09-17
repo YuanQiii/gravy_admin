@@ -49,12 +49,12 @@ const INQUIRY_DETAIL_INCLUDE = {
 /**
  * 快照读取形状 —— 读到的字段与写出的快照字段同源（`ShippingSnapshotShape`）。
  *
- * 除 7 个快照字段外，刻意一并取出 `customerId`（归属断言）与 `deletedAt`（可用性断言）：
- * 守卫所需的判断依据与快照在同一次读取内取得，避免"读完再查一次"的窗口。
+ * 额外取出 `customerId`（归属断言）：守卫所需的判断依据与快照在同一次读取内
+ * 取得，避免"读完再查一次"的窗口。CustomerAddress 为**有意硬删**
+ * （unify-soft-delete-mechanics）：地址存在即可用，无软删态可断言。
  */
 const SHIPPING_SNAPSHOT_SELECT = {
   customerId: true,
-  deletedAt: true,
   receiver: true,
   phone: true,
   province: true,
@@ -655,9 +655,8 @@ export class InquiriesService extends BaseService {
   }
 
   async removeMany(ids: string[]): Promise<void> {
-    await this.prisma.inquiry.updateMany({
-      where: { inquiryId: { in: ids }, deletedAt: null },
-      data: { deletedAt: new Date() },
-    });
+    // 与单条 remove（SoftDeleteService.softDelete）统一走同一 module：
+    // 裸 updateMany 与之并存正是"同一域两套软删机制"的分叉形态（P3-2）
+    await this.softDelete.softDeleteMany(this.prisma.inquiry, 'inquiryId', ids);
   }
 }

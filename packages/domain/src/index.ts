@@ -98,4 +98,9 @@ export { InquiryLineResponseDto } from './inquiry/inquiry-lines/dto/inquiry-line
 export { BatchDeleteInquiryLinesDto } from './inquiry/inquiry-lines/dto/batch-delete-inquiry-lines.dto';
 
 // ── inquiry / 聚合模块（providers-only，注册各子域模块）──────────────
-export { InquiryModule } from './inquiry/inquiry.module';
+export { InquiryModule } from './inquiry/inquiry.module';export {
+  CustomerAddressDeletionModule,
+  CustomerAddressDeletionService,
+  ADDRESS_DELETE_STRATEGY,
+} from './customer-addresses/customer-address-deletion.service';
+export { ADDRESS_ACTIVE_WHERE } from './customer-addresses/active-address';

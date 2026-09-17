@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { plainToInstance } from 'class-transformer';
 import { PrismaService, BaseService, PaginationData } from '@gvray/core';
+import { CustomerAddressDeletionService } from '@gvray/domain';
 
 
 
@@ -15,6 +16,7 @@ export class AddressesService extends BaseService {
   constructor(
     protected readonly prisma: PrismaService,
     protected readonly configService: ConfigService,
+    private readonly deletion: CustomerAddressDeletionService,
   ) {
     super(prisma, configService);
   }
@@ -58,7 +60,6 @@ export class AddressesService extends BaseService {
         phone: query.phone,
       },
     });
-    where.deletedAt = null;
 
     const result = await this.paginateWithSort(
       this.prisma.customerAddress,
@@ -78,7 +79,7 @@ export class AddressesService extends BaseService {
     const address = await this.prisma.customerAddress.findUnique({
       where: { addressId },
     });
-    if (!address || address.deletedAt) {
+    if (!address) {
       throw new NotFoundException('地址不存在');
     }
     return plainToInstance(AddressResponseDto, address, {
@@ -93,7 +94,7 @@ export class AddressesService extends BaseService {
     const existing = await this.prisma.customerAddress.findUnique({
       where: { addressId },
     });
-    if (!existing || existing.deletedAt) {
+    if (!existing) {
       throw new NotFoundException('地址不存在');
     }
 
@@ -126,7 +127,7 @@ export class AddressesService extends BaseService {
     const existing = await this.prisma.customerAddress.findUnique({
       where: { addressId },
     });
-    if (!existing || existing.deletedAt) {
+    if (!existing) {
       throw new NotFoundException('地址不存在');
     }
     await this.prisma.$transaction(async (tx) => {
@@ -142,22 +143,21 @@ export class AddressesService extends BaseService {
   }
 
   /**
-   * 删除地址（spec scenario：硬删）。
-   * CustomerAddress 表保留 deletedAt 字段供未来扩展，但当前 remove 按 spec 执行硬删。
+   * 删除地址（**有意硬删**，ADR 0016 / unify-soft-delete-mechanics 2.5
+   * operator adapter）：CustomerAddress 不设 deletedAt，删除唯一入口在
+   * CustomerAddressDeletionService。
    */
   async remove(addressId: string): Promise<void> {
     const existing = await this.prisma.customerAddress.findUnique({
       where: { addressId },
     });
-    if (!existing || existing.deletedAt) {
+    if (!existing) {
       throw new NotFoundException('地址不存在');
     }
-    await this.prisma.customerAddress.delete({ where: { addressId } });
+    await this.deletion.removeForOperator(addressId);
   }
 
   async removeMany(ids: string[]): Promise<void> {
-    await this.prisma.customerAddress.deleteMany({
-      where: { addressId: { in: ids }, deletedAt: null },
-    });
+    await this.deletion.removeManyForOperator(ids);
   }
 }

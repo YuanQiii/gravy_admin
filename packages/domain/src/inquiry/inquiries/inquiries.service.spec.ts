@@ -162,25 +162,9 @@ describe('InquiriesService.createForCustomer', () => {
     ).rejects.toThrow(BadRequestException);
   });
 
-  it('地址已软删：抛 400', async () => {
-    const prisma = makePrisma();
-    (prisma as any).__tx.customer.findUnique.mockResolvedValue({
-      nickName: 'Alice',
-      email: 'alice@example.com',
-      phoneNumber: '13800000000',
-    });
-    (prisma as any).__tx.customerAddress.findUnique.mockResolvedValue(
-      addressRow({ deletedAt: new Date() }),
-    );
-    const service = buildService(prisma);
-    await expect(
-      service.createForCustomer(
-        'cust-A',
-        { ...baseDto, shippingAddressId: 'addr-deleted' },
-        baseDto.lines,
-      ),
-    ).rejects.toThrow(BadRequestException);
-  });
+  // CustomerAddress 已改为有意硬删（unify-soft-delete-mechanics / ADR 0016）：
+  // 不存在"已软删地址"状态 —— 被删地址物理不存在，findUnique 返回 null，
+  // 由上面的「地址不存在：抛 400」用例覆盖同一失败路径。
 
   it('本人 shippingAddressId：事务内创建主体+明细行，并写入 7 字段快照', async () => {
     const prisma = makePrisma();

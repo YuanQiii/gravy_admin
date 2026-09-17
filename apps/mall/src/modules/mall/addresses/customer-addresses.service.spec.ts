@@ -35,9 +35,10 @@ function makePrisma() {
 
 function buildService(prisma: any) {
   return new CustomerAddressesService(
-    prisma,
-    {} as ConfigService,
-  );
+      prisma,
+      {} as ConfigService,
+      { removeForOwner: jest.fn(), removeForOperator: jest.fn(), removeManyForOperator: jest.fn() } as never,
+    );
 }
 
 describe('CustomerAddressesService (B2C self 域)', () => {

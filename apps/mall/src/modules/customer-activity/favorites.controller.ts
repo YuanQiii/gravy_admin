@@ -42,7 +42,7 @@ export class FavoritesController {
   @ApiOperation({ summary: '收藏滤清器（幂等，仅限当前客户）' })
   @ApiResponse({
     status: 201,
-    description: '收藏成功',
+    description: '收藏成功（幂等命中亦返回 201）',
     type: FavoriteResponseDto,
   })
   @ApiBody({ type: CreateFavoriteDto })

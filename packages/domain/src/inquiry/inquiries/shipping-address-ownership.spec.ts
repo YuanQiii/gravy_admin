@@ -12,7 +12,6 @@ import {
  */
 describe('assertShippingAddressOwned（地址归属不变量）', () => {
   const owned = { customerId: 'cust-A', deletedAt: null };
-  const softDeleted = { customerId: 'cust-A', deletedAt: new Date() };
 
   it('地址不存在 → 400 INVALID_SHIPPING_ADDRESS', () => {
     expect(() => assertShippingAddressOwned(null, 'cust-A')).toThrow(
@@ -23,10 +22,14 @@ describe('assertShippingAddressOwned（地址归属不变量）', () => {
     );
   });
 
-  it('地址已软删 → 400（即使归属正确）', () => {
-    expect(() => assertShippingAddressOwned(softDeleted, 'cust-A')).toThrow(
-      'INVALID_SHIPPING_ADDRESS',
-    );
+  it('CustomerAddress 为有意硬删（ADR 0016）：地址行不再有 deletedAt 维度', () => {
+    // 历史上的「地址已软删 → 400」用例随删列移除：硬删语义下被删地址
+    // 物理不存在（null → 400 路径已由其他用例覆盖），无软删态可断言。
+    const legacyRow = { customerId: 'cust-A', deletedAt: new Date() };
+    // 行上多出的历史字段不影响判定：只读 customerId
+    expect(() =>
+      assertShippingAddressOwned(legacyRow, 'cust-A'),
+    ).not.toThrow();
   });
 
   it('给了 owner 但地址属于他人 → 400', () => {

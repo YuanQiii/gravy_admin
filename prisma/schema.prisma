@@ -798,13 +798,14 @@ model CustomerAddress {
   detailAddress String
   zipCode      String?
   isDefault    Boolean   @default(false)
-  deletedAt    DateTime?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
+  // 删除语义：**有意硬删**（DeleteStrategy.Hard，unify-soft-delete-mechanics）。
+  // 不设 deletedAt——删除语义唯一入口是 CustomerAddressDeletion module，
+  // 防止死列回潮。
   inquiries Inquiry[]
 
-  @@index([deletedAt])
   @@index([customerId])
   @@index([isDefault])
   @@map("customer_addresses")
