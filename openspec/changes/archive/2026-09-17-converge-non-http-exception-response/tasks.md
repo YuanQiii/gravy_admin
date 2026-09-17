@@ -20,7 +20,7 @@
 
 - [x] 4.1 delta 已在 `specs/logging/spec.md`（ADDED「非预期异常的对外响应」）。验证：`openspec validate converge-non-http-exception-response --strict` 通过。
 - [x] 4.2 在 Swagger/文档中说明 500 的 message 为泛化文案、需靠响应头 `x-request-id` 关联日志。验证：两个应用构建后 Swagger 无该说明的则补在全局 description（`configure-app` 的 Swagger 配置）。
-- [ ] 4.3 归档时把 delta 合并进 `openspec/specs/logging/spec.md`。验证：合并后「非预期异常的对外响应」恰有一条；`openspec validate --specs` 通过。
+- [x] 4.3 归档时把 delta 合并进 `openspec/specs/logging/spec.md`。验证：合并后「非预期异常的对外响应」恰有一条；`openspec validate --specs` 通过。
 - [x] 4.4 记录后续项：`HttpException` 分支的 `exception.message` 回退路径（design 风险 4）建议独立变更 `converge-http-exception-message-fallback`，本次不实现。验证：结论写入变更备注。
 
 ## 5. 门禁

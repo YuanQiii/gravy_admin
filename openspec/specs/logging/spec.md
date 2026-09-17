@@ -30,7 +30,7 @@
 
 ### Requirement: 访问日志
 
-系统 SHALL 为每个已匹配请求记录一条结构性访问日志，包含用户标识（userId）、请求方法、路由、路径、响应状态码、耗时、请求关联 ID、来源 IP、User-Agent 与脱敏后的 query。超过慢请求阈值（`LOG_SLOW_MS`，默认 1000ms）的请求 SHALL 附带脱敏后的请求体。
+系统 SHALL 为每个已匹配请求记录一条结构性访问日志，包含用户标识（userId）、请求方法、路由、路径、响应状态码、耗时、请求关联 ID、**来源 IP**、User-Agent 与脱敏后的 query。超过慢请求阈值（`LOG_SLOW_MS`，默认 1000ms）的请求 SHALL 附带脱敏后的请求体。来源 IP SHALL 经由单一可信客户端 IP 解析模块（可信代理边界）推导，与登录限流使用同一来源，**不得**直接取请求头 `x-forwarded-for` 首段；该模块按部署拓扑配置 `security.trustedProxy` 决定 IP 归因（参见 `customer` 能力「可信客户端 IP 与登录限流边界」）。
 
 #### Scenario: 记录成功请求
 
@@ -49,6 +49,12 @@
 - **WHEN** 一个请求失败并产生异常
 
 - **THEN** 该失败细节只通过异常日志记录一次，访问日志不再重复记录该失败的错误堆栈，两者通过同一请求关联 ID 关联
+
+#### Scenario: 来源 IP 经可信解析且抗伪造
+
+- **WHEN** 请求携带伪造的 `X-Forwarded-For` 首段、但经受信代理（`security.trustedProxy` 已配置）转发
+
+- **THEN** 访问日志记录的来源 IP 为可信解析模块返回的真实客户端地址，而非伪造头首段
 
 ### Requirement: 请求关联 ID
 
@@ -104,3 +110,30 @@
 
 - **THEN** 超过保留期的历史日志被清理
 
+### Requirement: 非预期异常的对外响应
+
+当请求因**非 `HttpException`** 的异常失败时，系统 SHALL 返回 500，且在生产环境 SHALL NOT 在响应体中包含原始异常信息（异常 message、堆栈、数据库/驱动细节）。非生产环境 MAY 返回原始 message 以支持调试。该响应 SHALL 保留既有的统一错误包络结构（`success`/`code`/`message`/`data`/`timestamp`/`showType`），仅 `message` 内容按环境收敛。
+
+失败细节 SHALL 在服务端日志中可定位，且 SHALL 由既有访问日志的失败分支（`RequestLogInterceptor`）记录一次——异常过滤器 SHALL NOT 重复记录同一失败。响应 SHALL 能通过请求关联 ID 与对应日志关联。
+
+`HttpException` 分支（业务错误码与参数校验错误消息）SHALL 保持逐字不变，不受本约束影响。
+
+#### Scenario: 生产环境的非预期异常不泄漏内部细节
+
+- **WHEN** 生产环境下一个请求因非 `HttpException` 的异常失败（例如数据库约束错误）
+- **THEN** 响应状态码为 500，`message` 为泛化文案（如「服务器内部错误」），不含数据库/驱动/堆栈等内部信息
+
+#### Scenario: 非生产环境保留调试信息
+
+- **WHEN** 非生产环境（dev/test）下同一类异常发生
+- **THEN** 响应 `message` 保留原始异常 message，便于本地定位
+
+#### Scenario: 失败细节在日志中可定位
+
+- **WHEN** 上述任一环境下的非预期异常发生
+- **THEN** 服务端日志中记录该异常的 message 与堆栈（由访问日志的失败分支记录，且仅记录一次），响应可通过请求关联 ID 与该条日志关联
+
+#### Scenario: 业务错误码不受影响
+
+- **WHEN** 请求因业务异常失败（如资源不存在、状态冲突）
+- **THEN** 响应的状态码、`code` 与 `message` 与该约束引入前完全一致（业务错误码逐字保持）

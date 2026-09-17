@@ -12,6 +12,10 @@
 
 当创建请求同时提供 `shippingAddressId` 与 `customerId` 时，系统 SHALL 校验该地址存在、未软删、且属于 `customerId` 后方可写入；二者不满足时 SHALL 返回 400 **而非** 500。`shippingAddressId` 非空时 `customerId` 必须非空——仅提供 `shippingAddressId` 而未提供 `customerId` 的请求 SHALL 在 DTO 校验层被拒绝（400）。匿名询价（`customerId` 与 `shippingAddressId` 均为空）SHALL 仍被允许。
 
+`totalAmount` SHALL 由系统按该询价单**未软删除明细行的 `subtotal` 之和**派生，SHALL NOT 接受客户端传入；无未软删明细行或各行 `subtotal` 全为空时 SHALL 为 `null`。派生 SHALL 在每次明细行写入（新增/修改/删除/批量删除）与报价状态流转（`submitted → quoted`）后于同一事务内重算，使读取方永不观察到合计与各行小计之和不等的询价单。
+
+`shippingAddressId`（及其快照）与 `totalAmount` SHALL 仅在创建时确定，属于**创建期不可变字段**：询价单更新端点 SHALL NOT 接受这两个字段，客户端传入时 SHALL 被 DTO 白名单拒绝（400）；换址或改价 SHALL 通过新建询价单表达，而不是就地改写既有单据的履约依据。
+
 #### Scenario: 已注册客户自助下单
 
 - **WHEN** 客户提交询价单（带 `customerId`），无管理员介入
@@ -47,6 +51,26 @@
 - **WHEN** 后台管理员创建询价单时提供 `shippingAddressId` 但不提供 `customerId`
 - **THEN** 系统在 DTO 校验层拒绝请求（400），不创建询价单
 
+#### Scenario: 合计随明细行变化重算
+
+- **WHEN** 某询价单已有两行明细（`subtotal` 分别为 `50.00` 与 `25.00`），运营人员新增第三行 `subtotal = 10.00`
+- **THEN** 该询价单 `totalAmount` 变为 `85.00`；删除第二行后变为 `60.00`
+
+#### Scenario: 无已报价明细时合计为空
+
+- **WHEN** 询价单的明细行均未填写 `unitPrice`，或该询价单没有未软删明细行
+- **THEN** `totalAmount` 为 `null`
+
+#### Scenario: 客户端传入合计被拒
+
+- **WHEN** 任一询价单写入端点（Admin 创建/更新）的请求体携带 `totalAmount`
+- **THEN** 系统返回 400（`forbidNonWhitelisted`），不接受客户端指定的合计
+
+#### Scenario: 更新端点不接受换址
+
+- **WHEN** 后台通过 `PATCH /inquiry/inquiries/:id` 携带 `shippingAddressId`（指向另一张地址）
+- **THEN** 系统返回 400（`forbidNonWhitelisted`），该单据的地址引用与 7 个快照字段均保持不变
+
 ### Requirement: 管理端询价单收货地址归属校验
 
 系统 SHALL 在管理端 `create` 路径的 `$transaction` 内（与编号生成、询价单主体同一事务）通过既有 `resolveShippingSnapshot(tx, addressId, ownerCustomerId)` 接缝校验收货地址：当 `shippingAddressId` 非空时，地址必须存在、未被软删、且 `address.customerId === ownerCustomerId`（即 `dto.customerId`）。任一条件不满足 SHALL 返回 400 `INVALID_SHIPPING_ADDRESS`，SHALL NOT 以数据库外键错误返回的 500 暴露。该接缝由 P0-2 引入，客户自助路径复用同一实现，管理端路径 SHALL NOT 另写平行校验。
@@ -68,26 +92,34 @@
 
 ### Requirement: 询价单编号生成
 
-系统 SHALL 在事务内生成询价单编号，格式为 `INQ{YYYYMM}-{4位序号}`（如 `INQ202608-0001`），序号按月递增，从 1 开始。生成逻辑 SHALL 在事务内查询当月最大编号 + 1，捕获唯一约束冲突时重试，最多重试 3 次。`inquiryNo` SHALL 全局唯一。
+系统 SHALL 在事务内通过单一编号生成模块生成询价单编号，格式为 `INQ{YYYYMM}-{6位序号}`（如 `INQ202608-000001`），序号按月递增，从 1 开始。序号 SHALL 以 6 位零填充；同一月份内，当月最大序号 SHALL 以数值方式（`parseInt(inquiryNo.split('-')[1], 10)`）从 `inquiryNo` 中以 `INQ{YYYYMM}-` 为前缀的记录中推导，禁止依赖固定尾段长度截断。生成逻辑 SHALL 在事务内获取编号级 advisory 锁、查询当月最大序号 + 1、捕获唯一约束冲突时重试，最多重试 3 次。`inquiryNo` SHALL 全局唯一。单月序号上限为 999999。
 
 #### Scenario: 首单编号
 
 - **WHEN** 2026 年 8 月系统收到首张询价单
-- **THEN** 系统生成编号 `INQ202608-0001`
+- **THEN** 系统生成编号 `INQ202608-000001`
 
 #### Scenario: 并发冲突重试
 
 - **WHEN** 两个请求同时尝试创建询价单，均查询到当月最大序号为 5
-- **THEN** 第一个请求成功创建 `INQ202608-0006`，第二个请求因唯一约束冲突重试，查询到新最大序号 6，生成 `INQ202608-0007`
+- **THEN** 第一个请求成功创建 `INQ202608-000006`，第二个请求因唯一约束冲突重试，查询到新最大序号 6，生成 `INQ202608-000007`
 
 #### Scenario: 重试耗尽
 
 - **WHEN** 编号生成重试 3 次仍冲突
 - **THEN** 系统返回 500 Internal Server Error，错误码 `INQUIRY_NO_GENERATION_FAILED`
 
+#### Scenario: 单月超 9999 单不溢出
+
+- **WHEN** 当月已存在 9999 张询价单，最大编号为 `INQ202608-009999`，系统收到第 10000 张询价单
+- **THEN** 系统正确推导当月最大序号为 9999（而非因字典序误判为较小值），生成第 10000 张编号 `INQ202608-010000`
+- **AND** 继续创建第 10001 张时生成 `INQ202608-010001`，不发生唯一约束冲突，不返回 500
+
 ### Requirement: 询价单明细行
 
 系统 SHALL 提供 `InquiryLine` 的 CRUD 接口，字段包含：`inquiryId`（引用 Inquiry）、`filterId`（可空，引用 Filter）、`productName`（非空）、`model`、`typeName`、`quantity`（默认 1，非空）、`unitPrice`（numeric(12,2)，可空）、`subtotal`（numeric(12,2)，可空）、`remarks`、`sortOrder`。明细行随询价单硬删而级联删除（`onDelete: Cascade`），`filterId` 在滤清器硬删时置空（`onDelete: SetNull`）保留明细行。
+
+`subtotal` SHALL 由系统按 `quantity × unitPrice` 派生，SHALL NOT 接受客户端传入；`unitPrice` 为空时 `subtotal` SHALL 为 `null`（SHALL NOT 为 `0`）。该派生 SHALL 与明细行自身的写入在同一事务内完成，使读取方永不观察到 `quantity`/`unitPrice`/`subtotal` 三者互相矛盾的明细行。
 
 #### Scenario: 添加明细行
 
@@ -98,6 +130,21 @@
 
 - **WHEN** 关联的 Filter 被硬删除
 - **THEN** `InquiryLine.filterId` 置空，`productName`/`model`/`typeName` 快照字段保留，询价单历史可读
+
+#### Scenario: 小计由系统派生
+
+- **WHEN** 运营人员写入一行明细，`quantity = 4`、`unitPrice = 12.50`
+- **THEN** 系统写入 `subtotal = 50.00`，无需运营人员计算或填写
+
+#### Scenario: 单价为空时小计为空
+
+- **WHEN** 运营人员写入一行明细，仅提供 `quantity`，不提供 `unitPrice`
+- **THEN** 系统写入 `subtotal = null`（不是 `0`）
+
+#### Scenario: 客户端传入小计被拒
+
+- **WHEN** 任一明细行写入端点（Admin 创建/更新）的请求体携带 `subtotal`
+- **THEN** 系统返回 400（`forbidNonWhitelisted`），不接受客户端指定的金额
 
 ### Requirement: 询价单状态流转
 
@@ -175,12 +222,22 @@
 
 ### Requirement: 软删除与唯一约束
 
-`Inquiry` 与 `InquiryLine` SHALL 支持 `deletedAt` 软删除。`inquiryNo` 唯一约束在数据库层面全局生效（含软删除记录）；Service 层 SHALL 在创建前校验未软删除记录无同名编号（实际由编号生成逻辑保证不会重复，因为基于当月最大序号递增）。
+`Inquiry` 与 `InquiryLine` SHALL 支持 `deletedAt` 软删除。单条删除与批量删除 SHALL 均经 `SoftDeleteService` 完成（统一软删机制），不得各自以不同方式设置 `deletedAt`：单条删除调用 `softDelete(model, idField, id)`，批量删除调用 `softDeleteMany(model, idField, ids)`，二者 SHALL 产生相同的 `deletedAt = now()` 软删语义。`inquiryNo` 唯一约束在数据库层面全局生效（含软删除记录）；Service 层 SHALL 在创建前校验未软删除记录无同名编号（实际由编号生成逻辑保证不会重复，因为基于当月最大序号递增）。
 
 #### Scenario: 软删除询价单
 
 - **WHEN** 管理员软删除询价单
 - **THEN** 系统设置 `deletedAt = now()`，记录保留；查询接口不再返回该记录；`inquiryNo` 仍占位，新询价单不会复用该编号
+
+#### Scenario: 批量软删除询价单
+
+- **WHEN** 管理员批量软删除一组询价单（`inquiryId` 列表）
+- **THEN** 系统经 `SoftDeleteService.softDeleteMany` 将列表内每条记录的 `deletedAt` 置为 `now()`，仅命中 `deletedAt` 为空的记录；删除后查询接口不再返回这些记录，且软删语义与单条删除完全一致
+
+#### Scenario: 批量软删对已软删记录幂等
+
+- **WHEN** 批量软删除的 `inquiryId` 列表中包含已软删（`deletedAt` 非空）的询价单
+- **THEN** 系统跳过该记录（不重复置 `deletedAt`），其余记录正常软删，不抛错
 
 ### Requirement: 客户自助创建询价单
 

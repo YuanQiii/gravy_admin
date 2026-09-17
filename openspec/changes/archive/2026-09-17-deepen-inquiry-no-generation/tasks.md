@@ -10,7 +10,7 @@
 
 ## 3. 规格同步（BREAKING，经 archive 落地）
 
-- [ ] 3.1 确认 `specs/inquiry/spec.md` 的 MODIFIED delta 已把「询价单编号生成」格式写为 6 位（`INQ{YYYYMM}-{6位序号}`，示例 `INQ202608-000001`），原 3 个 Scenario 整块保留 + 新增「单月超 9999 单不溢出」。验证：`openspec validate deepen-inquiry-no-generation --strict` 通过（MODIFIED 未遗漏 Scenario）；`openspec archive` 后 `openspec/specs/inquiry/spec.md` 主规格同步为 6 位（本任务执行期内不手动改主规格，由 archive 应用 delta）。
+- [x] 3.1 确认 `specs/inquiry/spec.md` 的 MODIFIED delta 已把「询价单编号生成」格式写为 6 位（`INQ{YYYYMM}-{6位序号}`，示例 `INQ202608-000001`），原 3 个 Scenario 整块保留 + 新增「单月超 9999 单不溢出」。验证：`openspec validate deepen-inquiry-no-generation --strict` 通过（MODIFIED 未遗漏 Scenario）；`openspec archive` 后 `openspec/specs/inquiry/spec.md` 主规格同步为 6 位（本任务执行期内不手动改主规格，由 archive 应用 delta）。
 
 ## 4. 测试
 

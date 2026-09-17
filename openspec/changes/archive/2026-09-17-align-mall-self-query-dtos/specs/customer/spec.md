@@ -9,7 +9,7 @@
 - `PATCH /addresses/:id`：更新本人收货地址
 - `DELETE /addresses/:id`：删除本人收货地址
 
-系统 SHALL 仅允许客户操作本人名下地址，访问他人地址 SHALL 返回 404。`isDefault` 全局唯一约束 SHALL 在每个 `customerId` 内生效：设置某地址为默认时，系统 SHALL 在事务内将同客户其他地址的 `isDefault` 置 false。删除当前默认地址后 `isDefault` 不自动迁移。客户自助地址数据与后台地址管理共享同一 `CustomerAddress` 存储，Admin 应用 `customer/addresses` 管理端点行为保持不变。未登录或令牌无效 SHALL 返回 401。本人收货地址列表（`GET /addresses`）的查询参数 SHALL 仅含分页/排序字段（继承自 `PaginationSortDto`），SHALL NOT 声明或接受 `customerId` / `receiver` / `phone` 等身份或内容筛选字段；携带这些字段的请求 SHALL 被全局 `ValidationPipe`（`forbidNonWhitelisted: true`）以 400 拒绝，`customerId` 仅来自登录态。
+系统 SHALL 仅允许客户操作本人名下地址，访问他人地址 SHALL 返回 404。`isDefault` 全局唯一约束 SHALL 在每个 `customerId` 内生效：设置某地址为默认时，系统 SHALL 在事务内将同客户其他地址的 `isDefault` 置 false。`CustomerAddress` SHALL 采用**硬删**语义：删除即物理移除行，不保留 `deletedAt` 软删列；读路径（`GET /addresses` 列表、`GET/PATCH/DELETE` 单条校验）SHALL NOT 以 `deletedAt` 过滤或作为地址存在性/归属校验的依据（归属校验仅基于 `customerId` 与记录存在性）。删除当前默认地址后 `isDefault` 不自动迁移。客户自助地址数据与后台地址管理共享同一 `CustomerAddress` 存储，Admin 应用 `customer/addresses` 管理端点行为保持不变（亦为硬删、无 `deletedAt`）。未登录或令牌无效 SHALL 返回 401。本人收货地址列表（`GET /addresses`）的查询参数 SHALL 仅含分页/排序字段（继承自 `PaginationSortDto`），SHALL NOT 声明或接受 `customerId` / `receiver` / `phone` 等身份或内容筛选字段；携带这些字段的请求 SHALL 被全局 `ValidationPipe`（`forbidNonWhitelisted: true`）以 400 拒绝，`customerId` 仅来自登录态。
 
 #### Scenario: 客户新增默认地址
 
@@ -26,6 +26,16 @@
 - **WHEN** 已登录客户请求 `DELETE /addresses/:id` 删除当前默认地址
 - **THEN** 系统硬删该地址，`isDefault` 状态不自动迁移；若仍有其他地址，需客户手动设置默认
 
+#### Scenario: 地址列表不按软删过滤
+
+- **WHEN** 已登录客户请求 `GET /addresses`
+- **THEN** 系统返回该客户全部物理存在的地址，不因 `deletedAt`（该列已不存在）而遗漏或过滤任何记录
+
+#### Scenario: 删除后二次删除返回 404
+
+- **WHEN** 客户删除某地址后，再次请求 `DELETE /addresses/:id` 或 `PATCH /addresses/:id` 操作同一 `addressId`
+- **THEN** 系统按记录不存在返回 404（归属/存在性校验仅基于 `customerId` 与记录存在性，不依赖 `deletedAt`）
+
 #### Scenario: 未登录调用地址接口
 
 - **WHEN** 请求未携带客户 access token 调用任一 `/addresses` 端点
@@ -41,6 +51,7 @@
 - **WHEN** 已登录客户在 `GET /addresses` 查询串中携带 `customerId` / `receiver` / `phone` 中任一字段
 - **THEN** 系统返回 400（`forbidNonWhitelisted`），不执行查询；地址列表查询不接受任何内容或身份筛选参数，`customerId` 仅来自登录态
 
+
 ### Requirement: 收藏管理
 
 系统 SHALL 提供 `CustomerFavorite` 的接口（仅创建/删除/列表，无更新），字段包含：`customerId`、`filterId`、`createdAt`。`(customerId, filterId)` SHALL 唯一。收藏随客户或滤清器硬删而级联删除（`onDelete: Cascade`）。`CustomerFavorite` 为事件型记录，无 `updatedAt`、无软删除。接口为 B2C 自助语义：当前客户 SHALL 由登录态（`CustomerJwtGuard` + `@CurrentCustomer()`）恢复，请求 SHALL 不携带显式 `customerId` 参数；未登录或令牌无效 SHALL 返回 401。创建收藏前，系统 SHALL 校验 `filterId` 对应滤清器存在、`status = 'enabled'` 且未软删除（`deletedAt IS NULL`）；不满足 SHALL 拒绝该请求并返回 400（`FILTER_NOT_AVAILABLE`），不创建收藏。收藏列表（`GET /favorites`）SHALL 投影滤清器当前字段（对齐浏览历史快照 `model/gencode/typeName`）并**派生** `filterAvailable: boolean`（与收藏校验同一判定源），供前端识别失效收藏；已失效滤清器的收藏记录仍返回其最后快照，不静默丢失、不按 `deletedAt`/`status` 过滤。收藏列表（`GET /favorites`）的查询参数 SHALL 仅声明可选的 `filterId`，SHALL NOT 声明 `customerId`；携带 `customerId` 或任意未声明字段的请求 SHALL 以 400（`forbidNonWhitelisted`）被拒。`filterId` 为唯一被服务端消费的查询筛选条件，用于按滤清器过滤当前客户收藏，`customerId` 仅来自登录态。
@@ -48,31 +59,37 @@
 #### Scenario: 重复收藏幂等
 
 - **WHEN** 已登录客户重复收藏已收藏的有效滤清器（含并发重复提交两个请求）
-- **THEN** 系统检测 `(customerId, filterId)` 已存在，返回 200（幂等），以登录态客户为当前客户，不重复插入且不创建他人收藏；并发下任一请求撞唯一约束也回查既存并返回，不报 500
+
+- **THEN** 系统检测 `(customerId, filterId)` 已存在，返回 201（幂等，沿用 POST 默认状态码与统一响应约定），以登录态客户为当前客户，不重复插入且不创建他人收藏；并发下任一请求撞唯一约束也回查既存并返回，不报 500
 
 #### Scenario: 收藏列表投影与失效标记
 
 - **WHEN** 已登录客户查询自己的收藏列表
+
 - **THEN** 系统仅以登录态 `customerId` 为依据，返回按收藏时间降序的分页收藏，每条含滤清器当前快照（与浏览历史相同的 `model/gencode/typeName` 字段）与派生 `filterAvailable: boolean`（有效收藏为 `true`，`status='disabled'`/已软删/不存在为 `false`）；不返回其他客户的收藏，不因滤清器失效而丢弃该收藏记录
 
 #### Scenario: 收藏已停用滤清器被拒
 
 - **WHEN** 已登录客户请求收藏一个 `status = 'disabled'` 或已软删除的滤清器
+
 - **THEN** 系统返回 400（`FILTER_NOT_AVAILABLE`），不创建收藏
 
 #### Scenario: 收藏不存在的滤清器被拒
 
 - **WHEN** 已登录客户请求收藏一个系统中不存在的 `filterId`
+
 - **THEN** 系统返回 400（`FILTER_NOT_AVAILABLE`），不创建收藏
 
 #### Scenario: 取消收藏
 
 - **WHEN** 已登录客户通过 `DELETE /favorites/:favoriteId` 取消收藏
+
 - **THEN** 系统硬删对应当前客户名下、`favoriteId` 匹配的 `CustomerFavorite` 记录；该收藏不属于当前客户或不存在 SHALL 返回 404。不提供按 `filterId` 的取消收藏入口
 
 #### Scenario: 未登录调用收藏接口
 
 - **WHEN** 请求未携带客户 access token（或令牌无效）调用收藏接口
+
 - **THEN** 系统返回 401，不执行任何收藏操作
 
 #### Scenario: 收藏列表查询仅接受 filterId
@@ -84,7 +101,6 @@
 
 - **WHEN** 已登录客户在 `GET /favorites` 查询串中携带 `customerId` 或任意未声明字段
 - **THEN** 系统返回 400（`forbidNonWhitelisted`），不执行查询；客户身份不可由查询参数指定
-
 ### Requirement: 浏览历史管理
 
 系统 SHALL 提供浏览历史管理能力：写路径由滤清器详情浏览流程触发，查询/删除为 B2C 自助语义。写路径：当已登录客户访问滤清器详情页时，系统 SHALL 调用 `recordView(customerId, filterId)`（`(customerId, filterId)` 唯一；重复浏览 SHALL 更新 `visitedAt`，upsert 语义）；匿名访客浏览详情 SHALL 不写入任何历史。查询/删除：当前客户 SHALL 由登录态（`CustomerJwtGuard` + `@CurrentCustomer()`）恢复，请求 SHALL 不携带显式 `customerId` 参数；未登录或令牌无效 SHALL 返回 401。字段包含：`customerId`、`filterId`、`visitedAt`。快照字段集与收藏对齐：`filter` 投影 `model/gencode/typeName/photoUuid` 并派生 `filterAvailable`（`status === 'enabled'` 且未软删）；已失效/已软删滤清器的历史仍按其最后快照返回、仅以 `filterAvailable` 置灰，不静默丢失。每客户历史保留**上限 100 条**（`HISTORY_LIMIT`），`recordView` 在写入事务内淘汰超出部分的**最旧记录**（按 `visitedAt desc` 跳过前 100 后 `deleteMany`）。单条删除为硬删；另提供「清空本人全部历史」的 `DELETE`。历史随客户或滤清器硬删而级联删除（`onDelete: Cascade`）。`CustomerHistory` 为事件型记录，无 `updatedAt`、无软删除。浏览历史列表（`GET /history`）的查询参数 SHALL 仅声明可选的 `filterId`，SHALL NOT 声明 `customerId`；携带 `customerId` 或任意未声明字段的请求 SHALL 以 400（`forbidNonWhitelisted`）被拒。`filterId` 为唯一被服务端消费的查询筛选条件，`customerId` 仅来自登录态。
@@ -128,6 +144,11 @@
 
 - **WHEN** 请求未携带客户 access token（或令牌无效）调用浏览历史接口
 - **THEN** 系统返回 401，不返回任何历史记录
+
+#### Scenario: 浏览历史写为非阻塞副作用
+
+- **WHEN** 已登录客户访问有效滤清器详情页
+- **THEN** 系统 SHALL 以 fire-and-forget（非阻塞）方式触发 `recordView`，详情响应在可见性查询完成后立即返回，其延迟与状态码 SHALL NOT 受 `recordView` 的完成与否或其成败影响；写入失败 SHALL 仅记 warn 日志且不重试、不影响本次响应
 
 #### Scenario: 历史列表查询仅接受 filterId
 

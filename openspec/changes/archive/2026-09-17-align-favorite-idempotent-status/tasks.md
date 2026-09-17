@@ -3,7 +3,7 @@
 - [x] 1.1 复核 delta 文件 `specs/customer/spec.md` 的 `## MODIFIED Requirements` 已整块复制「收藏管理」Requirement 全部场景，且「重复收藏幂等」场景由「返回 200（幂等）」改为「返回 201（幂等，沿用 POST 默认状态码与统一响应约定）」；其余场景逐字不变。验证：`grep -n "返回 201（幂等" specs/customer/spec.md` 命中、`grep -n "返回 200（幂等" specs/customer/spec.md` 无命中。
 - [x] 1.2 （可选，非强制）将 `apps/mall/src/modules/customer-activity/favorites.controller.ts:43-47` 的 `@ApiResponse({ status: 201, description: '收藏成功' })` 措辞调整为「收藏成功（幂等命中亦返回 201）」，使 Swagger 语义与 201 事实一致；控制器返回逻辑与 `@ApiResponse({ status: 201 })` 声明保持不变。验证：确认控制器仍 `return ResponseUtil.created(...)`，无状态码逻辑改动。
 - [x] 1.3 运行 `openspec validate align-favorite-idempotent-status --strict`，确认通过（退出码 0、无 omit/校验报错）。验证：命令输出不含 error，`validate` 成功。
-- [ ] 1.4 apply 阶段执行 `openspec archive align-favorite-idempotent-status`，将 delta 合并进主规格 `openspec/specs/customer/spec.md`，并复核主规格该场景已为 201。验证：`grep -n "返回 201（幂等" openspec/specs/customer/spec.md` 命中。
+- [x] 1.4 apply 阶段执行 `openspec archive align-favorite-idempotent-status`，将 delta 合并进主规格 `openspec/specs/customer/spec.md`，并复核主规格该场景已为 201。验证：`grep -n "返回 201（幂等" openspec/specs/customer/spec.md` 命中。
 
 ## 2. 架构审查处置（回写结论）
 

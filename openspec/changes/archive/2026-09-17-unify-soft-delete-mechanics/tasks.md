@@ -22,7 +22,7 @@
 
 ## 4. 规格与文档同步
 
-- [ ] 4.1 归档时由 `/opsx-archive` 将 `specs/inquiry/spec.md` 与 `specs/customer/spec.md` 的 delta 合并进主规格（本次不执行，仅标注）。验证：`openspec archive unify-soft-delete-mechanics` 后主规格含统一软删与硬删无 deletedAt 的约束。
+- [x] 4.1 归档时由 `/opsx-archive` 将 `specs/inquiry/spec.md` 与 `specs/customer/spec.md` 的 delta 合并进主规格（本次不执行，仅标注）。验证：`openspec archive unify-soft-delete-mechanics` 后主规格含统一软删与硬删无 deletedAt 的约束。
 - [x] 4.2 复查 `AGENTS.md`/文档中若有「CustomerAddress 软删」相关描述，订正为硬删语义（仅改描述，不动 schema）。验证：`grep -rn "CustomerAddress" AGENTS.md docs/` 描述与硬删一致。
 
 ## 5. 校验

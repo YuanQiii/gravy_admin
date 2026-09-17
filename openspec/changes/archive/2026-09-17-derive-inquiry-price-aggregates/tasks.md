@@ -33,7 +33,7 @@
 - [x] 5.1 Swagger 描述同步：`subtotal` / `totalAmount` 标注「由服务端派生，不接受客户端传入」；请求 DTO 的字段删除后重新生成文档。验证：`pnpm build` 后 Swagger 中两个字段描述为新文案。
 - [x] 5.2 核对 admin 前端调用点是否传过 `totalAmount`/`subtotal`（**BREAKING** 影响面）。验证：`grep -rn "totalAmount\|subtotal" apps/admin/src` 逐一确认；结果记入变更备注。
 - [x] 5.3 端到端：客户创建带明细的询价单 → admin 为明细填价 → 客户查询详情断言 `subtotal = quantity × unitPrice` 且 `totalAmount = Σ subtotal`。验证：`pnpm test:e2e` 相关套件全绿（可与 `inquiry-detail-lines.e2e-spec.ts` 合并用例）。
-- [ ] 5.4 归档时把 delta 合并进 `openspec/specs/inquiry/spec.md`；**注意与 `snapshot-inquiry-shipping-address` 的串行顺序**（design 决策 6）：必须以对方合并后的主规格为基准重放本变更的 MODIFIED「询价单创建」，并核对合并后该 Requirement 同时含地址快照与合计派生两组约束。验证：合并后 `grep -n "shippingReceiver\|totalAmount" openspec/specs/inquiry/spec.md` 两组约束均在；`openspec validate --specs` 通过。
+- [x] 5.4 归档时把 delta 合并进 `openspec/specs/inquiry/spec.md`；**注意与 `snapshot-inquiry-shipping-address` 的串行顺序**（design 决策 6）：必须以对方合并后的主规格为基准重放本变更的 MODIFIED「询价单创建」，并核对合并后该 Requirement 同时含地址快照与合计派生两组约束。验证：合并后 `grep -n "shippingReceiver\|totalAmount" openspec/specs/inquiry/spec.md` 两组约束均在；`openspec validate --specs` 通过。
 - [x] 5.5 评估 `docs/adr/0014` 决策 5（"聚合划归 admin 职责"）是否需补一句"已由 `derive-inquiry-price-aggregates` 落实"；**本次不改 ADR 文件**，记录结论。验证：给出"需要/不需要 + 理由"一句话结论。
 
 ## 实施记录（2026-09-17）

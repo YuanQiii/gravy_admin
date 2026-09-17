@@ -10,16 +10,16 @@
 |---|---|---|
 | P0-2 地址快照 | `snapshot-inquiry-shipping-address` | ✅ **已归档**（2026-09-17，主规格已同步） |
 | P0-3 状态流转原子化 | `atomic-inquiry-status-transition` | ✅ **已归档**（`ca25754`；主规格同步 + P1-3 重放） |
-| P1-1 + P3-1 编号生成 | `deepen-inquiry-no-generation` | 🚧 已实施 11/12（BREAKING 6 位序号已生效，待归档） |
-| P1-2 限流信任边界 | `harden-client-ip-trust-boundary` | 🚧 已实施 9/9 并**已提交**（`af9b0e5`；待归档） |
+| P1-1 + P3-1 编号生成 | `deepen-inquiry-no-generation` | ✅ **已归档**（2026-09-17） |
+| P1-2 限流信任边界 | `harden-client-ip-trust-boundary` | ✅ **已归档**（2026-09-17） |
 | P1-3 过期语义 | `resolve-inquiry-expiry-semantics` | 🚧 已实施 13/13 并**已提交**（`493f0dd`；delta 已三次重放至最新主规格） |
-| P2-1 排序白名单 | `whitelist-pagination-sort-params` | 🚧 已实施 15/15 并**已提交**（`bcd2b20`；待归档） |
-| P2-1b 异常响应收敛 | `converge-non-http-exception-response` | 🚧 已实施 13/14 并**已提交**（`6e19107`；待归档） |
-| P2-2 自域 Query DTO | `align-mall-self-query-dtos` | 🚧 已实施 12/12 并**已提交**（`a1f7cbd`；待归档） |
-| P2-3 客户门禁一致化 | `unify-customer-availability-gate` | 🚧 已实施 9/9 并**已提交**（`de93a3a`；待归档） |
+| P2-1 排序白名单 | `whitelist-pagination-sort-params` | ✅ **已归档**（2026-09-17） |
+| P2-1b 异常响应收敛 | `converge-non-http-exception-response` | ✅ **已归档**（2026-09-17） |
+| P2-2 自域 Query DTO | `align-mall-self-query-dtos` | ✅ **已归档**（2026-09-17） |
+| P2-3 客户门禁一致化 | `unify-customer-availability-gate` | ✅ **已归档**（2026-09-17） |
 | P2-4 地址归属校验 | `validate-inquiry-shipping-address-ownership` | ✅ **已归档**（2026-09-17，主规格同步 + 触发 P3-6 二次重放） |
-| P2-5 recordView 异步化 | `take-history-write-off-request-path` | 🚧 已实施 10/10 并**已提交**（`a5229fe`；待归档） |
-| P2-6 热门品牌下推 | `bound-hot-brand-candidate-set` | 🚧 已实施 12/12 并**已提交**（`0b39597`；待归档） |
+| P2-5 recordView 异步化 | `take-history-write-off-request-path` | ✅ **已归档**（2026-09-17） |
+| P2-6 热门品牌下推 | `bound-hot-brand-candidate-set` | ✅ **已归档**（2026-09-17） |
 | P3-2 软删/硬删统一 | `unify-soft-delete-mechanics` | ✅ |
 | P3-3 幂等收藏状态码 | `align-favorite-idempotent-status` | 🚧 已实施 6/7 并**已提交**（待归档） |
 | P3-4 unionid 契约 | `reconcile-wechat-unionid-contract` | 🚧 已实施 11/11 并**已提交**（待归档） |
@@ -152,3 +152,16 @@
 - **`MODIFIED` 必须承载原 Requirement 全部 Scenario**，否则 `validate --strict` 报 "MODIFIED omits scenario(s)"；**纠正文档里的错误/虚挂主张优先用 `REMOVED + ADDED`**（可留下"此规格曾出错"的记录，且不受场景承载规则约束）。
 - 架构审查报告落系统临时目录，不落仓库；术语只用 codebase-design 词汇（module / interface / implementation / depth / seam / adapter / leverage / locality）。
 - 每组收尾跑 `openspec validate <name> --strict`。
+
+
+## 归档完成（2026-09-17 19:2x）
+
+**17/17 全部归档，openspec list 为空，validate --specs 12/12 通过。**
+
+归档顺序：P1-1 → P3-6 → P2-3 → P3-2 → P1-2 → P3-4 → P3-5 → P3-3 → P2-1b → P2-1 → P2-2 → P2-5 → P2-6。
+
+连锁重放 2 次：
+1. `align-mall-self-query-dtos` 的 MODIFIED「客户自助管理收货地址」缺 P3-2 归档带入的 2 个场景 → 按主规格现文重放；连带「收藏管理」（保住 P3-3 的 201 措辞）与「浏览历史管理」（保住 P2-5 的 fire-and-forget）一并重放后归档成功。
+2. 其余变更在各次归档后 validate --strict 全绿，无需重放。
+
+遗留：P3-6 的回填迁移（tasks 4.2/4.3，需用户确认；回填 SQL：subtotal=quantity*unit_price + 重算 total_amount）。
