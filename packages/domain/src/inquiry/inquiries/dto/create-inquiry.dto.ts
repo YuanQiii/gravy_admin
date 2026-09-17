@@ -6,7 +6,16 @@ import {
   IsNotEmpty,
   MaxLength,
 } from 'class-validator';
+import { ShippingAddressRequiresCustomer } from './shipping-address-requires-customer.constraint';
 
+/**
+ * 管理端创建询价单入参。
+ *
+ * 类级约束：提供了 `shippingAddressId` 就必须提供 `customerId`
+ * —— 地址归属要在知道 owner 时才可判定，缺 owner 的请求在入参层即被拒绝。
+ * 真正的归属判定在服务端事务内的 `assertShippingAddressOwned`。
+ */
+@ShippingAddressRequiresCustomer()
 export class CreateInquiryDto {
   @ApiProperty({
     description: '询价单标题',

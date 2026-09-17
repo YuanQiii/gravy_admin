@@ -692,6 +692,20 @@ model Inquiry {
   updatedBy        User?     @relation("InquiryUpdatedBy", fields: [updatedById], references: [userId], onDelete: Restrict, onUpdate: Restrict)
   shippingAddressId String?
   shippingAddress  CustomerAddress? @relation(fields: [shippingAddressId], references: [addressId], onDelete: SetNull, onUpdate: Restrict)
+
+  // ===== 收货地址快照（创建时点冻结，不随 CustomerAddress 修改/删除漂移）=====
+  // 为什么冗余：shippingAddressId 是**引用**不是快照；地址硬删时外键 ON DELETE SET NULL
+  // 会静默清空引用 → 已提交/已报价询价单的收货信息永久丢失且无迹可查。
+  // 快照是展示与履约的真值，shippingAddressId 降级为溯源引用（可为 null）。
+  // 与 InquiryLine 对 Filter 的快照、Inquiry.customerName/Email/Phone 联系人快照同范式。
+  shippingReceiver      String?
+  shippingPhone         String?
+  shippingProvince      String?
+  shippingCity          String?
+  shippingDistrict      String?
+  shippingDetailAddress String?
+  shippingZipCode       String?
+
   submittedAt      DateTime?
   quotedAt         DateTime?
   expiresAt        DateTime?

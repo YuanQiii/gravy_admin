@@ -4,6 +4,7 @@ import { Prisma } from '@prisma/client';
 import { InquiryLineResponseDto } from '../../inquiry-lines/dto/inquiry-line-response.dto';
 import { InquiryDetailResponseDto } from './inquiry-detail-response.dto';
 import { InquiryResponseDto } from './inquiry-response.dto';
+import { SHIPPING_SNAPSHOT_KEYS } from './shipping-snapshot.shape';
 
 /**
  * 响应投影接缝的前置契约测试（见 CONTEXT.md 词条 `Inquiry response projection`）。
@@ -45,7 +46,14 @@ const INQUIRY_SOURCE: Record<string, unknown> = {
   totalAmount: new Prisma.Decimal('1500.00'),
   customerId: 'cust-1',
   createdById: null,
-  shippingAddressId: null,
+  shippingAddressId: 'addr-1',
+  shippingReceiver: '李四',
+  shippingPhone: '13900139000',
+  shippingProvince: '江苏省',
+  shippingCity: '无锡市',
+  shippingDistrict: '滨湖区',
+  shippingDetailAddress: '太湖大道 100 号',
+  shippingZipCode: '214000',
   submittedAt: new Date('2026-09-01T00:00:00Z'),
   quotedAt: new Date('2026-09-02T00:00:00Z'),
   expiresAt: null,
@@ -158,5 +166,66 @@ describe('InquiryDetailResponseDto（投影接缝 · 详情主体）', () => {
 
     expect(body).not.toHaveProperty('id');
     expect(body).not.toHaveProperty('junk');
+  });
+});
+
+describe('收货地址快照字段（列表与详情两副形状都携带）', () => {
+  const listBody = () => wire(projectLine(InquiryResponseDto, INQUIRY_SOURCE));
+  const detailBody = () =>
+    wire(projectLine(InquiryDetailResponseDto, INQUIRY_SOURCE));
+
+  it('列表响应携带全部 7 个快照字段，值取自被引用地址', () => {
+    const body = listBody();
+
+    for (const key of SHIPPING_SNAPSHOT_KEYS) {
+      expect(body).toHaveProperty(key);
+    }
+    expect(body.shippingReceiver).toBe('李四');
+    expect(body.shippingPhone).toBe('13900139000');
+    expect(body.shippingProvince).toBe('江苏省');
+    expect(body.shippingCity).toBe('无锡市');
+    expect(body.shippingDistrict).toBe('滨湖区');
+    expect(body.shippingDetailAddress).toBe('太湖大道 100 号');
+    expect(body.shippingZipCode).toBe('214000');
+  });
+
+  it('详情响应同样携带全部快照字段（详情 DTO 继承基础形状）', () => {
+    const body = detailBody();
+
+    for (const key of SHIPPING_SNAPSHOT_KEYS) {
+      expect(body).toHaveProperty(key);
+    }
+    expect(body.shippingReceiver).toBe('李四');
+  });
+
+  it('未选地址时快照字段仍**在场**且为 null（不是丢字段、也不是空串）', () => {
+    const source = {
+      ...INQUIRY_SOURCE,
+      shippingAddressId: null,
+      ...Object.fromEntries(SHIPPING_SNAPSHOT_KEYS.map((k) => [k, null])),
+    };
+
+    for (const body of [
+      wire(projectLine(InquiryResponseDto, source)),
+      wire(projectLine(InquiryDetailResponseDto, source)),
+    ]) {
+      for (const key of SHIPPING_SNAPSHOT_KEYS) {
+        expect(body).toHaveProperty(key, null);
+      }
+      expect(body.shippingAddressId).toBeNull();
+    }
+  });
+
+  it('快照与引用可独立存在：引用被置空而快照仍在（地址被硬删后的稳态）', () => {
+    const body = wire(
+      projectLine(InquiryResponseDto, {
+        ...INQUIRY_SOURCE,
+        shippingAddressId: null, // 外键 ON DELETE SET NULL 的结果
+      }),
+    );
+
+    expect(body.shippingAddressId).toBeNull();
+    expect(body.shippingReceiver).toBe('李四');
+    expect(body.shippingDetailAddress).toBe('太湖大道 100 号');
   });
 });

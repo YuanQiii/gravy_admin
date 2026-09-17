@@ -9,53 +9,71 @@ import { PrismaService, SoftDeleteService } from '@gvray/core';
 
 import { InquiriesService } from './inquiries.service';
 
-// 最小可用的 Prisma 代理：仅 mock 本次涉及的方法
+// 最小可用的 Prisma 代理：仅 mock 本次涉及的方法。
+//
+// 事务客户端**只创建一次**并在每次 $transaction 调用中复用，使测试能像生产代码一样
+// 断言「读取与写入发生在同一事务内」（收货地址快照的读取已从事务外移入事务内）。
 function makePrisma() {
-  const txStore: any = {};
-  return {
-    $transaction: (fn: (tx: any) => Promise<unknown>) =>
-      fn({
-        inquiry: {
-          findFirst: jest.fn(async () => null),
-          create: jest.fn((data: any) =>
-            Promise.resolve({
-              inquiryId: 'inq-001',
-              inquiryNo: data.data.inquiryNo,
-              customerId: data.data.customerId,
-              status: data.data.status,
-            }),
-          ),
-        },
-        inquiryLine: {
-          create: jest.fn(() => Promise.resolve({ inquiryLineId: 'line-001' })),
-        },
-        filter: {
-          findMany: jest.fn(async () => [
-            {
-              filterId: 'flt-001',
-              model: '320D',
-              typeName: 'Hydraulic',
-              deletedAt: null,
-            },
-          ]),
-        },
-        $executeRaw: () => Promise.resolve(),
-      }),
-    customer: {
-      findUnique: jest.fn(),
-    },
-    customerAddress: {
-      findUnique: jest.fn(),
-    },
+  const tx: any = {
     inquiry: {
-      findFirst: jest.fn(),
-      updateMany: jest.fn(async () => ({ count: 0 })),
+      findFirst: jest.fn(async () => null),
+      create: jest.fn((args: any) =>
+        Promise.resolve({
+          inquiryId: 'inq-001',
+          inquiryNo: args.data.inquiryNo,
+          customerId: args.data.customerId,
+          status: args.data.status,
+        }),
+      ),
     },
     inquiryLine: {
-      create: jest.fn(),
+      create: jest.fn(() => Promise.resolve({ inquiryLineId: 'line-001' })),
     },
-  } as unknown as PrismaService;
+    filter: {
+      findMany: jest.fn(async () => [
+        {
+          filterId: 'flt-001',
+          model: '320D',
+          typeName: 'Hydraulic',
+          deletedAt: null,
+        },
+      ]),
+    },
+    customerAddress: {
+      // 快照读取的唯一入口（resolveShippingSnapshot 内、事务内）
+      findUnique: jest.fn(async () => null),
+    },
+    $executeRaw: () => Promise.resolve(),
+  };
+  const prisma: any = {
+    $transaction: (fn: (tx: any) => Promise<unknown>) => fn(tx),
+    customer: { findUnique: jest.fn() },
+    inquiry: {
+      findFirst: jest.fn(),
+      findUnique: jest.fn(),
+      updateMany: jest.fn(async () => ({ count: 0 })),
+      update: jest.fn(),
+    },
+    inquiryLine: { create: jest.fn() },
+    /** 测试用：拿事务客户端的 mock 引用（断言读取/写入的调用面） */
+    __tx: tx,
+  };
+  return prisma as unknown as PrismaService & { __tx: any };
 }
+
+/** 一份完整的地址行（快照读取的 select 形状） */
+const addressRow = (overrides: Record<string, unknown> = {}) => ({
+  customerId: 'cust-A',
+  deletedAt: null,
+  receiver: '张三',
+  phone: '13800000001',
+  province: '江苏省',
+  city: '无锡市',
+  district: '滨湖区',
+  detailAddress: '太湖大道 100 号',
+  zipCode: '214000',
+  ...overrides,
+});
 
 describe('InquiriesService.createForCustomer', () => {
   const baseDto: any = {
@@ -83,25 +101,66 @@ describe('InquiriesService.createForCustomer', () => {
     ).rejects.toThrow(NotFoundException);
   });
 
-  it('他人 shippingAddressId 归属校验失败抛 400，不创建询价', async () => {
+  it('他人 shippingAddressId：归属断言失败抛 400，不创建询价', async () => {
     const prisma = makePrisma();
     (prisma as any).customer.findUnique.mockResolvedValue({
       customerId: 'cust-A',
       nickName: 'Alice',
       deletedAt: null,
     });
-    (prisma as any).customerAddress.findUnique.mockResolvedValue({
-      addressId: 'addr-other',
-      customerId: 'cust-B', // 他人
-      deletedAt: null,
-    });
+    (prisma as any).__tx.customerAddress.findUnique.mockResolvedValue(
+      addressRow({ customerId: 'cust-B' }), // 他人
+    );
     const service = buildService(prisma);
     await expect(
-      service.createForCustomer('cust-A', { ...baseDto, shippingAddressId: 'addr-other' }, baseDto.lines),
+      service.createForCustomer(
+        'cust-A',
+        { ...baseDto, shippingAddressId: 'addr-other' },
+        baseDto.lines,
+      ),
+    ).rejects.toThrow(BadRequestException);
+    expect((prisma as any).__tx.inquiry.create).not.toHaveBeenCalled();
+  });
+
+  it('地址不存在：抛 400（而不是让外键报错 500）', async () => {
+    const prisma = makePrisma();
+    (prisma as any).customer.findUnique.mockResolvedValue({
+      customerId: 'cust-A',
+      nickName: 'Alice',
+      deletedAt: null,
+    });
+    (prisma as any).__tx.customerAddress.findUnique.mockResolvedValue(null);
+    const service = buildService(prisma);
+    await expect(
+      service.createForCustomer(
+        'cust-A',
+        { ...baseDto, shippingAddressId: 'addr-gone' },
+        baseDto.lines,
+      ),
     ).rejects.toThrow(BadRequestException);
   });
 
-  it('本人 shippingAddressId 通过归属校验，事务内创建询价主体+明细行', async () => {
+  it('地址已软删：抛 400', async () => {
+    const prisma = makePrisma();
+    (prisma as any).customer.findUnique.mockResolvedValue({
+      customerId: 'cust-A',
+      nickName: 'Alice',
+      deletedAt: null,
+    });
+    (prisma as any).__tx.customerAddress.findUnique.mockResolvedValue(
+      addressRow({ deletedAt: new Date() }),
+    );
+    const service = buildService(prisma);
+    await expect(
+      service.createForCustomer(
+        'cust-A',
+        { ...baseDto, shippingAddressId: 'addr-deleted' },
+        baseDto.lines,
+      ),
+    ).rejects.toThrow(BadRequestException);
+  });
+
+  it('本人 shippingAddressId：事务内创建主体+明细行，并写入 7 字段快照', async () => {
     const prisma = makePrisma();
     (prisma as any).customer.findUnique.mockResolvedValue({
       customerId: 'cust-A',
@@ -110,61 +169,144 @@ describe('InquiriesService.createForCustomer', () => {
       phoneNumber: '13800000000',
       deletedAt: null,
     });
-    (prisma as any).customerAddress.findUnique.mockResolvedValue({
-      addressId: 'addr-own',
-      customerId: 'cust-A',
-      deletedAt: null,
-    });
+    (prisma as any).__tx.customerAddress.findUnique.mockResolvedValue(
+      addressRow(),
+    );
 
-    const txCreate = jest.fn();
-    // 覆盖 makePrisma 的 $transaction 内 inquiry.create with spy wrapper
     const service = buildService(prisma);
-    // 重建 $transaction 以捕获 create 调用
-    (service as any).prisma.$transaction = (fn: any) =>
-      fn({
-        inquiry: {
-          findFirst: jest.fn(async () => null),
-          create: txCreate.mockResolvedValue({
-            inquiryId: 'inq-001',
-            inquiryNo: 'INQ202609-0001',
-            customerId: 'cust-A',
-            status: 'draft',
-          }),
-        },
-        inquiryLine: {
-          create: jest.fn(() => Promise.resolve({ inquiryLineId: 'line-001' })),
-        },
-        filter: {
-          findMany: jest.fn(async () => [
-            {
-              filterId: 'flt-001',
-              model: '320D',
-              typeName: 'Hydraulic',
-              deletedAt: null,
-            },
-          ]),
-        },
-        $executeRaw: () => Promise.resolve(),
-      });
-
     const result = await service.createForCustomer(
       'cust-A',
       { ...baseDto, shippingAddressId: 'addr-own' },
       baseDto.lines,
     );
 
-    expect(result.inquiryNo).toBe('INQ202609-0001');
+    expect(result.inquiryNo).toMatch(/^INQ\d{6}-0001$/);
     expect(result.status).toBe('draft');
-    // 主体创建时 customerId 必须是首参（非客户端指定），createdById 为空
-    expect(txCreate).toHaveBeenCalledWith(
+
+    // 快照读取发生在**事务客户端**上（与主体写入同一事务，无 TOCTOU 窗口）
+    expect((prisma as any).__tx.customerAddress.findUnique).toHaveBeenCalledWith(
+      {
+        where: { addressId: 'addr-own' },
+        select: expect.any(Object),
+      },
+    );
+
+    // 主体创建：customerId 取自首参（非客户端指定）、createdById 为空、快照取自被引用地址
+    const data = (prisma as any).__tx.inquiry.create.mock.calls[0][0].data;
+    expect(data).toEqual(
       expect.objectContaining({
-        data: expect.objectContaining({
-          customerId: 'cust-A',
-          createdById: null,
-          customerName: 'Alice',
-        }),
+        customerId: 'cust-A',
+        createdById: null,
+        customerName: 'Alice',
+        customerEmail: 'alice@example.com',
+        customerPhone: '13800000000',
+        shippingAddressId: 'addr-own',
+        shippingReceiver: '张三',
+        shippingPhone: '13800000001',
+        shippingProvince: '江苏省',
+        shippingCity: '无锡市',
+        shippingDistrict: '滨湖区',
+        shippingDetailAddress: '太湖大道 100 号',
+        shippingZipCode: '214000',
       }),
     );
+  });
+
+  it('未提供 shippingAddressId：快照字段不写入（落库为 NULL），引用显式为 null', async () => {
+    const prisma = makePrisma();
+    (prisma as any).customer.findUnique.mockResolvedValue({
+      customerId: 'cust-A',
+      nickName: 'Alice',
+      deletedAt: null,
+    });
+    const service = buildService(prisma);
+    await service.createForCustomer('cust-A', { ...baseDto }, baseDto.lines);
+
+    const data = (prisma as any).__tx.inquiry.create.mock.calls[0][0].data;
+    expect(data.shippingAddressId).toBeNull();
+    for (const key of [
+      'shippingReceiver',
+      'shippingPhone',
+      'shippingProvince',
+      'shippingCity',
+      'shippingDistrict',
+      'shippingDetailAddress',
+      'shippingZipCode',
+    ]) {
+      // 不传 key 时由 Prisma 落 NULL（DTO 声明为 string | null，读回来仍是 null）
+      expect(data).not.toHaveProperty(key);
+    }
+    expect(
+      (prisma as any).__tx.customerAddress.findUnique,
+    ).not.toHaveBeenCalled();
+  });
+
+  it('管理端 create：同样写入快照；地址不存在抛 400 而非 500', async () => {
+    const prisma = makePrisma();
+    (prisma as any).__tx.customerAddress.findUnique.mockResolvedValue(
+      addressRow(),
+    );
+    const service = buildService(prisma);
+
+    await service.create({
+      title: '代客下单',
+      shippingAddressId: 'addr-own',
+    } as any);
+
+    const data = (prisma as any).__tx.inquiry.create.mock.calls[0][0].data;
+    expect(data).toEqual(
+      expect.objectContaining({
+        shippingAddressId: 'addr-own',
+        shippingReceiver: '张三',
+        shippingZipCode: '214000',
+      }),
+    );
+
+    // 地址不存在 → 400
+    (prisma as any).__tx.customerAddress.findUnique.mockResolvedValue(null);
+    await expect(
+      service.create({
+        title: '代客下单',
+        shippingAddressId: 'addr-gone',
+      } as any),
+    ).rejects.toThrow(BadRequestException);
+  });
+
+  it('管理端 create：错挂他人地址 → 400（P2-4 起归属校验生效）', async () => {
+    const prisma = makePrisma();
+    // 地址属于他人：管理端现在传 `dto.customerId` 作为 owner，因此必须被拒
+    (prisma as any).__tx.customerAddress.findUnique.mockResolvedValue(
+      addressRow({ customerId: 'cust-OTHER' }),
+    );
+    const service = buildService(prisma);
+
+    await expect(
+      service.create({
+        title: '代客下单',
+        customerId: 'cust-A',
+        shippingAddressId: 'addr-other-customer',
+      } as any),
+    ).rejects.toThrow(BadRequestException);
+
+    expect((prisma as any).__tx.inquiry.create).not.toHaveBeenCalled();
+  });
+
+  it('管理端 create：地址归属该客户时通过', async () => {
+    const prisma = makePrisma();
+    (prisma as any).__tx.customerAddress.findUnique.mockResolvedValue(
+      addressRow({ customerId: 'cust-A' }),
+    );
+    const service = buildService(prisma);
+
+    await expect(
+      service.create({
+        title: '代客下单',
+        customerId: 'cust-A',
+        shippingAddressId: 'addr-own',
+      } as any),
+    ).resolves.toBeDefined();
+
+    expect((prisma as any).__tx.inquiry.create).toHaveBeenCalled();
   });
 
   it('findOneForCustomer 请求他人询价返回 404', async () => {

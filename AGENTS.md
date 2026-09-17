@@ -52,7 +52,7 @@ GVRAY 后端为 Monorepo 双应用 + 共享内核：NestJS 11 + TypeScript，Pri
 
 - 本地开发数据库用 `docker-compose.dev.yml`（Postgres 17）；测试/生产用 `docker-compose.yml`。
 
-- `prisma/schema.prisma` 使用 `relationMode = "prisma"`，无外键约束。
+- `prisma/schema.prisma` **未声明** `relationMode`（Prisma 默认 `foreignKeys`）——关系约束由数据库**原生外键**实现：`prisma/migrations/0_init/migration.sql` 建出真实 `FOREIGN KEY`，并带 `ON DELETE SET NULL` / `CASCADE` / `RESTRICT`。级联行为是 **DB 级**的，任何绕过 Prisma Client 的删除同样会触发（例如硬删 `customer_addresses` 会把 `inquiries.shippingAddressId` 置空）。
 
 - 查询用户等敏感对象优先用 `select` 排除 `password`、自增 `id`；返回前用 DTO / `plainToInstance(..., { excludeExtraneousValues: true })` 控制结构。
 

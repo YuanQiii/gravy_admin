@@ -22,6 +22,11 @@ import { UpdateInquiryStatusDto } from './dto/update-inquiry-status.dto';
 import { QueryInquiryDto } from './dto/query-inquiry.dto';
 import { InquiryResponseDto } from './dto/inquiry-response.dto';
 import { InquiryDetailResponseDto } from './dto/inquiry-detail-response.dto';
+import type { ShippingSnapshotShape } from './dto/shipping-snapshot.shape';
+import {
+  assertShippingAddressOwned,
+  resolveOwnerCustomerId,
+} from './shipping-address-ownership';
 // 类型仅在编译期引用（creates no runtime module edge），避免 b2c → inquiry → b2c 环
 import type { CreateCustomerInquiryDto } from './dto/customer-b2c/create-customer-inquiry.dto';
 import type { CreateInquiryLineItemDto } from './dto/customer-b2c/create-inquiry-line-item.dto';
@@ -39,6 +44,24 @@ const INQUIRY_DETAIL_INCLUDE = {
     orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
   },
 } satisfies Prisma.InquiryInclude;
+
+/**
+ * 快照读取形状 —— 读到的字段与写出的快照字段同源（`ShippingSnapshotShape`）。
+ *
+ * 除 7 个快照字段外，刻意一并取出 `customerId`（归属断言）与 `deletedAt`（可用性断言）：
+ * 守卫所需的判断依据与快照在同一次读取内取得，避免"读完再查一次"的窗口。
+ */
+const SHIPPING_SNAPSHOT_SELECT = {
+  customerId: true,
+  deletedAt: true,
+  receiver: true,
+  phone: true,
+  province: true,
+  city: true,
+  district: true,
+  detailAddress: true,
+  zipCode: true,
+} satisfies Prisma.CustomerAddressSelect;
 
 /** 投影入参：Prisma 行（含或不含 `inquiryLines` 关联），纯结构类型。 */
 type InquiryProjectionRow = Record<string, unknown>;
@@ -81,6 +104,40 @@ export class InquiriesService extends BaseService {
     });
   }
 
+  /**
+   * 读取被引用地址 → 断言可用性与归属 → 产出收货地址快照。
+   *
+   * 判定部分（存在 + 未软删 + 归属）由 `assertShippingAddressOwned` 单一表达，
+   * 客户自助路径与管理端路径共用同一实现 —— 同一不变量不再表达两次。
+   *
+   * **必须在事务内调用**：读取与后续写入落在同一事务，消除「校验通过 → 地址被删 →
+   * 外键 SetNull 静默吞掉」的窗口。
+   *
+   * @param ownerCustomerId 由 `resolveOwnerCustomerId` 解析：管理端取 `dto.customerId`
+   *   （可为 `null`，表示不校验归属 —— 匿名询价与后台未指定客户的既有行为）；
+   *   客户自助路径取登录态（必非空）。
+   */
+  private async resolveShippingSnapshot(
+    tx: Prisma.TransactionClient,
+    addressId: string,
+    ownerCustomerId?: string | null,
+  ): Promise<ShippingSnapshotShape> {
+    const address = await tx.customerAddress.findUnique({
+      where: { addressId },
+      select: SHIPPING_SNAPSHOT_SELECT,
+    });
+    assertShippingAddressOwned(address, ownerCustomerId);
+    return {
+      shippingReceiver: address.receiver,
+      shippingPhone: address.phone,
+      shippingProvince: address.province,
+      shippingCity: address.city,
+      shippingDistrict: address.district,
+      shippingDetailAddress: address.detailAddress,
+      shippingZipCode: address.zipCode,
+    };
+  }
+
   async create(
     dto: CreateInquiryDto,
     createdById?: string,
@@ -90,7 +147,20 @@ export class InquiriesService extends BaseService {
       const yyyy = now.getUTCFullYear();
       const mm = String(now.getUTCMonth() + 1).padStart(2, '0');
       const prefix = `INQ${yyyy}${mm}-`;
-      const { expiresAt, ...rest } = dto;
+      const { expiresAt, shippingAddressId, ...rest } = dto;
+
+      // 收货地址快照：与主体同一事务内解析。地址不存在/已软删/不属于该客户 → 400
+      // （此前会落到 Prisma 外键错误 → 500，或把他人地址挂到本单上）。
+      const shippingSnapshot = shippingAddressId
+        ? await this.resolveShippingSnapshot(
+            tx,
+            shippingAddressId,
+            resolveOwnerCustomerId({
+              realm: 'admin',
+              customerId: dto.customerId,
+            }),
+          )
+        : null;
 
       for (let attempt = 0; attempt < 3; attempt++) {
         const last = await tx.inquiry.findFirst({
@@ -104,6 +174,8 @@ export class InquiriesService extends BaseService {
           const inquiry = await tx.inquiry.create({
             data: {
               ...rest,
+              ...(shippingSnapshot ?? {}),
+              shippingAddressId: shippingAddressId ?? null,
               inquiryNo: candidate,
               status: INQUIRY_STATUS.DRAFT,
               createdById: createdById ?? null,
@@ -156,17 +228,16 @@ export class InquiriesService extends BaseService {
       throw new NotFoundException('CUSTOMER_NOT_FOUND');
     }
 
-    // shippingAddressId 归属校验：仅当前客户本人地址可用
-    if (dto.shippingAddressId) {
-      const address = await this.prisma.customerAddress.findUnique({
-        where: { addressId: dto.shippingAddressId },
-      });
-      if (!address || address.deletedAt || address.customerId !== customerId) {
-        throw new BadRequestException('INVALID_SHIPPING_ADDRESS');
-      }
-    }
-
     return this.prisma.$transaction(async (tx) => {
+      // 收货地址快照：归属断言与读取同在 `resolveShippingSnapshot` 内、同在事务内。
+      // 原先事务外的归属校验已**净删除** —— 同一不变量不再表达两次（状态码与消息不变）。
+      const shippingSnapshot = dto.shippingAddressId
+        ? await this.resolveShippingSnapshot(
+            tx,
+            dto.shippingAddressId,
+            resolveOwnerCustomerId({ realm: 'customer', customerId }),
+          )
+        : null;
       // 批量解析明细行快照：一次性按 ACTIVE_FILTER_WHERE（单门禁源）批量查滤清器，
       // 替代逐行 findUnique 的 N+1，且「当前可用性」判定与收藏/浏览保持一致。
       const filterIds = Array.from(
@@ -221,6 +292,7 @@ export class InquiriesService extends BaseService {
               customerName: customer.nickName ?? null,
               customerEmail: customer.email ?? null,
               customerPhone: customer.phoneNumber ?? null,
+              ...(shippingSnapshot ?? {}),
               shippingAddressId: dto.shippingAddressId ?? null,
             },
           });

@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Exclude, Expose, Type } from 'class-transformer';
+import type { ShippingSnapshotShape } from './shipping-snapshot.shape';
 
 /**
  * 询价单响应形状（列表与写路径）。
@@ -8,8 +9,11 @@ import { Exclude, Expose, Type } from 'class-transformer';
  * 不加时 class-transformer 会以 `value.constructor`（Decimal）重建实例，
  * `new Decimal(undefined)` 抛 `Invalid argument` —— 属性有值时整个响应 500。
  * 与 `FilterResponseDto` / `EquipmentResponseDto` 的既有约定一致。
+ *
+ * `implements ShippingSnapshotShape`：7 个收货地址快照字段的锁步由**编译器**保证 ——
+ * 给 shape 加字段而此处不跟，或类型放宽，都会编译失败。
  */
-export class InquiryResponseDto {
+export class InquiryResponseDto implements ShippingSnapshotShape {
   @ApiProperty({ type: 'integer' })
   @Exclude()
   id: number;
@@ -66,9 +70,70 @@ export class InquiryResponseDto {
   @Expose()
   createdById?: string;
 
-  @ApiPropertyOptional({ description: '收货地址ID' })
+  @ApiPropertyOptional({
+    description:
+      '收货地址ID（溯源引用；地址被删除后可为 null —— 收货信息以快照字段为准）',
+  })
   @Expose()
   shippingAddressId?: string;
+
+  // ===== 收货地址快照（创建时点冻结，不随地址修改/删除漂移）=====
+
+  @ApiProperty({
+    type: 'string',
+    nullable: true,
+    description: '收货人（创建时点快照，未选地址时为 null）',
+  })
+  @Expose()
+  shippingReceiver: string | null;
+
+  @ApiProperty({
+    type: 'string',
+    nullable: true,
+    description: '收货电话（创建时点快照，未选地址时为 null）',
+  })
+  @Expose()
+  shippingPhone: string | null;
+
+  @ApiProperty({
+    type: 'string',
+    nullable: true,
+    description: '收货省（创建时点快照，未选地址时为 null）',
+  })
+  @Expose()
+  shippingProvince: string | null;
+
+  @ApiProperty({
+    type: 'string',
+    nullable: true,
+    description: '收货市（创建时点快照，未选地址时为 null）',
+  })
+  @Expose()
+  shippingCity: string | null;
+
+  @ApiProperty({
+    type: 'string',
+    nullable: true,
+    description: '收货区/县（创建时点快照，未选地址时为 null）',
+  })
+  @Expose()
+  shippingDistrict: string | null;
+
+  @ApiProperty({
+    type: 'string',
+    nullable: true,
+    description: '收货详细地址（创建时点快照，未选地址时为 null）',
+  })
+  @Expose()
+  shippingDetailAddress: string | null;
+
+  @ApiProperty({
+    type: 'string',
+    nullable: true,
+    description: '收货邮编（创建时点快照，未选地址时为 null）',
+  })
+  @Expose()
+  shippingZipCode: string | null;
 
   @ApiPropertyOptional({
     description: '提交时间',
