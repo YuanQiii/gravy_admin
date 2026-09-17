@@ -164,4 +164,4 @@
 1. `align-mall-self-query-dtos` 的 MODIFIED「客户自助管理收货地址」缺 P3-2 归档带入的 2 个场景 → 按主规格现文重放；连带「收藏管理」（保住 P3-3 的 201 措辞）与「浏览历史管理」（保住 P2-5 的 fire-and-forget）一并重放后归档成功。
 2. 其余变更在各次归档后 validate --strict 全绿，无需重放。
 
-遗留：P3-6 的回填迁移（tasks 4.2/4.3，需用户确认；回填 SQL：subtotal=quantity*unit_price + 重算 total_amount）。
+遗留：无。17 项全部实施 + 归档 + 迁移应用完毕。

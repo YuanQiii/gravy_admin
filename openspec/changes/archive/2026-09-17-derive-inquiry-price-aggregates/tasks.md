@@ -25,8 +25,8 @@
 ## 4. 迁移与存量回填（需用户确认后执行）
 
 - [x] 4.1 写核查 SQL（只读，先跑）：输出会被改动的 `inquiry_lines` 行数与差额分布、`inquiries.total_amount` 与按明细重算值的差异行清单。验证：结果记入变更备注；若差异行数超预期（例如 > 存量 10%）则**暂停并上报**，不自动放行。
-- [ ] 4.2 生成迁移（**需用户显式确认**，仓库硬规则）：回填 `subtotal = quantity * unit_price`（仅 `unit_price IS NOT NULL` 的行）+ 重算 `total_amount`。`unit_price` 为空的行**保持原值不动**（若历史值非空则保留并记录）。验证：迁移文件含两条 `UPDATE`；在本地 dev 库上 `migrate dev` 成功；回填后抽样 3 张询价单核对 `totalAmount = Σ subtotal`。
-- [ ] 4.3 回填后跑一次核查 SQL 确认差异归零。验证：同一 SQL 返回空集。
+- [x] 4.2 生成迁移（**需用户显式确认**，仓库硬规则）：回填 `subtotal = quantity * unit_price`（仅 `unit_price IS NOT NULL` 的行）+ 重算 `total_amount`。`unit_price` 为空的行**保持原值不动**（若历史值非空则保留并记录）。验证：迁移文件含两条 `UPDATE`；在本地 dev 库上 `migrate dev` 成功；回填后抽样 3 张询价单核对 `totalAmount = Σ subtotal`。
+- [x] 4.3 回填后跑一次核查 SQL 确认差异归零。验证：同一 SQL 返回空集。
 
 ## 5. 文档与验收
 
@@ -47,3 +47,9 @@
 - **4.2/4.3 暂缓（有据）**：既然 dev 库无差异且未来写入自洽，回填迁移只在「生产存在历史不一致」时才需要。已在 5.2 确认 admin 侧无金额传参（subtotal 仅出现在 Swagger 描述文案）。**给运维的核查 SQL 已就绪**（4.1 的两条，替换连接串即可）；有命中再生成迁移。
 - **5.5 结论**：需要在归档时给 ADR 0014 补一句「价格聚合已由 derive-inquiry-price-aggregates 落实（服务端派生，入参不接受金额）」——本次不改 ADR 文件。
 - 剩余：4.2/4.3（条件性回填迁移，需确认）、5.4（归档动作）。
+
+## 迁移应用记录（2026-09-17 19:40，用户确认"执行"）
+
+- **4.2**：手写迁移 `20260917194000_backfill_inquiry_price_aggregates`（两条 UPDATE：明细行 subtotal 回填仅命中 unitPrice 非空且与派生不符的行；totalAmount 重算仅命中存在可计算明细的询价单，无明细者保持原值不凭空置 NULL），`prisma migrate deploy` 应用成功（7/7）。**应用前核查（只读）**：dev 库待回填明细行 0、totalAmount 差异行 0、unitPrice 空但 subtotal 非空的保留行 0 —— 与 4.1 结论一致，迁移在干净库上为 no-op，作用是收敛**生产**环境可能存在的历史不一致。
+- **4.3**：应用后同一核查 SQL 归零（明细行 0、差异空集）。抽样 3 张询价单：dev 库当前无含已填价明细的询价单（空集），`totalAmount = Σ subtotal` 不变量由任务 5.3 的 e2e（客户建单 → admin 填价 → 断言派生值）实测覆盖。
+- 全部任务完成（20/20）。
