@@ -2,6 +2,7 @@ import {
   buildStatusPatch,
   INQUIRY_STATUS,
   isValidStatusTransition,
+  isInquiryExpired,
 } from './inquiry.constant';
 
 /**
@@ -116,5 +117,44 @@ describe('isValidStatusTransition（与 buildStatusPatch 同址的半边）', ()
     expect(isValidStatusTransition('cancelled', 'draft')).toBe(false);
     // 自环：重复提交/重复取消都应被拒（幂等化不在范围内）
     expect(isValidStatusTransition('submitted', 'submitted')).toBe(false);
+  });
+
+  describe('isInquiryExpired（派生展示态，过期判定唯一真值）', () => {
+    const NOW = new Date('2026-09-17T12:00:00Z');
+
+    it('quoted + expiresAt < now → true', () => {
+      expect(
+        isInquiryExpired(
+          { status: 'quoted', expiresAt: new Date('2026-09-17T11:59:59Z') },
+          NOW,
+        ),
+      ).toBe(true);
+    });
+
+    it('quoted + expiresAt >= now → false（含恰好等于当前时刻）', () => {
+      expect(
+        isInquiryExpired(
+          { status: 'quoted', expiresAt: new Date('2026-09-17T12:00:00Z') },
+          NOW,
+        ),
+      ).toBe(false);
+    });
+
+    it('quoted + expiresAt 为空 → false（永久报价是合法口径）', () => {
+      expect(isInquiryExpired({ status: 'quoted', expiresAt: null }, NOW)).toBe(
+        false,
+      );
+    });
+
+    it('非 quoted 状态一律 false（draft/submitted/expired/cancelled）', () => {
+      for (const status of ['draft', 'submitted', 'expired', 'cancelled']) {
+        expect(
+          isInquiryExpired(
+            { status, expiresAt: new Date('2020-01-01T00:00:00Z') },
+            NOW,
+          ),
+        ).toBe(false);
+      }
+    });
   });
 });

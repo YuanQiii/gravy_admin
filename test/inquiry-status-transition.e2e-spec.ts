@@ -161,4 +161,36 @@ describe('询价单状态流转 e2e（Mall）', () => {
     expect(detail.body.data.cancelledAt ?? null).toBeNull();
     expect(detail.body.data.submittedAt).not.toBeNull();
   });
+
+  it('过期语义：quoted 详情携带派生 isExpired（过期 true / 未过期 false），status 不被改写', async () => {
+    // 过期报价：expiresAt 在过去 —— 读端点**不**触发任何写（无 expireDueQuoted）
+    (harness.prisma as any).inquiry.findFirst.mockResolvedValue(
+      baseRow('quoted', {
+        expiresAt: new Date(Date.now() - 60_000),
+        quotedAt: new Date(),
+      }),
+    );
+    const expired = await request(harness.app.getHttpServer())
+      .get('/inquiries/inq-001')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+    expect(expired.body.data.status).toBe('quoted');
+    expect(expired.body.data.isExpired).toBe(true);
+    expect(
+      (harness.prisma as any).inquiry.updateMany,
+    ).not.toHaveBeenCalled();
+
+    // 未过期报价：expiresAt 在未来 → false
+    (harness.prisma as any).inquiry.findFirst.mockResolvedValue(
+      baseRow('quoted', {
+        expiresAt: new Date(Date.now() + 60_000),
+        quotedAt: new Date(),
+      }),
+    );
+    const live = await request(harness.app.getHttpServer())
+      .get('/inquiries/inq-001')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+    expect(live.body.data.isExpired).toBe(false);
+  });
 });

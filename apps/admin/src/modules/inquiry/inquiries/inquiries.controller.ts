@@ -116,6 +116,11 @@ export class InquiriesController {
     description:
       '流转不合法或前置状态已失效（INQUIRY_INVALID_STATUS_TRANSITION）——状态已被并发流转改变时不写入任何字段',
   })
+  @ApiResponse({
+    status: 400,
+    description:
+      'status=quoted 但未携带 expiresAt（QUOTED_REQUIRES_EXPIRES_AT）——报价必须携带有效期',
+  })
   async updateStatus(
     @Param('id') id: string,
     @Body() dto: UpdateInquiryStatusDto,

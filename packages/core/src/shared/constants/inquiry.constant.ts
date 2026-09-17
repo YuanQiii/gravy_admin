@@ -95,6 +95,27 @@ export function buildStatusPatch(
   };
 }
 
+/**
+ * 报价是否已过期（**派生展示态**，只读判定，不落库）。
+ *
+ * 过期语义的唯一真值来源（resolve-inquiry-expiry-semantics 审查采纳 C1）：
+ * 投影层据此计算响应的 `isExpired`，任何写路径不得据此改写 `status` ——
+ * `quoted → expired` 只能由后台人工流转抵达（与 `INQUIRY_STATUS_TRANSITIONS`
+ * 同一份真值）。
+ *
+ * 四态语义：非 quoted → false（未报价/已取消/已过期谈不上"过期"）；
+ * quoted + 无 expiresAt → false（永久报价，运营未填期限时合法）；
+ * 仅 quoted 且 expiresAt < now → true。
+ */
+export function isInquiryExpired(
+  row: { status: string; expiresAt: Date | string | null },
+  now: Date = new Date(),
+): boolean {
+  if (row.status !== INQUIRY_STATUS.QUOTED) return false;
+  if (!row.expiresAt) return false;
+  return new Date(row.expiresAt).getTime() < now.getTime();
+}
+
 // ==================== 询价单编号生成 ====================
 export const INQUIRY_NO_PREFIX = 'INQ';
 export const INQUIRY_NO_FORMAT = 'yyyyMM';

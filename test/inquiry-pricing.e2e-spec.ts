@@ -55,6 +55,78 @@ describe('价格聚合 e2e（Admin）', () => {
     jest.clearAllMocks();
   });
 
+  describe('报价状态流转：quoted 必须携带 expiresAt', () => {
+    it('PATCH status=quoted 且缺 expiresAt：400（QUOTED_REQUIRES_EXPIRES_AT）', async () => {
+      const res = await request(harness.app.getHttpServer())
+        .patch('/inquiry/inquiries/inq-001/status')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ status: 'quoted' });
+
+      expect(res.status).toBe(400);
+      expect(JSON.stringify(res.body)).toContain(
+        'QUOTED_REQUIRES_EXPIRES_AT',
+      );
+      expect(
+        (harness.prisma as any).inquiry.updateMany,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('PATCH status=quoted 且携带 expiresAt：200（流转走接缝）', async () => {
+      (harness.prisma as any).inquiry.findUnique.mockResolvedValue({
+        inquiryId: 'inq-001',
+        inquiryNo: 'INQ202609-000001',
+        status: 'submitted',
+        deletedAt: null,
+        submittedAt: new Date(),
+        quotedAt: null,
+        cancelledAt: null,
+      });
+      (harness.prisma as any).inquiry.updateMany.mockResolvedValue({
+        count: 1,
+      });
+      (harness.prisma as any).inquiry.findUnique.mockResolvedValueOnce({
+        inquiryId: 'inq-001',
+        inquiryNo: 'INQ202609-000001',
+        status: 'submitted',
+        deletedAt: null,
+        submittedAt: new Date(),
+        quotedAt: null,
+        cancelledAt: null,
+      });
+      (harness.prisma as any).inquiry.updateMany.mockResolvedValue({
+        count: 1,
+      });
+      (harness.prisma as any).inquiry.findUnique.mockResolvedValue({
+        inquiryId: 'inq-001',
+        inquiryNo: 'INQ202609-000001',
+        status: 'quoted',
+        deletedAt: null,
+        submittedAt: new Date(),
+        quotedAt: new Date(),
+        cancelledAt: null,
+        expiresAt: new Date('2026-12-31'),
+      });
+      (harness.prisma as any).inquiryLine.aggregate.mockResolvedValue({
+        _sum: { subtotal: '50.00' },
+      });
+
+      const res = await request(harness.app.getHttpServer())
+        .patch('/inquiry/inquiries/inq-001/status')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ status: 'quoted', expiresAt: '2026-12-31' });
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.status).toBe('quoted');
+      expect(res.body.data.isExpired).toBe(false);
+      // 条件写必须带期望状态
+      const where = (harness.prisma as any).inquiry.updateMany.mock.calls[0][0]
+        .where;
+      expect(where.status).toBe('submitted');
+      // 报价动作须同事务重算合计
+      expect((harness.prisma as any).inquiryLine.aggregate).toHaveBeenCalled();
+    });
+  });
+
   describe('明细行：subtotal 派生', () => {
     it('创建明细行：subtotal = quantity × unitPrice，并重算整单合计', async () => {
       (harness.prisma as any).inquiry.findUnique.mockResolvedValue({

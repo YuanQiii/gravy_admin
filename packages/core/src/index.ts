@@ -131,6 +131,7 @@ export {
   INQUIRY_STATUS_TRANSITIONS,
   isValidStatusTransition,
   buildStatusPatch,
+  isInquiryExpired,
   INQUIRY_NO_PREFIX,
   INQUIRY_NO_FORMAT,
   INQUIRY_NO_SEQ_LENGTH,

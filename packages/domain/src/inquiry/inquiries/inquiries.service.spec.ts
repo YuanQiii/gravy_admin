@@ -8,6 +8,7 @@ import { PrismaService, SoftDeleteService } from '@gvray/core';
 
 
 import { InquiriesService } from './inquiries.service';
+import { InquiryPricingService } from '../pricing/inquiry-pricing.service';
 
 // 最小可用的 Prisma 代理：仅 mock 本次涉及的方法。
 //
@@ -17,6 +18,7 @@ function makePrisma() {
   const tx: any = {
     inquiry: {
       findFirst: jest.fn(async () => null),
+      update: jest.fn(async () => ({})),
       create: jest.fn((args: any) =>
         Promise.resolve({
           inquiryId: 'inq-001',
@@ -28,6 +30,8 @@ function makePrisma() {
     },
     inquiryLine: {
       create: jest.fn(() => Promise.resolve({ inquiryLineId: 'line-001' })),
+      // pricing.recomputeForInquiry 的聚合（接缝内调用）
+      aggregate: jest.fn(async () => ({ _sum: { subtotal: null } })),
     },
     filter: {
       findMany: jest.fn(async () => [
@@ -52,7 +56,7 @@ function makePrisma() {
       findFirst: jest.fn(),
       findUnique: jest.fn(),
       updateMany: jest.fn(async () => ({ count: 0 })),
-      update: jest.fn(),
+      update: jest.fn(async () => ({})),
     },
     inquiryLine: { create: jest.fn() },
     /** 测试用：拿事务客户端的 mock 引用（断言读取/写入的调用面） */
@@ -86,6 +90,7 @@ describe('InquiriesService.createForCustomer', () => {
       prisma,
       {} as ConfigService,
       {} as SoftDeleteService,
+      new InquiryPricingService(prisma),
     );
     // 注入 base.service 依赖
     (service as any).prisma = prisma;
@@ -348,6 +353,7 @@ describe('InquiriesService 客户状态流转', () => {
       prisma,
       {} as ConfigService,
       {} as SoftDeleteService,
+      new InquiryPricingService(prisma),
     );
     (service as any).prisma = prisma;
     return service;
@@ -394,6 +400,8 @@ describe('InquiriesService 客户状态流转', () => {
     // `findUnique` 被两种语义复用：① `updateStatus` 的前置读取（当前状态）；
     // ② 接缝写入后的回读（写入结果）。按"是否已发生写入"区分，而不是调用次序
     // —— 客户路径不调前置 `findUnique`，两次调用序不同。
+    const inquiryUpdate = jest.fn(async () => ({}));
+    const lineAggregate = jest.fn(async () => ({ _sum: { subtotal: null } }));
     const findUnique = jest.fn(async () =>
       Object.keys(state.patch).length > 0
         ? {
@@ -414,7 +422,8 @@ describe('InquiriesService 客户状态流转', () => {
     );
 
     return {
-      inquiry: { findFirst, findUnique, updateMany },
+      inquiry: { findFirst, findUnique, updateMany, update: inquiryUpdate },
+      inquiryLine: { aggregate: lineAggregate },
       $transaction: undefined,
     } as any;
   }
@@ -456,8 +465,8 @@ describe('InquiriesService 客户状态流转', () => {
       service.submitForCustomer('cust-A', 'inq-001'),
     ).rejects.toThrow(ConflictException);
 
-    // 接缝只做条件写与回读归因，不存在「按 inquiryId 无条件 update」的退路
-    expect(prisma.inquiry.update).toBeUndefined();
+    // 接缝只做条件写与回读归因，409 路径不存在「按 inquiryId 无条件 update」的退路
+    expect(prisma.inquiry.update).not.toHaveBeenCalled();
   });
 
   it('重复提交：已 submitted 再提交 → 409，且不触达写入', async () => {
@@ -529,6 +538,7 @@ describe('InquiriesService 详情投影（Inquiry response projection 接缝）'
       prisma,
       {} as ConfigService,
       {} as SoftDeleteService,
+      new InquiryPricingService(prisma),
     );
     (service as any).prisma = prisma;
     return service;
@@ -702,6 +712,7 @@ describe('nextInquiryNo（编号推导深模块 · 6 位 + 数值比较）', () 
       prisma,
       {} as ConfigService,
       {} as SoftDeleteService,
+      new InquiryPricingService(prisma),
     );
     (service as any).prisma = prisma;
     return service;
@@ -767,5 +778,92 @@ describe('nextInquiryNo（编号推导深模块 · 6 位 + 数值比较）', () 
     expect(prisma.$executeRaw).toHaveBeenCalledTimes(1);
     const sql = prisma.$executeRaw.mock.calls[0][0];
     expect(String(sql)).toContain('pg_advisory_xact_lock');
+  });
+});
+
+describe('InquiriesService 过期语义（resolve-inquiry-expiry-semantics）', () => {
+  function build(prisma: any) {
+    const service = new InquiriesService(
+      prisma,
+      {} as ConfigService,
+      {} as SoftDeleteService,
+      new InquiryPricingService(prisma),
+    );
+    (service as any).prisma = prisma;
+    return service;
+  }
+
+  function readPrisma(quotedRow: Record<string, unknown>) {
+    const updateMany = jest.fn(async () => ({ count: 0 }));
+    const update = jest.fn(async () => ({}));
+    return {
+      prisma: {
+        inquiry: {
+          findFirst: jest.fn(async () => quotedRow),
+          findUnique: jest.fn(async () => quotedRow),
+          findMany: jest.fn(async () => [quotedRow]),
+          count: jest.fn(async () => 1),
+          updateMany,
+          update,
+        },
+        inquiryLine: {
+          aggregate: jest.fn(async () => ({ _sum: { subtotal: null } })),
+        },
+        $transaction: (fn: any) => fn({ inquiryLine: { aggregate: jest.fn() } }),
+      },
+      updateMany,
+      update,
+    } as any;
+  }
+
+  const NOW = new Date('2026-09-17T12:00:00Z');
+  const realNow = Date.now;
+
+  beforeEach(() => {
+    Date.now = () => NOW.getTime();
+    jest.useFakeTimers({ now: NOW });
+  });
+
+  afterEach(() => {
+    Date.now = realNow;
+    jest.useRealTimers();
+  });
+
+  it('读路径不写：findMyInquiries / findAll 不触发任何 updateMany/update（1.2）', async () => {
+    const quotedRow = {
+      inquiryId: 'inq-1', inquiryNo: 'INQ202609-000001', status: 'quoted',
+      expiresAt: new Date('2026-09-17T11:00:00Z'), deletedAt: null, createdAt: NOW, updatedAt: NOW,
+    };
+    for (const read of ['myList', 'adminList'] as const) {
+      const h = readPrisma(quotedRow);
+      const service = build(h.prisma);
+      const q = { page: 1, pageSize: 10, getSkip: () => 0, getTake: () => 10, getOrderBy: () => ({ createdAt: 'desc' }) } as any;
+      if (read === 'myList') {
+        await service.findMyInquiries('cust-A', q);
+      } else {
+        await service.findAll(q);
+      }
+      expect(h.updateMany).not.toHaveBeenCalled();
+      expect(h.update).not.toHaveBeenCalled();
+    }
+  });
+
+  it('投影派生 isExpired 四态（2.2）：quoted+过期 true；quoted+未过期 false；非 quoted false；quoted+null false', async () => {
+    const mk = (status: string, expiresAt: Date | null) => ({
+      inquiryId: 'inq-1', inquiryNo: 'INQ202609-000001', status,
+      expiresAt, deletedAt: null, createdAt: NOW, updatedAt: NOW,
+    });
+    const cases: Array<[Record<string, unknown>, boolean]> = [
+      [mk('quoted', new Date('2026-09-17T11:00:00Z')), true],
+      [mk('quoted', new Date('2026-09-17T13:00:00Z')), false],
+      [mk('submitted', new Date('2026-09-17T11:00:00Z')), false],
+      [mk('quoted', null), false],
+    ];
+    for (const [row, expected] of cases) {
+      const h = readPrisma(row);
+      const service = build(h.prisma);
+      const detail = await service.findOneForCustomer('cust-A', 'inq-1');
+      expect(detail.isExpired).toBe(expected);
+    }
   });
 });

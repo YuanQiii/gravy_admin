@@ -61,6 +61,15 @@
 >
 > 另注：本 ADR 决策 2 提到的「`lines` 增 `@ArrayMaxSize(50)`」与决策 4 的「软删明细行过滤展示」均已实现，但受同一投影缺陷遮蔽 —— 过滤后的明细最终在出口被整体丢弃，故当时无法被观测。
 
+> **更正注记（2026-09-17，变更 `resolve-inquiry-expiry-semantics`）**：决策 5「Mall 不做自动过期 job、不做被动过期展示」的**边界**判断成立，但实现一度滑向了另一种更差的形态：`expireDueQuoted()` 在 Mall 与 Admin 的 **4 个只读端点**（客户/管理员各自的列表与详情）前置执行**全表** `updateMany { status='quoted', expiresAt <= now }` —— 读路径携带写事务（行锁 + WAL），且与决策 5「不做被动过期」的字面意图冲突。本变更已落实：
+>
+> 1. **移除读路径写**：`expireDueQuoted` 及其 4 处调用全部删除，读端点恢复只读（可走只读副本）。
+> 2. **过期改为派生展示态**：响应新增只读 `isExpired`（`status === 'quoted' && expiresAt < now`，判定唯一出自 core 纯函数 `isInquiryExpired`），**不落库**。`quoted` 且未填 `expiresAt` 视为永久报价（合法口径）。
+> 3. **`quoted→expired` 收敛为 admin/ops 人工流转**（与本决策的原始意图一致），复用 `atomic-inquiry-status-transition` 的条件写接缝；不再存在任何自动过期写路径。
+> 4. **`submitted→quoted` 强制要求 `expiresAt`**（DTO 层校验，`QUOTED_REQUIRES_EXPIRES_AT`）—— 否则"派生过期"无从谈起，会静默回到永久报价。
+>
+> 价格聚合（`subtotal = quantity × unitPrice`、`totalAmount = Σ subtotal`）已由变更 `derive-inquiry-price-aggregates` 落实为服务端派生，入参不再接受金额 —— 决策 5 的"聚合归 admin"从职责约定变成了代码事实。
+
 ## 备选方案（已否决）
 
 - **不加取消，维持单向 draft→submitted→quoted→expired**：客户询价管控能力缺失，误建/放弃的草稿只能永久滞留。否决。

@@ -167,11 +167,30 @@ export class InquiryResponseDto implements ShippingSnapshotShape {
   @Expose()
   cancelledAt?: Date;
 
-  @ApiProperty({ description: '创建时间', type: 'string', format: 'date-time' })
+  @ApiProperty({
+    description: '创建时间',
+    type: 'string',
+    format: 'date-time',
+  })
   @Expose()
   createdAt: Date;
 
-  @ApiProperty({ description: '更新时间', type: 'string', format: 'date-time' })
+  @ApiProperty({
+    description: '更新时间',
+    type: 'string',
+    format: 'date-time',
+  })
   @Expose()
   updatedAt: Date;
+
+  /**
+   * 派生展示态：报价是否已过期（`status === 'quoted' && expiresAt < now`）。
+   *
+   * 判定唯一出自 core 的 `isInquiryExpired`；该字段是**只读派生**，不落库、
+   * 客户端传入无效（未在入参 DTO 声明）。`quoted` 但未填 `expiresAt` 视为
+   * 永久报价 → false。
+   */
+  @ApiProperty({ description: '报价是否已过期（派生字段，只读）' })
+  @Expose()
+  isExpired: boolean;
 }

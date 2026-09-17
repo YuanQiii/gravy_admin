@@ -8,7 +8,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { plainToInstance } from 'class-transformer';
 import { Prisma } from '@prisma/client';
-import { PrismaService, BaseService, SoftDeleteService, PaginationData, startOfDay, endOfDay, INQUIRY_STATUS, InquiryStatus, isValidStatusTransition, buildStatusPatch, INQUIRY_NO_SEQ_LENGTH } from '@gvray/core';
+import { PrismaService, BaseService, SoftDeleteService, PaginationData, startOfDay, endOfDay, INQUIRY_STATUS, InquiryStatus, isValidStatusTransition, buildStatusPatch, isInquiryExpired, INQUIRY_NO_SEQ_LENGTH } from '@gvray/core';
 import { ACTIVE_FILTER_WHERE } from '../../equipment/filters/active-filter';
 
 
@@ -87,9 +87,13 @@ export class InquiriesService extends BaseService {
    * 调用方只表达「投影这一行」。给 DTO 增删字段不需要碰任何出口。
    */
   private projectInquiry(row: InquiryProjectionRow): InquiryResponseDto {
-    return plainToInstance(InquiryResponseDto, row, {
+    const dto = plainToInstance(InquiryResponseDto, row, {
       excludeExtraneousValues: true,
     });
+    dto.isExpired = isInquiryExpired(
+      row as { status: string; expiresAt: Date | string | null },
+    );
+    return dto;
   }
 
   /**
@@ -101,9 +105,13 @@ export class InquiriesService extends BaseService {
   private projectInquiryDetail(
     row: InquiryProjectionRow,
   ): InquiryDetailResponseDto {
-    return plainToInstance(InquiryDetailResponseDto, row, {
+    const dto = plainToInstance(InquiryDetailResponseDto, row, {
       excludeExtraneousValues: true,
     });
+    dto.isExpired = isInquiryExpired(
+      row as { status: string; expiresAt: Date | string | null },
+    );
+    return dto;
   }
 
   /**
@@ -364,7 +372,6 @@ export class InquiriesService extends BaseService {
     customerId: string,
     query: QueryInquiryDto,
   ): Promise<PaginationData<InquiryResponseDto>> {
-    await this.expireDueQuoted();
     const where: Record<string, unknown> = { deletedAt: null, customerId };
     const result = await this.paginateWithSort(
       this.prisma.inquiry,
@@ -387,7 +394,6 @@ export class InquiriesService extends BaseService {
     customerId: string,
     inquiryId: string,
   ): Promise<InquiryDetailResponseDto> {
-    await this.expireDueQuoted();
     const inquiry = await this.prisma.inquiry.findFirst({
       where: { inquiryId, customerId },
       include: INQUIRY_DETAIL_INCLUDE,
@@ -426,24 +432,6 @@ export class InquiriesService extends BaseService {
       inquiryId,
       INQUIRY_STATUS.CANCELLED,
     );
-  }
-
-  /**
-   * 懒过期：把已到 `expiresAt` 的 quoted 询价单批量流转为 expired（终态）。
-   * 查询路径在返回状态前调用，保证对外永不呈现"报价已过期却仍显示 quoted"的
-   * 半闭环状态。只命中 `quoted + expiresAt <= now + 未软删`，天然是合法流转
-   * （quoted→expired），expired 为终态不会再被误转。无调度基础设施，故用
-   * 读时补流转（updateMany 单条 SQL，成本可控）。
-   */
-  private async expireDueQuoted(): Promise<void> {
-    await this.prisma.inquiry.updateMany({
-      where: {
-        status: INQUIRY_STATUS.QUOTED,
-        expiresAt: { lte: new Date() },
-        deletedAt: null,
-      },
-      data: { status: INQUIRY_STATUS.EXPIRED },
-    });
   }
 
   /**
@@ -535,7 +523,6 @@ export class InquiriesService extends BaseService {
   async findAll(
     query: QueryInquiryDto,
   ): Promise<PaginationData<InquiryResponseDto>> {
-    await this.expireDueQuoted();
     const where: Record<string, unknown> = { deletedAt: null };
     if (query.keyword) {
       where.OR = [
@@ -578,7 +565,6 @@ export class InquiriesService extends BaseService {
   }
 
   async findOne(inquiryId: string): Promise<InquiryDetailResponseDto> {
-    await this.expireDueQuoted();
     const inquiry = await this.prisma.inquiry.findUnique({
       where: { inquiryId },
       include: INQUIRY_DETAIL_INCLUDE,
