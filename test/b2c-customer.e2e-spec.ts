@@ -229,4 +229,42 @@ describe('B2C Customer HTTP e2e (inquiries + addresses)', () => {
         .expect(401);
     });
   });
+
+  describe('Non-HttpException 500 & x-request-id (P2-1b 2.2/3.2)', () => {
+    it('非预期异常：500，响应头带 x-request-id；自带该头时沿用原值', async () => {
+      (harness.prisma as any).inquiry.findMany.mockRejectedValue(
+        new Error('boom-secret-detail'),
+      );
+
+      // 自带 x-request-id → 响应头沿用原值
+      const res = await request(harness.app.getHttpServer())
+        .get('/inquiries?page=1&pageSize=10')
+        .set('Authorization', `Bearer ${tokenA}`)
+        .set('x-request-id', 'corr-e2e-001')
+        .expect(500);
+      expect(res.headers['x-request-id']).toBe('corr-e2e-001');
+
+      // 不带 → 生成的 UUID 回写（非生产环境保留原始 message，泛化由单测覆盖）
+      const res2 = await request(harness.app.getHttpServer())
+        .get('/inquiries?page=1&pageSize=10')
+        .set('Authorization', `Bearer ${tokenA}`)
+        .expect(500);
+      expect(res2.headers['x-request-id']).toMatch(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
+      );
+      expect(res2.body.message).toBe('boom-secret-detail');
+    });
+
+    it('成功响应同样携带 x-request-id（关联 ID 全局可用）', async () => {
+      (harness.prisma as any).inquiry.findMany.mockResolvedValue([]);
+      (harness.prisma as any).inquiry.count.mockResolvedValue(0);
+      const res = await request(harness.app.getHttpServer())
+        .get('/inquiries?page=1&pageSize=10')
+        .set('Authorization', `Bearer ${tokenA}`)
+        .expect(200);
+      expect(res.headers['x-request-id']).toMatch(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
+      );
+    });
+  });
 });

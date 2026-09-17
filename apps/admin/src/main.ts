@@ -22,7 +22,8 @@ async function bootstrap() {
   const config = new DocumentBuilder()
     .setTitle('GVRAY Admin 企业级后台管理系统')
     .setDescription(
-      '**默认测试账户**\n\n' +
+      '**错误响应**：500 的 `message` 为泛化文案，不含内部细节；请凭响应头 `x-request-id` 关联访问日志定位（非生产环境保留原始 message 便于调试）。\n\n' +
+        '**默认测试账户**\n\n' +
         '| 角色 | 用户名 |\n' +
         '|------|--------|\n' +
         '| 超级管理员 | `super_admin` |\n' +

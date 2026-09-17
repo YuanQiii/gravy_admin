@@ -21,7 +21,10 @@ async function bootstrap() {
   // Swagger 配置
   const config = new DocumentBuilder()
     .setTitle('GVRAY Mall API')
-    .setDescription('GVRAY B2C 商城公开接口（匿名浏览 + 客户自助）')
+    .setDescription(
+      'GVRAY B2C 商城公开接口（匿名浏览 + 客户自助）\n\n' +
+        '**错误响应**：500 的 `message` 为泛化文案，不含内部细节；请凭响应头 `x-request-id` 关联访问日志定位（非生产环境保留原始 message 便于调试）。',
+    )
     .setVersion('1.0.0')
     .addBearerAuth(
       {
