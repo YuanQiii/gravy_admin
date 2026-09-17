@@ -68,3 +68,4 @@
 - spec：[openspec/specs/customer/spec.md 浏览历史管理](../../openspec/specs/customer/spec.md)
 - 数据结构：`prisma/schema.prisma` `model CustomerHistory`
 - 实现：`apps/mall/src/modules/customer-activity/`（`CustomerActivityService.recordView/findHistory/removeHistory`、`HistoryController`）、`apps/mall/src/modules/mall/browse/filter-detail.flow.ts`
+- **更正注记（2026-09-17，变更 `take-history-write-off-request-path`）**：本 ADR 决策 3（D3）中 `recordView` 以 `await` 进入详情响应链的实现已反转为 **fire-and-forget**：写入经 `HistorySideEffectService.record()` 脱离响应链（响应不再被 upsert + 淘汰事务拖累，登录/匿名客户详情路径一致性恢复），失败以 \`record_view_failed\` warn 记录并凭 \`x-request-id\` 关联，不再静默吞掉。依据：公开详情端点（匿名可打）的 P95 不应被登录客户的副作用拖累，且写失败与浏览成功本身无关（无事务边界依赖）。淘汰上限（100 条）与快照策略不变。

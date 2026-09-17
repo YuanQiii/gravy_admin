@@ -3,12 +3,14 @@ import {
   Get,
   Param,
   Query,
+  Req,
   UseGuards,
 } from '@nestjs/common';
+import { Request } from 'express';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { FiltersService, QueryFilterDto, FilterResponseDto } from '@gvray/domain';
-import { Public, ResponseUtil } from '@gvray/core';
+import { Public, ResponseUtil, REQUEST_ID_PROP } from '@gvray/core';
 
 import { MALL_OPTS } from '../mall.constants';
 import { OptionalCustomerGuard } from '@/core/guards/optional-customer.guard';
@@ -53,11 +55,16 @@ export class MallFiltersController {
   })
   async findOne(
     @CurrentCustomer() customer: ICustomer | undefined,
+    @Req() request: Request & Record<string, unknown>,
     @Param('id') id: string,
   ) {
+    // 透传请求关联 ID，使写历史的失败日志可与本次响应关联（x-request-id）
     const data = await this.filterDetailFlow.viewFilterDetail(
       customer?.customerId,
       id,
+      typeof request[REQUEST_ID_PROP] === 'string'
+        ? (request[REQUEST_ID_PROP] as string)
+        : null,
     );
     return ResponseUtil.found(data, '获取滤清器详情成功');
   }

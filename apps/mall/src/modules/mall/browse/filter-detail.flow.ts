@@ -1,6 +1,6 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { FiltersService, FilterResponseDto } from '@gvray/domain';
-import { CustomerActivityService } from '@/modules/customer-activity/customer-activity.service';
+import { HistorySideEffectService } from '@/modules/customer-activity/history-side-effect.service';
 import { MALL_OPTS } from '../mall.constants';
 
 /**
@@ -9,31 +9,27 @@ import { MALL_OPTS } from '../mall.constants';
  *
  * - 可见性由 `FiltersService.findOne(id, MALL_OPTS)` 保证（enabled-only，失效抛 404）；
  * - `customerId` 由 `OptionalCustomerGuard` 注入，缺失即为匿名，不写历史；
- * - 历史写失败仅记 warn，不打挂公开浏览详情返回。
+ * - 历史写**不进入响应链**（fire-and-forget，take-history-write-off-request-path）：
+ *   `record()` 无返回值、内部自带失败可见性（warn `record_view_failed`），
+ *   本模块对它零 try/catch、零 await —— 响应在 `findOne` 后即刻返回。
  */
 @Injectable()
 export class FilterDetailFlow {
-  private readonly logger = new Logger(FilterDetailFlow.name);
-
   constructor(
     private readonly filtersService: FiltersService,
-    private readonly activityService: CustomerActivityService,
+    private readonly historySideEffect: HistorySideEffectService,
   ) {}
 
   async viewFilterDetail(
     customerId: string | undefined,
     filterId: string,
+    requestId?: string | null,
   ): Promise<FilterResponseDto> {
     const data = await this.filtersService.findOne(filterId, MALL_OPTS);
+    // fire-and-forget：写历史脱离响应链（P95 不再被 upsert+淘汰事务拖累）；
+    // 失败可见性在 HistorySideEffectService 内（.catch 强制 + 结构化 warn）。
     if (customerId) {
-      try {
-        await this.activityService.recordView(customerId, filterId);
-      } catch (err) {
-        this.logger.warn(
-          `记录滤清器浏览历史失败 filterId=${filterId} customerId=${customerId}`,
-          err instanceof Error ? err.stack : String(err),
-        );
-      }
+      this.historySideEffect.record(customerId, filterId, requestId);
     }
     return data;
   }

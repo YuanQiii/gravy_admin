@@ -344,4 +344,57 @@ describe('B2C Customer HTTP e2e (inquiries + addresses)', () => {
       expect((harness.prisma as any).customerAddress.findMany.mock.calls[0][0].where.customerId).toBe('cust-A');
     });
   });
+
+  describe('History write off request path (P2-5 3.2/3.3)', () => {
+    function mockDetailRow() {
+      return {
+        filterId: 'flt-detail-1',
+        model: 'M-100',
+        typeName: '滤芯',
+        gencode: 'GEN-1',
+        status: 'enabled',
+        deletedAt: null,
+      };
+    }
+
+    it('登录客户访问详情：响应不等待写历史，200 后 upsert 仍发生（3.2）', async () => {
+      (harness.prisma as any).filter.findUnique.mockResolvedValue(
+        mockDetailRow(),
+      );
+      (harness.prisma as any).customerHistory.upsert.mockResolvedValue({});
+      (harness.prisma as any).customerHistory.findMany.mockResolvedValue([]);
+
+      const res = await request(harness.app.getHttpServer())
+        .get('/filters/flt-detail-1')
+        .set('Authorization', `Bearer ${tokenA}`)
+        .expect(200);
+      expect(res.body.data.filterId).toBe('flt-detail-1');
+
+      // 响应已返回（上行 expect(200) 已发生），fire-and-forget 的写在微任务
+      // 队列中完成：排空后断言 upsert 携带当前客户与滤清器
+      await new Promise((r) => setImmediate(r));
+      const upsert = (harness.prisma as any).customerHistory.upsert;
+      expect(upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            customerId_filterId: { customerId: 'cust-A', filterId: 'flt-detail-1' },
+          },
+        }),
+      );
+    });
+
+    it('匿名访问详情：200 且零历史写入（3.3）', async () => {
+      (harness.prisma as any).filter.findUnique.mockResolvedValue(
+        mockDetailRow(),
+      );
+      const upsert = (harness.prisma as any).customerHistory.upsert;
+      upsert.mockClear();
+
+      await request(harness.app.getHttpServer())
+        .get('/filters/flt-detail-1')
+        .expect(200);
+      await new Promise((r) => setImmediate(r));
+      expect(upsert).not.toHaveBeenCalled();
+    });
+  });
 });
