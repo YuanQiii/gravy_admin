@@ -1042,5 +1042,17 @@ describe('Equipment Anonymous Rate Limiting (e2e)', () => {
 
 
 
-});
 
+    it('伪造 X-Forwarded-For 不产生新限流桶（默认 trust proxy=false，61 次仍 429）', async () => {
+      const server = mallHarness.app.getHttpServer();
+
+      // 桶已被上一用例打满：此后每次请求带**不同**的随机伪造 XFF，
+      // 全部仍 429 —— 若伪造 XFF 能产生新限流桶（旧实现行为），这里全是 200
+      for (let i = 0; i < 60; i++) {
+        await request(server)
+          .get(`/brands${LIST_PARAMS}`)
+          .set('x-forwarded-for', `10.${(i % 250) + 1}.${i}.7`)
+          .expect(429);
+      }
+    });
+});

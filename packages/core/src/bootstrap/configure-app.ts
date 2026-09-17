@@ -19,6 +19,14 @@ export function configureApp(app: INestApplication): void {
   app.useLogger(app.get(Logger));
   const configService = app.get(ConfigService);
 
+  // 可信代理拓扑（harden-client-ip-trust-boundary）：默认 false = 不信任任何
+  // 代理头；部署于 nginx 等可信代理后时按层数/CIDR 声明。req.ip 的解析与
+  // 伪造头免疫都建立在它之上（ClientIpResolver 唯一所有者）。
+  const expressApp = app.getHttpAdapter().getInstance() as {
+    set: (key: string, value: unknown) => void;
+  };
+  expressApp.set('trust proxy', configService.get('app.trustedProxy') ?? false);
+
   // CORS 配置
   const isDev = configService.get('app.nodeEnv') === 'development';
   const enableCors = isDev || configService.get('cors.enabled');

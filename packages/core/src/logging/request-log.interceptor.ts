@@ -11,6 +11,7 @@ import { Request, Response } from 'express';
 import { Observable, tap, catchError, throwError } from 'rxjs';
 import { ConfigService } from '@nestjs/config';
 import { DEFAULT_SLOW_MS, REQUEST_ID_PROP } from './logging.constants';
+import { clientIpResolver } from '../core/client-ip.resolver';
 
 /**
  * 请求日志拦截器（最外层 APP_INTERCEPTOR，单一 owner）
@@ -92,11 +93,7 @@ export class RequestLogInterceptor implements NestInterceptor {
   ) {
     const user = req.user || {};
     const path = req.originalUrl || req.url || '';
-    const ip = (req.headers['x-forwarded-for'] ||
-      req.headers['x-real-ip'] ||
-      req.ip ||
-      req.socket?.remoteAddress ||
-      '') as string;
+    const ip = clientIpResolver.resolve(req);
     return {
       userId: user?.sub || user?.userId || user?.id || null,
       method: (req.method || '').toUpperCase(),

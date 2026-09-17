@@ -1,5 +1,5 @@
 import { createParamDecorator, ExecutionContext } from '@nestjs/common';
-import { resolveClientIp } from '@gvray/core';
+import { clientIpResolver } from '@gvray/core';
 
 export interface ClientInfo {
   ip: string;
@@ -7,15 +7,16 @@ export interface ClientInfo {
 }
 
 /**
- * 提取当前请求的客户端信息（IP + User-Agent），是 `resolveClientIp` 之上的薄 adapter。
- * IP 来源单一事实来源在 `@gvray/core` 的 `resolveClientIp`。
+ * 提取当前请求的客户端信息（IP + User-Agent）。
+ * IP 来源单一事实来源是 `@gvray/core` 的 `ClientIpResolver`（req.ip，
+ * 受 `trust proxy` 配置约束）—— 不再自行读任何转发头。
  */
 export const ClientInfo = createParamDecorator(
   (_data: unknown, ctx: ExecutionContext): ClientInfo => {
     const request = ctx.switchToHttp().getRequest();
     const headers = request?.headers;
     return {
-      ip: resolveClientIp(headers),
+      ip: clientIpResolver.resolve(request),
       userAgent:
         typeof headers?.['user-agent'] === 'string'
           ? headers['user-agent']

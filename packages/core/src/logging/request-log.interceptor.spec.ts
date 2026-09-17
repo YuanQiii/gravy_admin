@@ -21,6 +21,8 @@ describe('RequestLogInterceptor（单一 seam 三分支）', () => {
       path: '/api/items',
       route: { path: '/api/items' },
       query: { page: '1' },
+      // 可信解析契约（harden-client-ip-trust-boundary）：req.ip 优先，
+      // x-forwarded-for 伪造头不计入 —— 旧实现会取 1.2.3.4
       ip: '',
       socket: { remoteAddress: '9.9.9.9' },
       user: { userId: 'u1' },
@@ -66,7 +68,7 @@ describe('RequestLogInterceptor（单一 seam 三分支）', () => {
     expect(record.path).toBe('/api/items?page=1');
     expect(record.status).toBe(200);
     expect(record.requestId).toBe('req-123');
-    expect(record.ip).toBe('1.2.3.4');
+    expect(record.ip).toBe('9.9.9.9'); // req.ip 缺失 → socket 回退；XFF 头不被读
     expect(record.ua).toBe('jest');
     expect(record.query).toEqual({ page: '1' });
     expect(errorSpy).not.toHaveBeenCalled();

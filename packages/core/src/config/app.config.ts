@@ -1,4 +1,5 @@
 import { registerAs } from '@nestjs/config';
+import { resolveTrustProxy } from '../core/client-ip.resolver';
 
 export class AppConfig {
   port!: number;
@@ -10,6 +11,7 @@ export class AppConfig {
   logRedact!: string;
   logSlowMs!: number;
   logRequestIdHeader!: string;
+  trustedProxy!: boolean | number | string;
 }
 
 export default registerAs(
@@ -26,5 +28,7 @@ export default registerAs(
     logRedact: process.env.LOG_REDACT || '',
     logSlowMs: parseInt(process.env.LOG_SLOW_MS || '1000', 10),
     logRequestIdHeader: process.env.LOG_REQ_ID_HEADER || 'x-request-id',
+    // 可信代理拓扑声明（harden-client-ip-trust-boundary）：默认 false = 不信任任何代理头
+    trustedProxy: resolveTrustProxy(process.env.SECURITY_TRUSTED_PROXY),
   }),
 );

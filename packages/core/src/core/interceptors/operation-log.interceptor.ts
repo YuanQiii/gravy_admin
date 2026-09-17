@@ -6,6 +6,7 @@ import {
   NestInterceptor,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { clientIpResolver } from '../client-ip.resolver';
 import { Reflector } from '@nestjs/core';
 import { Observable, catchError, tap, throwError } from 'rxjs';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -86,11 +87,7 @@ export class OperationLogInterceptor implements NestInterceptor {
       ]) || {};
 
     const start = Date.now();
-    const ip = (req.headers['x-forwarded-for'] ||
-      req.headers['x-real-ip'] ||
-      req.ip ||
-      req.socket?.remoteAddress ||
-      '') as string;
+    const ip = clientIpResolver.resolve(req);
     const ua = (req.headers['user-agent'] || '') as string;
     const path = req.originalUrl || req.url || '';
 

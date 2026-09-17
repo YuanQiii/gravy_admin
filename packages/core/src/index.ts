@@ -82,7 +82,14 @@ export { JwtStrategy } from './core/strategies/jwt.strategy';
 export { ResponseUtil } from './shared/utils/response.util';
 export { extractPermissionCodes, extractRoleKeys, isSuperAdminOf } from './shared/utils/permission.util';
 export { startOfDay, endOfDay } from './shared/utils/time.util';
-export { resolveClientIp } from './shared/utils/client-ip.util';
+export {
+  clientIpResolver,
+  normalizeIp,
+  resolveTrustProxy,
+  ClientIpResolver,
+  ExpressClientIpResolver,
+  LOOPBACK_IPV4,
+} from './core/client-ip.resolver';
 
 // ── shared / services ────────────────────────────────────────────
 export { BaseService, VisibilityOpts, isB2cVisibility } from './shared/services/base.service';
