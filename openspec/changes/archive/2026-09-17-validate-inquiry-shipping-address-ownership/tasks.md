@@ -13,8 +13,11 @@
 
 ## 3. 规格与文档同步
 
-- [ ] 3.1 核对 `openspec/specs/inquiry/spec.md` 在归档（`/opsx-archive`）时的 delta 合并。**保持未勾选**——归档阶段动作。
-  **⚠️ 本任务在实施中被证明是必需的，且已经发生过一次**：P0-2 归档时把主规格「询价单创建」从 3 个场景扩到 5 个（新增「创建时写入地址快照」「未提供地址时快照为空」），而本变更的 MODIFIED 块写在 P0-2 归档**之前** → `openspec validate --strict` 直接报 `MODIFIED "询价单创建" omits scenario(s) the current spec still has: 创建时写入地址快照, 未提供地址时快照为空`。已把 delta **重放到 P0-2 合并后的主规格之上**（描述并入快照字段与冻结语义，场景 5 + 2 = 7）。这正是台账里记录的串行约束：**同一 Requirement 被多变更改写时，后归档者必须重放 delta**。
+- [x] 3.1 核对 `openspec/specs/inquiry/spec.md` 在归档时的 delta 合并。**已于归档时执行（2026-09-17）**：
+  - MODIFIED「询价单创建」→ 描述补入归属校验与跨字段约束段；场景 5 → **7**（新增「管理端代客下单携带有效地址」「管理端仅传地址不传客户被拒」），并同步「匿名询价」措辞（显式断言 `shippingAddressId` 为空）。
+  - ADDED「管理端询价单收货地址归属校验」→ 新增于「询价单创建」之后（与创建路径相邻，便于阅读），含 3 个场景。
+  - `openspec validate --specs` → **10 passed / 0 failed**；主规格 Requirement 数 10 → **11**；无 delta 操作头残留。
+  **⚠️ 本次归档再次触发连锁**（与 P0-2 归档时同一机制）：`derive-inquiry-price-aggregates` 的 MODIFIED 块是在 P0-2 归档后、P2-4 归档**前**重放的，本次合并后它又缺了这两个场景**以及本变更刚并入的归属描述段**——`validate --strict` 立刻报 `omits scenario(s)`。已把该块**二次重放**到本次合并后的主规格之上（描述三段齐备，场景 7 + 4 = **11**）。**结论：每次归档都会让所有改写同一 Requirement 的未归档变更失效，必须逐个重放。**
 - [x] 3.2 记录「`customerId` 空 + `shippingAddressId` 非空 ⇒ 拒绝（400）」的语义决策。验证：`design.md` 决策 3 与 delta 场景「管理端仅传地址不传客户被拒」一致；e2e 断言错误码 `SHIPPING_ADDRESS_REQUIRES_CUSTOMER`。
 
 ## 4. 测试

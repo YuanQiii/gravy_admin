@@ -37,11 +37,16 @@ P0-2 已做的与本问题直接相关的事实（已读其 `design.md` 决策 4
 
 *备选（否决）*：在 `create` 另写一段 `customerAddress.findUnique` + `address.customerId === dto.customerId` 断言。这会重复 P0-2 的 seam 逻辑，且若写在事务外又会回到原 TOCTOU 缺陷；否决。
 
-### 2. DTO 跨字段约束用 class-validator 类级 `@Validate` 自定义约束表达
+### 2. DTO 跨字段约束用 class-validator 的**类装饰器**表达
 
-新增 `ShippingAddressRequiresCustomerConstraint`（`ValidatorConstraintInterface`），`validate(dto)` 逻辑为「`dto.shippingAddressId` 非空且 `dto.customerId` 为空 ⇒ false」，`defaultMessage` 返回 `'SHIPPING_ADDRESS_REQUIRES_CUSTOMER'`；在 `CreateInquiryDto` 类上挂 `@Validate(ShippingAddressRequiresCustomerConstraint)`。
+新增 `ShippingAddressRequiresCustomerConstraint`（`ValidatorConstraintInterface`），`validate(dto)` 逻辑为「`dto.shippingAddressId` 非空且 `dto.customerId` 为空 ⇒ false」，`defaultMessage` 返回 `'SHIPPING_ADDRESS_REQUIRES_CUSTOMER'`；在 `CreateInquiryDto` 类上挂 `@ShippingAddressRequiresCustomer()`。
 
-理由：跨字段校验需在对象层面判定，**类级约束**是 class-validator 的标准跨字段手段；它只读取已声明字段、**不引入任何新属性**，因此与全局 `forbidNonWhitelisted`（`whitelist + forbidNonWhitelisted: true`）**不冲突**——后者仅拒绝未声明属性，不关心字段间关系。
+**实现订正（实施时发现，原设计写法不可编译）**：`class-validator` 的 `@Validate(...)` 返回的是 **`PropertyDecorator`**，套在类上会得到 `TS1238: Unable to resolve signature of class decorator when called as an expression`。类级约束的正确写法是用 `registerDecorator({ target: <类>, propertyName: undefined, validator })` 包一层 **`ClassDecorator`** —— 所以该文件导出的是装饰器工厂 `ShippingAddressRequiresCustomer()`，DTO 上挂的也是它。另：`propertyName` 在类型上是 `string`，类级语义恰为空值，故用显式断言 + 注释交代。
+
+理由：跨字段校验需在对象层面判定，**类级约束**是 class-validator 的标准跨字段手段（实测 `validate()` 会执行它，即 Nest `ValidationPipe` 内部那一步）；它只读取已声明字段、**不引入任何新属性**，因此与全局 `forbidNonWhitelisted`（`whitelist + forbidNonWhitelisted: true`）**不冲突**——后者仅拒绝未声明属性，不关心字段间关系。
+
+*备选（否决）*：用属性级 `@ValidateIf` / `@IsNotEmpty` 拼装。属性级装饰器只能单字段判定，无法表达「另一字段为空的依赖」，做不到该约束。
+*备选（否决）*：用 `@ValidateNested` 把 `shippingAddressId` 包成子对象。破坏现有扁平 DTO 与 Swagger 契约，收益为零。
 
 *备选（否决）*：用属性级 `@ValidateIf` / `@IsNotEmpty` 拼装。属性级装饰器只能单字段判定，无法表达「另一字段为空的依赖」，做不到该约束。
 *备选（否决）*：用 `@ValidateNested` 把 `shippingAddressId` 包成子对象。破坏现有扁平 DTO 与 Swagger 契约，收益为零。
