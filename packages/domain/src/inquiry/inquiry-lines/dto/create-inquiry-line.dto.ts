@@ -44,10 +44,8 @@ export class CreateInquiryLineDto {
   @IsNumber()
   unitPrice?: number;
 
-  @ApiPropertyOptional({ description: '小计', example: 250.0 })
-  @IsOptional()
-  @IsNumber()
-  subtotal?: number;
+  // subtotal 由服务端按 quantity × unitPrice 派生（derive-inquiry-price-aggregates），
+  // 不再接受客户端传入 —— 这里的字段被移除后，forbidNonWhitelisted 会拒绝携带它的请求。
 
   @ApiPropertyOptional({ description: '备注' })
   @IsOptional()

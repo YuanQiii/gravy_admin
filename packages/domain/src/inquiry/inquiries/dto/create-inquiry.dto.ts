@@ -51,10 +51,8 @@ export class CreateInquiryDto {
   @IsString()
   customerPhone?: string;
 
-  @ApiPropertyOptional({ description: '总金额', example: 15000.0 })
-  @IsOptional()
-  @IsNumber()
-  totalAmount?: number;
+  // totalAmount 由服务端按未软删明细行的 subtotal 之和派生
+  // （derive-inquiry-price-aggregates），不再接受客户端传入。
 
   @ApiPropertyOptional({ description: '收货地址ID（关联 CustomerAddress）' })
   @IsOptional()

@@ -27,6 +27,7 @@ import {
   assertShippingAddressOwned,
   resolveOwnerCustomerId,
 } from './shipping-address-ownership';
+import { InquiryPricingService } from '../pricing/inquiry-pricing.service';
 // 类型仅在编译期引用（creates no runtime module edge），避免 b2c → inquiry → b2c 环
 import type { CreateCustomerInquiryDto } from './dto/customer-b2c/create-customer-inquiry.dto';
 import type { CreateInquiryLineItemDto } from './dto/customer-b2c/create-inquiry-line-item.dto';
@@ -72,6 +73,7 @@ export class InquiriesService extends BaseService {
     protected readonly prisma: PrismaService,
     protected readonly configService: ConfigService,
     private readonly softDelete: SoftDeleteService,
+    private readonly pricing: InquiryPricingService,
   ) {
     super(prisma, configService);
   }
@@ -335,6 +337,10 @@ export class InquiriesService extends BaseService {
             });
           }
 
+          // 明细行在客户路径里也是"明细写"：合计必须随之重算（P3-6）。
+          // 客户填的行无价格 → 派生结果为 null，与"未报价"口径一致。
+          await this.pricing.recomputeForInquiry(tx, inquiry.inquiryId);
+
           return this.projectInquiry(inquiry);
         } catch (error) {
           if (
@@ -583,6 +589,13 @@ export class InquiriesService extends BaseService {
     return this.projectInquiryDetail(inquiry);
   }
 
+  /**
+   * 管理端更新（PATCH）。
+   *
+   * **换址 / 改价 = 新建一张询价单**（W1，design 决策 10）：`UpdateInquiryDto`
+   * 已不含 `shippingAddressId` 与 `totalAmount`，因此本方法**不可能**改写
+   * 地址引用、地址快照或合计 —— 单据的履约依据在创建时即冻结。
+   */
   async update(
     inquiryId: string,
     dto: UpdateInquiryDto,
@@ -626,7 +639,7 @@ export class InquiriesService extends BaseService {
     }
 
     // 执行交给接缝。管理端按权限码可见，失败归因无需 scope（一律 409）。
-    return this.applyStatusTransition(this.prisma, {
+    const result = await this.applyStatusTransition(this.prisma, {
       inquiryId,
       expectedStatus: existing.status,
       newStatus: newStatus as InquiryStatus,
@@ -634,6 +647,13 @@ export class InquiriesService extends BaseService {
       expiresAt: dto?.expiresAt,
       updatedById: updatedById ?? null,
     });
+
+    // 报价动作的第二个副作用：合计落定（P3-6）。正常情况下明细行写入时已
+    // 保持 totalAmount 同步，此处重算是防御性的（例如明细行由旧版本写入）。
+    if (newStatus === INQUIRY_STATUS.QUOTED) {
+      await this.pricing.recomputeForInquiry(this.prisma, inquiryId);
+    }
+    return result;
   }
 
   async remove(inquiryId: string): Promise<void> {

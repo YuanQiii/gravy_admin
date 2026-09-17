@@ -39,7 +39,7 @@ export function createMockPrismaService(): PrismaService {
     findUniqueOrThrow: null,
     findFirstOrThrow: null,
     count: 0,
-    aggregate: {},
+    aggregate: { _sum: {}, _count: {}, _avg: {}, _min: {}, _max: {} },
     groupBy: [],
     createManyAndReturn: [],
   };
