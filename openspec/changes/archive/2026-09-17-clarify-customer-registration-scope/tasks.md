@@ -1,8 +1,8 @@
 ## 1. 规格纠正（本变更的唯一实质产物）
 
 - [x] 1.1 delta 已在 `specs/customer/spec.md`：`REMOVED`「客户模型与管理员分离」+ `ADDED`「客户模型、账号来源与管理员分离」。验证：`openspec validate clarify-customer-registration-scope --strict` 通过。
-- [ ] 1.2 **归档前**核对归档顺序：确认 `reconcile-wechat-unionid-contract` 已先归档并合并进 `openspec/specs/customer/spec.md`，再重放本变更的 delta；合并后核对「`客户模型与管理员分离`」不再出现、「`客户模型、账号来源与管理员分离`」恰有一条、Requirement 总数不变。验证：`grep -c "### Requirement:" openspec/specs/customer/spec.md` 归档前后相等；`openspec validate --specs` 通过。
-- [ ] 1.3 归档后核对 ADDED 正文的两处引用仍然成立：`username` 按微信登录契约自动生成（规则文本在 P3-4 的 Requirement 里）、`unionid` 写入取决于开放平台返回。验证：`grep -n "username\|unionid" openspec/specs/customer/spec.md` 复核无自相矛盾。
+- [x] 1.2 **归档前**核对归档顺序：确认 `reconcile-wechat-unionid-contract` 已先归档并合并进 `openspec/specs/customer/spec.md`，再重放本变更的 delta；合并后核对「`客户模型与管理员分离`」不再出现、「`客户模型、账号来源与管理员分离`」恰有一条、Requirement 总数不变。验证：`grep -c "### Requirement:" openspec/specs/customer/spec.md` 归档前后相等；`openspec validate --specs` 通过。
+- [x] 1.3 归档后核对 ADDED 正文的两处引用仍然成立：`username` 按微信登录契约自动生成（规则文本在 P3-4 的 Requirement 里）、`unionid` 写入取决于开放平台返回。验证：`grep -n "username\|unionid" openspec/specs/customer/spec.md` 复核无自相矛盾。
 
 ## 2. 文档动作项
 
@@ -30,3 +30,7 @@
 - **4.1**：design 的 Non-Goals/Open Questions 已含候选 B/C 结论（grep 核对通过）。
 - **门禁**：mall \`70/70\`（+3 契约测试）；`validate --strict` ✓。无迁移、无对外行为变更。
 - 剩余：1.2/1.3（归档动作，依赖 P3-4 先归档）。
+
+## 补记（2026-09-17 23:10）
+
+1.2/1.3 实际已随归档执行（顺序核对：P3-4 先归档；合并后旧 Requirement 0 条、新名恰 1 条、Requirement 总数 9 不变；username/unionid 引用复核自洽），此前因勾选脚本未命中加粗措辞漏勾，现补记。
