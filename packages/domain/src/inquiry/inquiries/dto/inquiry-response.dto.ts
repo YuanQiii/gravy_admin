@@ -25,7 +25,7 @@ export class InquiryResponseDto implements ShippingSnapshotShape {
   @Expose()
   inquiryId: string;
 
-  @ApiProperty({ description: '询价单编号', example: 'INQ202608-0001' })
+  @ApiProperty({ description: '询价单编号', example: 'INQ202608-000001' })
   @Expose()
   inquiryNo: string;
 

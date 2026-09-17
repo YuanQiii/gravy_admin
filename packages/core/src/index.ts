@@ -133,6 +133,7 @@ export {
   buildStatusPatch,
   INQUIRY_NO_PREFIX,
   INQUIRY_NO_FORMAT,
+  INQUIRY_NO_SEQ_LENGTH,
 } from './shared/constants/inquiry.constant';
 export {
   EQUIPMENT_ENGINE_ENERGY,

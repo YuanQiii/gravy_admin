@@ -98,3 +98,13 @@ export function buildStatusPatch(
 // ==================== 询价单编号生成 ====================
 export const INQUIRY_NO_PREFIX = 'INQ';
 export const INQUIRY_NO_FORMAT = 'yyyyMM';
+
+/**
+ * 序号位宽（零填充）。
+ *
+ * 6 位的意义：使 `inquiryNo` 的**字典序恒等于数值序** —— 4 位时存在 `-10000`
+ * 会让 `orderBy: { inquiryNo: 'desc' }` 把 `-9999` 误判为最大值，派生出的候选号
+ * 必然已存在 → P2002 → 单月第 10000 单起新建全部 500。等宽之后这一类误判从根上消失。
+ * 999999/月对本域事实上无限（月度量逼近时再考虑计数表，见 deepen-inquiry-no-generation）。
+ */
+export const INQUIRY_NO_SEQ_LENGTH = 6;

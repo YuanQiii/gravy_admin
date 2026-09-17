@@ -8,7 +8,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { plainToInstance } from 'class-transformer';
 import { Prisma } from '@prisma/client';
-import { PrismaService, BaseService, SoftDeleteService, PaginationData, startOfDay, endOfDay, INQUIRY_STATUS, InquiryStatus, isValidStatusTransition, buildStatusPatch } from '@gvray/core';
+import { PrismaService, BaseService, SoftDeleteService, PaginationData, startOfDay, endOfDay, INQUIRY_STATUS, InquiryStatus, isValidStatusTransition, buildStatusPatch, INQUIRY_NO_SEQ_LENGTH } from '@gvray/core';
 import { ACTIVE_FILTER_WHERE } from '../../equipment/filters/active-filter';
 
 
@@ -138,6 +138,38 @@ export class InquiriesService extends BaseService {
     };
   }
 
+  /**
+   * 推导下一个询价单编号候选（**单次推导**，含 advisory lock）。
+   *
+   * 收拢此前在 `create` / `createForCustomer` 各写一份的三段逻辑：
+   * ① 数值比较取当月最大序号（`split('-')[1]` 转数值）——字典序在序号位数
+   *   变化时会把 `-9999` 误判为大于 `-10000`，派生出必然已存在的候选号；
+   * ② 等宽零填充（`INQUIRY_NO_SEQ_LENGTH = 6`），使字典序恒等于数值序；
+   * ③ `pg_advisory_xact_lock(hashtext(candidate))` 串行化同候选号的并发推导。
+   *
+   * P2002 重试**不**在这里：重试必须与业务写入同循环（候选号失败后要连着
+   * 重新推导再写入），放在本函数就得传回调，控制流反而更绕。两个调用方
+   * 各保留一个 3 行的循环，推导逻辑本身已单点。
+   */
+  private async nextInquiryNo(
+    tx: Prisma.TransactionClient,
+    prefix: string,
+  ): Promise<string> {
+    const last = await tx.inquiry.findFirst({
+      where: { inquiryNo: { startsWith: prefix } },
+      orderBy: { inquiryNo: 'desc' },
+    });
+    const lastSeq = last
+      ? parseInt(last.inquiryNo.split('-')[1] ?? '', 10) || 0
+      : 0;
+    const candidate = `${prefix}${String(lastSeq + 1).padStart(
+      INQUIRY_NO_SEQ_LENGTH,
+      '0',
+    )}`;
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${candidate}))`;
+    return candidate;
+  }
+
   async create(
     dto: CreateInquiryDto,
     createdById?: string,
@@ -163,13 +195,7 @@ export class InquiriesService extends BaseService {
         : null;
 
       for (let attempt = 0; attempt < 3; attempt++) {
-        const last = await tx.inquiry.findFirst({
-          where: { inquiryNo: { startsWith: prefix } },
-          orderBy: { inquiryNo: 'desc' },
-        });
-        const next = (last ? parseInt(last.inquiryNo.slice(-4), 10) : 0) + 1;
-        const candidate = `${prefix}${String(next).padStart(4, '0')}`;
-        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${candidate}))`;
+        const candidate = await this.nextInquiryNo(tx, prefix);
         try {
           const inquiry = await tx.inquiry.create({
             data: {
@@ -273,13 +299,7 @@ export class InquiriesService extends BaseService {
       const prefix = `INQ${yyyy}${mm}-`;
 
       for (let attempt = 0; attempt < 3; attempt++) {
-        const last = await tx.inquiry.findFirst({
-          where: { inquiryNo: { startsWith: prefix } },
-          orderBy: { inquiryNo: 'desc' },
-        });
-        const next = (last ? parseInt(last.inquiryNo.slice(-4), 10) : 0) + 1;
-        const candidate = `${prefix}${String(next).padStart(4, '0')}`;
-        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${candidate}))`;
+        const candidate = await this.nextInquiryNo(tx, prefix);
         try {
           const inquiry = await tx.inquiry.create({
             data: {

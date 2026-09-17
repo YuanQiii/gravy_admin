@@ -36,7 +36,7 @@ const LINE_SOURCE: Record<string, unknown> = {
 const INQUIRY_SOURCE: Record<string, unknown> = {
   id: 7,
   inquiryId: 'inq-1',
-  inquiryNo: 'INQ202609-0001',
+  inquiryNo: 'INQ202609-000001',
   title: '采购 320D 液压滤清器',
   description: null,
   status: 'quoted',

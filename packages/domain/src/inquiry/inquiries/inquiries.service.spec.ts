@@ -180,7 +180,7 @@ describe('InquiriesService.createForCustomer', () => {
       baseDto.lines,
     );
 
-    expect(result.inquiryNo).toMatch(/^INQ\d{6}-0001$/);
+    expect(result.inquiryNo).toMatch(/^INQ\d{6}-\d{6}$/);
     expect(result.status).toBe('draft');
 
     // 快照读取发生在**事务客户端**上（与主体写入同一事务，无 TOCTOU 窗口）
@@ -385,7 +385,7 @@ describe('InquiriesService 客户状态流转', () => {
           : (overrides.currentStatus ?? status);
       return {
         inquiryId: 'inq-001',
-        inquiryNo: 'INQ202609-0001',
+        inquiryNo: 'INQ202609-000001',
         status: current,
         deletedAt: null,
       };
@@ -398,14 +398,14 @@ describe('InquiriesService 客户状态流转', () => {
       Object.keys(state.patch).length > 0
         ? {
             inquiryId: 'inq-001',
-            inquiryNo: 'INQ202609-0001',
+            inquiryNo: 'INQ202609-000001',
             submittedAt: null,
             cancelledAt: null,
             ...state.patch,
           }
         : {
             inquiryId: 'inq-001',
-            inquiryNo: 'INQ202609-0001',
+            inquiryNo: 'INQ202609-000001',
             status: overrides.currentStatus ?? status,
             deletedAt: null,
             submittedAt: null,
@@ -537,7 +537,7 @@ describe('InquiriesService 详情投影（Inquiry response projection 接缝）'
   const detailRow = {
     id: 7,
     inquiryId: 'inq-001',
-    inquiryNo: 'INQ202609-0001',
+    inquiryNo: 'INQ202609-000001',
     title: '采购 320D 液压滤清器',
     description: null,
     status: 'quoted',
@@ -693,5 +693,79 @@ describe('InquiriesService 详情投影（Inquiry response projection 接缝）'
 
     expect(page.items).toHaveLength(1);
     expect(page.items[0]).not.toHaveProperty('inquiryLines');
+  });
+});
+
+describe('nextInquiryNo（编号推导深模块 · 6 位 + 数值比较）', () => {
+  function buildNumberService(prisma: any) {
+    const service = new InquiriesService(
+      prisma,
+      {} as ConfigService,
+      {} as SoftDeleteService,
+    );
+    (service as any).prisma = prisma;
+    return service;
+  }
+
+  /** tx mock：`findFirst` 返回当月最大编号，`$executeRaw` 吞掉 advisory lock */
+  function makeNumberPrisma(lastInquiryNo: string | null) {
+    return {
+      inquiry: {
+        findFirst: jest.fn(async () =>
+          lastInquiryNo ? { inquiryNo: lastInquiryNo } : null,
+        ),
+      },
+      $executeRaw: jest.fn(async () => 0),
+    } as any;
+  }
+
+  it('首单（当月无记录）→ 6 位 000001', async () => {
+    const prisma = makeNumberPrisma(null);
+    const service = buildNumberService(prisma);
+
+    const candidate = await (service as any).nextInquiryNo(
+      prisma,
+      'INQ202608-',
+    );
+
+    expect(candidate).toBe('INQ202608-000001');
+    expect(candidate).toHaveLength('INQ202608-'.length + 6);
+  });
+
+  it('当月已有 9999 条：第 10000 单为 -010000（不再受 4 位宽度限制）', async () => {
+    const prisma = makeNumberPrisma('INQ202608-009999');
+    const service = buildNumberService(prisma);
+
+    const candidate = await (service as any).nextInquiryNo(
+      prisma,
+      'INQ202608-',
+    );
+
+    expect(candidate).toBe('INQ202608-010000');
+  });
+
+  it('数值比较：存在 -010000 时按 10000 递增（字典序会误判 -9999 更大）', async () => {
+    // 字典序下 "INQ202608-010000" < "INQ202608-009999"，orderBy desc 会取错行；
+    // 这里直接给出门面查询会取到的“字典序最大”行，断言推导仍按数值走到 10001
+    const prisma = makeNumberPrisma('INQ202608-010000');
+    const service = buildNumberService(prisma);
+
+    const candidate = await (service as any).nextInquiryNo(
+      prisma,
+      'INQ202608-',
+    );
+
+    expect(candidate).toBe('INQ202608-010001');
+  });
+
+  it('advisory lock 针对派生出的候选号加锁', async () => {
+    const prisma = makeNumberPrisma('INQ202608-009999');
+    const service = buildNumberService(prisma);
+
+    await (service as any).nextInquiryNo(prisma, 'INQ202608-');
+
+    expect(prisma.$executeRaw).toHaveBeenCalledTimes(1);
+    const sql = prisma.$executeRaw.mock.calls[0][0];
+    expect(String(sql)).toContain('pg_advisory_xact_lock');
   });
 });

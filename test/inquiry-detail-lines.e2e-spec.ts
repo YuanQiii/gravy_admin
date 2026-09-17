@@ -54,7 +54,7 @@ const line = (over: Record<string, unknown>) => ({
 const DETAIL_ROW = {
   id: 7,
   inquiryId: 'inq-001',
-  inquiryNo: 'INQ202609-0001',
+  inquiryNo: 'INQ202609-000001',
   title: '采购 320D 液压滤清器',
   description: null,
   status: 'quoted',
