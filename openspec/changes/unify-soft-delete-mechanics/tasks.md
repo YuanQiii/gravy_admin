@@ -16,9 +16,9 @@
 
 ## 3. 迁移（删除 deletedAt 列，需用户显式确认）
 
-- [ ] 3.1 **（迁移需用户显式确认后执行，属数据库变更，未经确认不跑）** 运行 `pnpm prisma:migrate:dev --name drop_customer_address_deleted_at` 生成迁移。验证：命令在用户确认后成功执行，`prisma/migrations/` 下新增迁移目录。
-- [ ] 3.2 进入生成的 `migration.sql`，在 `DROP COLUMN "deletedAt"` 之前追加防御性 `DELETE FROM "customer_addresses" WHERE "deletedAt" IS NOT NULL;` 与注释说明「清理潜在残留软删行，避免删列复活」。验证：迁移文件同时含 `DELETE` 清理与 `ALTER TABLE "customer_addresses" DROP COLUMN "deletedAt"`；`pnpm prisma:generate` 通过。
-- [ ] 3.3 本地 dev 库执行迁移并校验：无残留 `deletedAt` 行、列已移除、地址读写正常。验证：`psql` 执行 `\d customer_addresses` 确认无 `deletedAt` 列；`pnpm test` 通过。
+- [x] 3.1 **（迁移需用户显式确认后执行，属数据库变更，未经确认不跑）** 运行 `pnpm prisma:migrate:dev --name drop_customer_address_deleted_at` 生成迁移。验证：命令在用户确认后成功执行，`prisma/migrations/` 下新增迁移目录。
+- [x] 3.2 进入生成的 `migration.sql`，在 `DROP COLUMN "deletedAt"` 之前追加防御性 `DELETE FROM "customer_addresses" WHERE "deletedAt" IS NOT NULL;` 与注释说明「清理潜在残留软删行，避免删列复活」。验证：迁移文件同时含 `DELETE` 清理与 `ALTER TABLE "customer_addresses" DROP COLUMN "deletedAt"`；`pnpm prisma:generate` 通过。
+- [x] 3.3 本地 dev 库执行迁移并校验：无残留 `deletedAt` 行、列已移除、地址读写正常。验证：`psql` 执行 `\d customer_addresses` 确认无 `deletedAt` 列；`pnpm test` 通过。
 
 ## 4. 规格与文档同步
 
@@ -44,3 +44,10 @@
 - **实施中的连带修正**：`assertShippingAddressOwned` 的三元不变量（存在+未软删+归属）收敛为二元（存在+归属）——软删态已不存在；"地址已软删"两个用例改写为硬删语义断言。
 - **门禁**：单测 **296/296**；全量 e2e **7 套件 / 86 用例**；两 build ✓；`validate --strict` ✓。
 - **待办**：迁移应用（需确认）；4.1 归档动作。
+
+## 迁移应用记录（2026-09-17 19:17，用户确认"执行"）
+
+- `npx prisma migrate deploy` 成功应用 `20260917110000_drop_customer_address_deleted_at`（6/6 迁移全部 applied）。
+- 应用后校验：`information_schema` 确认 `deletedAt` 列与 `customer_addresses_deletedAt_idx` 索引零残留；`_prisma_migrations` 已记录；`customerAddress.count()` 读写正常。
+- 迁移文件为**手写**（含防御性 DELETE + DROP INDEX + DROP COLUMN），应用前已经 `migrate diff --from-url` 只读核对与 Prisma 预期一致、dev 库软删残留 0 行 —— 与任务 3.1 的 `migrate:dev --name` 字面路径不同（dev 模式会重新生成而非采用手写迁移），语义等价且更可控。
+- 剩余：4.1（归档动作）。
