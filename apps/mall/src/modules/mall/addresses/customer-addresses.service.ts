@@ -6,7 +6,7 @@ import { PrismaService, BaseService } from '@gvray/core';
 
 
 import { AddressResponseDto } from './dto/address-response.dto';
-import { QueryAddressDto } from './dto/query-address.dto';
+import { QueryAddressSelfDto } from './dto/query-address.dto';
 import { CreateCustomerAddressDto } from './dto/create-customer-address.dto';
 import { UpdateCustomerAddressDto } from './dto/update-customer-address.dto';
 
@@ -69,7 +69,7 @@ export class CustomerAddressesService extends BaseService {
     return this.toDto(created);
   }
 
-  async findMyAddresses(customerId: string, query: QueryAddressDto) {
+  async findMyAddresses(customerId: string, query: QueryAddressSelfDto) {
     const where = { deletedAt: null, customerId } as Record<string, unknown>;
     const result = await this.paginateWithSort(
       this.prisma.customerAddress,

@@ -2,7 +2,7 @@ import { Prisma } from '@prisma/client';
 import {
   CustomerActivityService,
 } from './customer-activity.service';
-import { QueryFavoriteDto } from './dto/query-favorite.dto';
+import { QueryFavoriteSelfDto } from './dto/query-favorite.dto';
 
 describe('CustomerActivityService', () => {
   const customerId = 'c-1';
@@ -119,18 +119,17 @@ describe('CustomerActivityService', () => {
         },
       };
       const service = new CustomerActivityService(prisma, {} as any);
-      const query = new QueryFavoriteDto();
+      const query = new QueryFavoriteSelfDto();
       query.page = 1;
       query.pageSize = 10;
-      query.customerId = customerId;
-      return { service, query };
+      return { service, query, customerId };
     }
 
     it('投影滤清器快照并派生 filterAvailable=true（enabled 未软删）', async () => {
       const { service, query } = makeListService([
         row({ status: 'enabled', deletedAt: null }),
       ]);
-      const result = await service.findFavorites(query);
+      const result = await service.findFavorites(customerId, query);
       const item: any = result.items[0];
       expect(item.filterAvailable).toBe(true);
       expect(item.filter).toEqual({
@@ -154,7 +153,7 @@ describe('CustomerActivityService', () => {
       const { service, query } = makeListService([
         row({ status: 'disabled', deletedAt: null }),
       ]);
-      const result = await service.findFavorites(query);
+      const result = await service.findFavorites(customerId, query);
       const item: any = result.items[0];
       expect(item.filterAvailable).toBe(false);
       expect(item.filter).toEqual({
@@ -169,13 +168,13 @@ describe('CustomerActivityService', () => {
       const { service, query } = makeListService([
         row({ status: 'enabled', deletedAt: new Date() }),
       ]);
-      const result = await service.findFavorites(query);
+      const result = await service.findFavorites(customerId, query);
       expect(result.items[0].filterAvailable).toBe(false);
     });
 
     it('滤清器缺失（filter=null）→ filterAvailable=false，filter 为 undefined', async () => {
       const { service, query } = makeListService([row(null)]);
-      const result = await service.findFavorites(query);
+      const result = await service.findFavorites(customerId, query);
       expect(result.items[0].filterAvailable).toBe(false);
       expect(result.items[0].filter).toBeUndefined();
     });

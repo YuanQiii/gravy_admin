@@ -13,7 +13,7 @@ import {
   ApiBearerAuth,
 } from '@nestjs/swagger';
 import { CustomerActivityService } from './customer-activity.service';
-import { QueryHistoryDto } from './dto/query-history.dto';
+import { QueryHistorySelfDto } from './dto/query-history.dto';
 import { ResponseUtil } from '@gvray/core';
 
 import { CustomerJwtGuard } from '@/core/guards/customer-jwt.guard';
@@ -38,11 +38,13 @@ export class HistoryController {
   @ApiResponse({ status: 200, description: '获取浏览历史成功' })
   async findAll(
     @CurrentCustomer() customer: ICustomer,
-    @Query() query: QueryHistoryDto,
+    @Query() query: QueryHistorySelfDto,
   ) {
-    // 强制限定当前客户，仅返回本人历史；分页按 visitedAt 倒序
-    query.customerId = customer.customerId;
-    const pageData = await this.activityService.findHistory(query);
+    // 身份仅经 @CurrentCustomer 注入（P2-2）；分页按 visitedAt 倒序
+    const pageData = await this.activityService.findHistory(
+      customer.customerId,
+      query,
+    );
     return ResponseUtil.paginated(pageData, '获取浏览历史成功');
   }
 

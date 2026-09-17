@@ -151,6 +151,10 @@ export {
 // ── shared / dtos ────────────────────────────────────────────────
 export { PaginationDto, PaginationSortDto } from './shared/dtos/pagination.dto';
 export {
+  SelfPagedQueryDto,
+  SelfFilterableQueryDto,
+} from './shared/dtos/self-query.dto';
+export {
   IsAllowedSortByConstraint,
   SortWhitelist,
 } from './shared/validators/is-allowed-sort-by.validator';

@@ -11,9 +11,9 @@ import {
 
 
 import { CreateFavoriteDto } from './dto/create-favorite.dto';
-import { QueryFavoriteDto } from './dto/query-favorite.dto';
+import { QueryFavoriteSelfDto } from './dto/query-favorite.dto';
 import { FavoriteResponseDto } from './dto/favorite-response.dto';
-import { QueryHistoryDto } from './dto/query-history.dto';
+import { QueryHistorySelfDto } from './dto/query-history.dto';
 import { HistoryResponseDto } from './dto/history-response.dto';
 
 /** `findFavorites` 投影滤清器快照后的行结构（filter 为 include 关联返回）。 */
@@ -125,10 +125,12 @@ export class CustomerActivityService extends BaseService {
    *   排序沿用分页默认（createdAt 降序，前端可 `sortBy` 覆盖）。
    */
   async findFavorites(
-    query: QueryFavoriteDto,
+    customerId: string,
+    query: QueryFavoriteSelfDto,
   ): Promise<PaginationData<FavoriteResponseDto>> {
-    const where: Record<string, unknown> = {};
-    if (query.customerId) where.customerId = query.customerId;
+    // 身份经参数注入（@CurrentCustomer），恒定本客户 —— 不再依赖 controller 对
+    // query.customerId 的隐式覆写（P2-2：该字段已从契约中移除）
+    const where: Record<string, unknown> = { customerId };
     if (query.filterId) where.filterId = query.filterId;
 
     const result = await this.paginateWithSort(
@@ -243,10 +245,11 @@ export class CustomerActivityService extends BaseService {
    * CustomerHistory 为事件型表（spec 约定无软删除），不加 deletedAt 过滤。
    */
   async findHistory(
-    query: QueryHistoryDto,
+    customerId: string,
+    query: QueryHistorySelfDto,
   ): Promise<PaginationData<HistoryResponseDto>> {
-    const where: Record<string, unknown> = {};
-    if (query.customerId) where.customerId = query.customerId;
+    // 身份经参数注入（@CurrentCustomer），恒定本客户
+    const where: Record<string, unknown> = { customerId };
     if (query.filterId) where.filterId = query.filterId;
 
     const result = await this.paginateWithSort(

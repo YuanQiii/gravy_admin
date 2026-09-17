@@ -19,7 +19,7 @@ import { CustomerAddressesService } from './customer-addresses.service';
 import { CreateCustomerAddressDto } from './dto/create-customer-address.dto';
 import { UpdateCustomerAddressDto } from './dto/update-customer-address.dto';
 import { AddressResponseDto } from './dto/address-response.dto';
-import { QueryAddressDto } from './dto/query-address.dto';
+import { QueryAddressSelfDto } from './dto/query-address.dto';
 
 /**
  * 商城客户自助收货地址。身份仅来自 `@CurrentCustomer()`（CustomerJwtGuard 注入），
@@ -38,7 +38,7 @@ export class MallAddressesController {
   @ApiResponse({ status: 200, description: '获取地址列表成功' })
   async findAll(
     @CurrentCustomer() customer: ICustomer,
-    @Query() query: QueryAddressDto,
+    @Query() query: QueryAddressSelfDto,
   ) {
     const pageData = await this.addressesService.findMyAddresses(
       customer.customerId,

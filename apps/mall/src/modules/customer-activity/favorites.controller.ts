@@ -17,7 +17,7 @@ import {
 } from '@nestjs/swagger';
 import { CustomerActivityService } from './customer-activity.service';
 import { CreateFavoriteDto } from './dto/create-favorite.dto';
-import { QueryFavoriteDto } from './dto/query-favorite.dto';
+import { QueryFavoriteSelfDto } from './dto/query-favorite.dto';
 import { FavoriteResponseDto } from './dto/favorite-response.dto';
 import { ResponseUtil } from '@gvray/core';
 
@@ -62,11 +62,13 @@ export class FavoritesController {
   @ApiResponse({ status: 200, description: '获取收藏列表成功' })
   async findAll(
     @CurrentCustomer() customer: ICustomer,
-    @Query() query: QueryFavoriteDto,
+    @Query() query: QueryFavoriteSelfDto,
   ) {
-    // 强制限定当前客户，避免越权读取他人收藏
-    query.customerId = customer.customerId;
-    const pageData = await this.activityService.findFavorites(query);
+    // 身份仅经 @CurrentCustomer 注入（P2-2：DTO 不再声明 customerId）
+    const pageData = await this.activityService.findFavorites(
+      customer.customerId,
+      query,
+    );
     return ResponseUtil.paginated(pageData, '获取收藏列表成功');
   }
 

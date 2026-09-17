@@ -1,18 +1,9 @@
-import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsString } from 'class-validator';
-import { PaginationSortDto } from '@gvray/core';
 import { SortWhitelist } from '@gvray/core';
+import { SelfFilterableQueryDto } from '@gvray/core';
 
-
+/**
+ * 当前客户浏览历史自助查询入参（P2-2）：不声明 `customerId`，身份经
+ * `@CurrentCustomer()` 注入；仅保留真实被消费的 `filterId` 筛选。
+ */
 @SortWhitelist(['visitedAt', 'createdAt'])
-export class QueryHistoryDto extends PaginationSortDto {
-  @ApiPropertyOptional({ description: '客户ID（customerId UUID）' })
-  @IsOptional()
-  @IsString()
-  customerId?: string;
-
-  @ApiPropertyOptional({ description: '滤清器ID（filterId UUID）' })
-  @IsOptional()
-  @IsString()
-  filterId?: string;
-}
+export class QueryHistorySelfDto extends SelfFilterableQueryDto {}

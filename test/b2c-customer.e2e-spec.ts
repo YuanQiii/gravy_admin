@@ -267,4 +267,81 @@ describe('B2C Customer HTTP e2e (inquiries + addresses)', () => {
       );
     });
   });
+
+  describe('Self query DTO contract (P2-2 3.1/3.2/3.3)', () => {
+    it('身份/未实现字段进 query：三个端点一律 400（forbidNonWhitelisted）', async () => {
+      const cases: Array<[string, Record<string, string>]> = [
+        ['/addresses', { customerId: 'cust-B' }],
+        ['/addresses', { receiver: '李四' }],
+        ['/addresses', { phone: '138' }],
+        ['/favorites', { customerId: 'cust-B' }],
+        ['/history', { customerId: 'cust-B' }],
+      ];
+      for (const [path, payload] of cases) {
+        const qs = new URLSearchParams(payload).toString();
+        const res = await request(harness.app.getHttpServer())
+          .get(`${path}?page=1&pageSize=10&${qs}`)
+          .set('Authorization', `Bearer ${tokenA}`);
+        expect(res.status).toBe(400);
+      }
+    });
+
+    it('filterId 确实影响结果（查询参数不再是静默失效的摆设）', async () => {
+      const rows = [
+        { favoriteId: 'fav-1', customerId: 'cust-A', filterId: 'flt-1', createdAt: new Date(), filter: { filterId: 'flt-1', model: 'M1', typeName: 'T1', status: 'enabled', deletedAt: null } },
+        { favoriteId: 'fav-2', customerId: 'cust-A', filterId: 'flt-2', createdAt: new Date(), filter: { filterId: 'flt-2', model: 'M2', typeName: 'T2', status: 'enabled', deletedAt: null } },
+      ];
+      (harness.prisma as any).customerFavorite.findMany.mockResolvedValue(rows);
+      (harness.prisma as any).customerFavorite.count.mockResolvedValue(2);
+
+      // 不带筛选：两行
+      const all = await request(harness.app.getHttpServer())
+        .get('/favorites?page=1&pageSize=10')
+        .set('Authorization', `Bearer ${tokenA}`)
+        .expect(200);
+      expect(all.body.data.items).toHaveLength(2);
+      // where 恒定本客户（身份来自 @CurrentCustomer，而非 query）
+      const whereArg = (harness.prisma as any).customerFavorite.findMany.mock.calls[0][0].where;
+      expect(whereArg.customerId).toBe('cust-A');
+
+      // 带 filterId=flt-1：mock 按真实语义过滤，只回一行
+      (harness.prisma as any).customerFavorite.findMany.mockImplementation(
+        (args: any) =>
+          Promise.resolve(rows.filter((r) => r.filterId === args.where.filterId)),
+      );
+      (harness.prisma as any).customerFavorite.count.mockResolvedValue(1);
+      const filtered = await request(harness.app.getHttpServer())
+        .get('/favorites?page=1&pageSize=10&filterId=flt-1')
+        .set('Authorization', `Bearer ${tokenA}`)
+        .expect(200);
+      expect(filtered.body.data.items).toHaveLength(1);
+      expect(filtered.body.data.items[0].filterId).toBe('flt-1');
+    });
+
+    it('不带任何筛选：三端点 200，where 恒定当前客户（3.3）', async () => {
+      (harness.prisma as any).customerFavorite.findMany.mockResolvedValue([]);
+      (harness.prisma as any).customerFavorite.count.mockResolvedValue(0);
+      (harness.prisma as any).customerHistory.findMany.mockResolvedValue([]);
+      (harness.prisma as any).customerHistory.count.mockResolvedValue(0);
+      (harness.prisma as any).customerAddress.findMany.mockResolvedValue([]);
+      (harness.prisma as any).customerAddress.count.mockResolvedValue(0);
+
+      await request(harness.app.getHttpServer())
+        .get('/favorites?page=1&pageSize=10')
+        .set('Authorization', `Bearer ${tokenA}`)
+        .expect(200);
+      await request(harness.app.getHttpServer())
+        .get('/history?page=1&pageSize=10')
+        .set('Authorization', `Bearer ${tokenA}`)
+        .expect(200);
+      await request(harness.app.getHttpServer())
+        .get('/addresses?page=1&pageSize=10')
+        .set('Authorization', `Bearer ${tokenA}`)
+        .expect(200);
+
+      expect((harness.prisma as any).customerFavorite.findMany.mock.calls[0][0].where.customerId).toBe('cust-A');
+      expect((harness.prisma as any).customerHistory.findMany.mock.calls[0][0].where.customerId).toBe('cust-A');
+      expect((harness.prisma as any).customerAddress.findMany.mock.calls[0][0].where.customerId).toBe('cust-A');
+    });
+  });
 });
