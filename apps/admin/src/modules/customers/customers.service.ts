@@ -110,7 +110,6 @@ export class CustomersService extends BaseService {
       query,
       where,
       undefined,
-      'createdAt',
     );
     return {
       ...result,

@@ -147,7 +147,6 @@ export class EquipmentService extends BaseService {
       query,
       where,
       undefined,
-      'sortOrder',
     );
     return {
       ...result,

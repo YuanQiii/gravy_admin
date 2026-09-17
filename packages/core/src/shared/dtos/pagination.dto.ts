@@ -1,6 +1,7 @@
-import { IsOptional, IsInt, Min, Max } from 'class-validator';
+import { IsOptional, IsInt, Min, Max, IsIn } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
+import { SortWhitelist } from '../validators/is-allowed-sort-by.validator';
 
 /**
  * 分页查询DTO
@@ -52,32 +53,17 @@ export class PaginationDto {
 }
 
 /**
- * 排序DTO
+ * 分页排序DTO —— 排序契约的**唯一真相源**。
+ *
+ * `@SortWhitelist` 在类上声明可排序字段白名单（声明时闭包捕获进校验器），
+ * 未覆盖白名单的 `sortBy` 在入参层即被 400，不再进入 Prisma `orderBy`
+ * （原先任意字符串可触发 Prisma 校验异常 → 500 + 内部 message 回显）。
+ * `getOrderBy()` 的回退默认取白名单**首项**，白名单与默认同源。
  */
-export class SortDto {
-  @ApiPropertyOptional({
-    description: '排序字段',
-    example: 'createdAt',
-  })
-  @IsOptional()
-  sortBy?: string;
-
-  @ApiPropertyOptional({
-    description: '排序方向',
-    enum: ['asc', 'desc'],
-    default: 'desc',
-    example: 'desc',
-  })
-  @IsOptional()
-  sortOrder?: 'asc' | 'desc' = 'desc';
-}
-
-/**
- * 分页排序DTO
- */
+@SortWhitelist(['createdAt', 'updatedAt'])
 export class PaginationSortDto extends PaginationDto {
   @ApiPropertyOptional({
-    description: '排序字段',
+    description: '排序字段（必须在当前端点的可排序白名单内）',
     example: 'createdAt',
   })
   @IsOptional()
@@ -90,17 +76,24 @@ export class PaginationSortDto extends PaginationDto {
     example: 'desc',
   })
   @IsOptional()
+  @IsIn(['asc', 'desc'], { message: '排序方向必须是 asc 或 desc' })
   sortOrder?: 'asc' | 'desc' = 'desc';
 
   /**
-   * 获取排序配置
-   * @param defaultSortBy 默认排序字段
-   * @returns 排序配置
+   * 获取排序配置。回退字段取白名单主字段（首项）—— 白名单与默认同源，
+   * 不存在"Service 传的 defaultSortBy 不在白名单内"的漂移可能。
    */
-  getOrderBy(
-    defaultSortBy: string = 'createdAt',
-  ): Record<string, 'asc' | 'desc'> {
-    const sortBy = this.sortBy || defaultSortBy;
+  getOrderBy(): Record<string, 'asc' | 'desc'> {
+    const sortBy = this.sortBy || this.allowedSortBy?.[0] || 'createdAt';
     return { [sortBy]: this.sortOrder || 'desc' };
   }
+}
+
+/**
+ * 类型声明（非字段）：`allowedSortBy` 由 `@SortWhitelist` 在 prototype 上赋值。
+ * **刻意不写成类字段** —— `useDefineForClassFields` 下无初始化器的字段声明会
+ * 以 `undefined` 遮蔽原型上的值。与同名 class 声明合并提供类型。
+ */
+export interface PaginationSortDto {
+  readonly allowedSortBy?: string[];
 }

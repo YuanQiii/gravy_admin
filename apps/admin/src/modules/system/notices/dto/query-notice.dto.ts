@@ -1,8 +1,10 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsOptional, IsString } from 'class-validator';
 import { PaginationSortDto } from '@gvray/core';
+import { SortWhitelist } from '@gvray/core';
 
 
+@SortWhitelist(['sort', 'createdAt', 'updatedAt'])
 export class QueryNoticeDto extends PaginationSortDto {
   @ApiPropertyOptional({
     description: '关键词（匹配标题）',

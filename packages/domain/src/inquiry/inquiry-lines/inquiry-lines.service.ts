@@ -94,7 +94,6 @@ export class InquiryLinesService extends BaseService {
       query,
       where,
       undefined,
-      'sortOrder',
     );
     return {
       ...result,

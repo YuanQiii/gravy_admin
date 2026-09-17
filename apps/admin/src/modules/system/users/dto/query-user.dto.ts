@@ -2,12 +2,14 @@ import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsOptional, IsString, IsEnum } from 'class-validator';
 import { Type } from 'class-transformer';
 import { PaginationSortDto, UserStatus } from '@gvray/core';
+import { SortWhitelist } from '@gvray/core';
 
 
 
 /**
  * 查询用户DTO
  */
+@SortWhitelist(['createdAt', 'updatedAt'])
 export class QueryUserDto extends PaginationSortDto {
   @ApiPropertyOptional({
     description: '关键词（匹配用户名、昵称、手机号、邮箱）',

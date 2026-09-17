@@ -217,8 +217,11 @@ export abstract class BaseService {
    * @param pagination 分页排序参数
    * @param where 查询条件
    * @param include 关联查询
-   * @param defaultSortBy 默认排序字段
    * @returns 分页结果
+   *
+   * 默认排序字段由 `pagination.allowedSortBy` 首项派生（DTO 是排序契约的
+   * 唯一真相源，见 whitelist-pagination-sort-params D7）—— 不再接受
+   * Service 侧的 `defaultSortBy` 字符串参数，消除两处漂移的可能。
    */
   protected async paginateWithSort<T>(
     model: {
@@ -234,9 +237,8 @@ export abstract class BaseService {
     pagination: PaginationSortDto,
     where?: Record<string, unknown>,
     include?: Record<string, unknown>,
-    defaultSortBy: string = 'createdAt',
   ): Promise<{ items: T[]; total: number; page: number; pageSize: number }> {
-    const orderBy = pagination.getOrderBy(defaultSortBy);
+    const orderBy = pagination.getOrderBy();
     return this.paginate<T>(model, pagination, where, include, orderBy);
   }
 

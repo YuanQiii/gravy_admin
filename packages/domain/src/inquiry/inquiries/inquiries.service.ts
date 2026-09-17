@@ -378,7 +378,6 @@ export class InquiriesService extends BaseService {
       query,
       where,
       undefined,
-      'createdAt',
     );
     return {
       ...result,
@@ -556,7 +555,6 @@ export class InquiriesService extends BaseService {
       query,
       where,
       undefined,
-      'createdAt',
     );
     return {
       ...result,

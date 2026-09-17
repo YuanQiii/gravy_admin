@@ -102,7 +102,6 @@ export class CatalogsService extends BaseService {
       query,
       where,
       undefined,
-      'sortOrder',
     );
     return {
       ...result,

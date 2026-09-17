@@ -75,7 +75,6 @@ export class FilterTypesService extends BaseService {
       query,
       where,
       undefined,
-      'sortOrder',
     );
     return {
       ...result,

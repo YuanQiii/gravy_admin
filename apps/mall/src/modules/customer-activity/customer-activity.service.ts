@@ -147,7 +147,6 @@ export class CustomerActivityService extends BaseService {
           },
         },
       },
-      'createdAt',
     );
     const items = result.items.map((row) => {
       const fav = row as FavoriteWithFilter;
@@ -266,7 +265,6 @@ export class CustomerActivityService extends BaseService {
           },
         },
       },
-      'visitedAt',
     );
     const items = result.items.map((row) => {
       const h = row as HistoryWithFilter;

@@ -150,6 +150,10 @@ export {
 
 // ── shared / dtos ────────────────────────────────────────────────
 export { PaginationDto, PaginationSortDto } from './shared/dtos/pagination.dto';
+export {
+  IsAllowedSortByConstraint,
+  SortWhitelist,
+} from './shared/validators/is-allowed-sort-by.validator';
 
 // ── shared / interfaces ──────────────────────────────────────────
 export { PaginationData } from './shared/interfaces/response.interface';

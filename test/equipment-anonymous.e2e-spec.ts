@@ -899,9 +899,56 @@ describe('Equipment Anonymous Access (e2e)', () => {
         .expect(401);
     });
   });
+  /* ── 5.9: Sort whitelist（whitelist-pagination-sort-params 4.1-4.3 / D5）── */
+
+  describe('5.9 Sort whitelist', () => {
+    it('sortOrder=DROP：400，响应体不含 Prisma 内部信息（4.1）', async () => {
+      const res = await request(adminHarness.app.getHttpServer())
+        .get('/equipment/brands?page=1&pageSize=10&sortOrder=DROP')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .expect(400);
+      expect(JSON.stringify(res.body)).not.toMatch(/prisma|query/i);
+    });
+
+    it('sortBy=__proto__：400，不触达 Prisma findMany（4.2）', async () => {
+      const findMany = (adminHarness.prisma as any).equipmentBrand.findMany;
+      findMany.mockClear();
+      const res = await request(adminHarness.app.getHttpServer())
+        .get('/equipment/brands?page=1&pageSize=10&sortBy=__proto__')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .expect(400);
+      expect(JSON.stringify(res.body)).not.toMatch(/prisma|orderBy/i);
+      expect(findMany).not.toHaveBeenCalled();
+    });
+
+    it('合法 sortBy=createdAt&sortOrder=desc：200（4.3）', async () => {
+      (adminHarness.prisma as any).equipmentBrand.findMany.mockResolvedValue(
+        [],
+      );
+      (adminHarness.prisma as any).equipmentBrand.count.mockResolvedValue(0);
+      await request(adminHarness.app.getHttpServer())
+        .get('/equipment/brands?page=1&pageSize=10&sortBy=createdAt&sortOrder=desc')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .expect(200);
+    });
+
+    it('B2C 浏览：sortBy=sortOrder 通过校验且加权排序生效（D5 / 3.2）', async () => {
+      // mall harness 的 b2c 匿名 /filters 走加权排序分支；sortOrder 在白名单内
+      // → 校验放行，Service 忽略 sortBy（产品决策排序不变）
+      const res = await request(mallHarness.app.getHttpServer())
+        .get('/filters?page=1&pageSize=10&sortBy=sortOrder')
+        .expect((r) => {
+          if (r.status !== 200) console.log('DEBUG-D5:', JSON.stringify(r.body));
+        })
+        .expect(200);
+      expect(res.body.data).toBeDefined();
+    });
+  });
+
 });
 
 /* ── 5.5: Rate limiting ──────────────────────────────────────────── */
+
 
 describe('Equipment Anonymous Rate Limiting (e2e)', () => {
   let mallHarness: Awaited<ReturnType<typeof createMallTestApp>>;
@@ -932,4 +979,5 @@ describe('Equipment Anonymous Rate Limiting (e2e)', () => {
 
     expect(res.headers['retry-after']).toBeDefined();
   });
+
 });

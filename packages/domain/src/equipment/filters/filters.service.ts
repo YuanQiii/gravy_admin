@@ -135,7 +135,6 @@ export class FiltersService extends BaseService {
       query,
       where,
       undefined,
-      'sortOrder',
     );
     return {
       ...result,

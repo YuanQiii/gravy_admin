@@ -1,29 +1,41 @@
 ## 1. 共享基类校验器与白名单字段
 
-- [ ] 1.1 在 `packages/core/src/shared/validators/is-allowed-sort-by.validator.ts` 新增 `ValidatorConstraint` 实现 `IsAllowedSortByConstraint`：对未提供（undefined/null/空串）的 `sortBy` 放行；否则校验其值 ∈ `(args.object as PaginationSortDto).allowedSortBy`，否则返回 false 并产出可排序字段清单 message。验证：单测该约束，对落在白名单内/外与省略三种情况断言 true/false。
-- [ ] 1.2 在 `packages/core/src/shared/dtos/pagination.dto.ts` 的 `PaginationSortDto` 新增实例字段 `allowedSortBy: string[] = ['createdAt','updatedAt']`；`sortBy` 增加 `@IsOptional()` + `@Validate(IsAllowedSortByConstraint)`；`sortOrder` 增加 `@IsIn(['asc','desc'])`（`message` 中文）。验证：`tsc --noEmit` 通过；`core` 包构建无误。
-- [ ] 1.3 在 `packages/core/src/index.ts` 导出 `IsAllowedSortByConstraint` / 校验器装饰器（如需供域复用）。验证：构建后 `@gvray/core` 可被 domain/apps 解析导入。
+- [x] 1.1 在 `packages/core/src/shared/validators/is-allowed-sort-by.validator.ts` 新增 `ValidatorConstraint` 实现 `IsAllowedSortByConstraint`：对未提供（undefined/null/空串）的 `sortBy` 放行；否则校验其值 ∈ `(args.object as PaginationSortDto).allowedSortBy`，否则返回 false 并产出可排序字段清单 message。验证：单测该约束，对落在白名单内/外与省略三种情况断言 true/false。
+- [x] 1.2 在 `packages/core/src/shared/dtos/pagination.dto.ts` 的 `PaginationSortDto` 新增实例字段 `allowedSortBy: string[] = ['createdAt','updatedAt']`；`sortBy` 增加 `@IsOptional()` + `@Validate(IsAllowedSortByConstraint)`；`sortOrder` 增加 `@IsIn(['asc','desc'])`（`message` 中文）。验证：`tsc --noEmit` 通过；`core` 包构建无误。
+- [x] 1.3 在 `packages/core/src/index.ts` 导出 `IsAllowedSortByConstraint` / 校验器装饰器（如需供域复用）。验证：构建后 `@gvray/core` 可被 domain/apps 解析导入。
 
 ## 2. 各域 DTO 覆盖 allowedSortBy
 
-- [ ] 2.1 为 `packages/domain` 的 7 个 DTO（`QueryFilterDto`/`QueryEquipmentDto`/`QueryCatalogDto`/`QueryBrandDto`/`QueryFilterTypeDto`/`QueryInquiryDto`/`QueryInquiryLineDto`）各覆盖 `allowedSortBy`，列出该 Prisma 模型真实可排字段（含 B2C 浏览 DTO 的 `sortOrder`）。验证：单测对每个 DTO `new XDto().allowedSortBy` 含其默认排序字段。
-- [ ] 2.2 为 `apps/mall` 的 3 个 DTO（`QueryAddressDto`/`QueryFavoriteDto`/`QueryHistoryDto`）覆盖 `allowedSortBy`。验证：单测断言覆盖值含对应 Service 使用的 `defaultSortBy`。
-- [ ] 2.3 为 `apps/admin` 的 6 个 DTO（`QueryUserDto`/`QueryPermissionDto`/`QueryNoticeDto`/`QueryMenuDto`/admin `QueryAddressDto`/`QueryCustomerDto`）覆盖 `allowedSortBy`。验证：单测断言覆盖值含对应 `defaultSortBy`。
+- [x] 2.1 为 `packages/domain` 的 7 个 DTO（`QueryFilterDto`/`QueryEquipmentDto`/`QueryCatalogDto`/`QueryBrandDto`/`QueryFilterTypeDto`/`QueryInquiryDto`/`QueryInquiryLineDto`）各覆盖 `allowedSortBy`，列出该 Prisma 模型真实可排字段（含 B2C 浏览 DTO 的 `sortOrder`）。验证：单测对每个 DTO `new XDto().allowedSortBy` 含其默认排序字段。
+- [x] 2.2 为 `apps/mall` 的 3 个 DTO（`QueryAddressDto`/`QueryFavoriteDto`/`QueryHistoryDto`）覆盖 `allowedSortBy`。验证：单测断言覆盖值含对应 Service 使用的 `defaultSortBy`。
+- [x] 2.3 为 `apps/admin` 的 6 个 DTO（`QueryUserDto`/`QueryPermissionDto`/`QueryNoticeDto`/`QueryMenuDto`/admin `QueryAddressDto`/`QueryCustomerDto`）覆盖 `allowedSortBy`。验证：单测断言覆盖值含对应 `defaultSortBy`。
 
 ## 3. 校验 defaultSortBy 与白名单一致
 
-- [ ] 3.1 核对全部 `paginateWithSort(model, query, where, include, defaultSortBy)` 调用（grep `paginateWithSort`），确认每个调用的 `defaultSortBy` ∈ 对应 DTO 的 `allowedSortBy`；不一致则把该字段补入白名单。验证：脚本/人工清单确认无遗漏调用。
-- [ ] 3.2 确认 B2C 浏览 `FiltersService.findAll` 在 `isB2cVisibility` 分支忽略 `sortBy` 走加权排序，且 `QueryFilterDto.allowedSortBy` 含 `sortOrder`，使 `?sortBy=sortOrder` 仍通过校验（保留 `b2c/browse`「加权排序生效」场景）。验证：对 `GET /filters?sortBy=sortOrder` 断言返回 200 而非 400。
+- [x] 3.1 核对全部 `paginateWithSort(model, query, where, include, defaultSortBy)` 调用（grep `paginateWithSort`），确认每个调用的 `defaultSortBy` ∈ 对应 DTO 的 `allowedSortBy`；不一致则把该字段补入白名单。验证：脚本/人工清单确认无遗漏调用。
+- [x] 3.2 确认 B2C 浏览 `FiltersService.findAll` 在 `isB2cVisibility` 分支忽略 `sortBy` 走加权排序，且 `QueryFilterDto.allowedSortBy` 含 `sortOrder`，使 `?sortBy=sortOrder` 仍通过校验（保留 `b2c/browse`「加权排序生效」场景）。验证：对 `GET /filters?sortBy=sortOrder` 断言返回 200 而非 400。
 
 ## 5. 架构审查采纳项（候选 1/2/3 推荐项）
 
-- [ ] 5.1（候选 1 · Strong）改造 `getOrderBy`/`paginateWithSort`：默认排序字段取自 `allowedSortBy` 主字段，移除独立的 `defaultSortBy` 字符串参数；DTO 成为白名单与默认的唯一真相源。验证：单测断言省略 `sortBy` 时回退到该 DTO 白名单首项，且 16 个调用点无需各自传字符串。
-- [ ] 5.2（候选 2 · Worth exploring）删除 `packages/core/src/shared/dtos/pagination.dto.ts:57-73` 的 `SortDto`；删除前 grep 确认无继承者与类型引用，若有则将其契约折入 `PaginationSortDto`。验证：`@gvray/core` 构建通过且无残留引用。
-- [ ] 5.3（候选 3 · Speculative）以声明式 `@SortWhitelist(['field',...])` 装饰器替换实例字段耦合：白名单在声明时闭包捕获并直接传入 `IsAllowedSortBy`，校验器自包含、不读 `args.object.allowedSortBy`。验证：单测断言校验器不依赖子类实例化即可拿到白名单；若实现成本过高可回退 D2 实例字段方案（对外行为一致）。
+- [x] 5.1（候选 1 · Strong）改造 `getOrderBy`/`paginateWithSort`：默认排序字段取自 `allowedSortBy` 主字段，移除独立的 `defaultSortBy` 字符串参数；DTO 成为白名单与默认的唯一真相源。验证：单测断言省略 `sortBy` 时回退到该 DTO 白名单首项，且 16 个调用点无需各自传字符串。
+- [x] 5.2（候选 2 · Worth exploring）删除 `packages/core/src/shared/dtos/pagination.dto.ts:57-73` 的 `SortDto`；删除前 grep 确认无继承者与类型引用，若有则将其契约折入 `PaginationSortDto`。验证：`@gvray/core` 构建通过且无残留引用。
+- [x] 5.3（候选 3 · Speculative）以声明式 `@SortWhitelist(['field',...])` 装饰器替换实例字段耦合：白名单在声明时闭包捕获并直接传入 `IsAllowedSortBy`，校验器自包含、不读 `args.object.allowedSortBy`。验证：单测断言校验器不依赖子类实例化即可拿到白名单；若实现成本过高可回退 D2 实例字段方案（对外行为一致）。
 
 ## 4. 端到端验证
 
-- [ ] 4.1 匿名请求 `GET /filters?sortOrder=DROP` 断言返回 400 且响应体不含 Prisma 异常 message。验证：集成/E2E 用例通过。
-- [ ] 4.2 匿名请求 `GET /filters?sortBy=__proto__` 断言返回 400 且不触达 Prisma `orderBy`、不回显内部信息。验证：E2E 用例通过。
-- [ ] 4.3 合法 `?sortBy=createdAt&sortOrder=desc` 断言返回 200、排序生效。验证：E2E 用例通过。
-- [ ] 4.4 运行现有 `b2c`/`customer`/`inquiry`/`equipment`/`rbac` 列表端点测试套件，确认无回归（合法排序字段不变）。验证：相关测试全绿。
+- [x] 4.1 匿名请求 `GET /filters?sortOrder=DROP` 断言返回 400 且响应体不含 Prisma 异常 message。验证：集成/E2E 用例通过。
+- [x] 4.2 匿名请求 `GET /filters?sortBy=__proto__` 断言返回 400 且不触达 Prisma `orderBy`、不回显内部信息。验证：E2E 用例通过。
+- [x] 4.3 合法 `?sortBy=createdAt&sortOrder=desc` 断言返回 200、排序生效。验证：E2E 用例通过。
+- [x] 4.4 运行现有 `b2c`/`customer`/`inquiry`/`equipment`/`rbac` 列表端点测试套件，确认无回归（合法排序字段不变）。验证：相关测试全绿。
+
+## 实施记录（2026-09-17）
+
+- **1.1 + 5.3（D9 声明式落地）**：`IsAllowedSortByConstraint` + `SortWhitelist([...])` **类装饰器**（`packages/core/src/shared/validators/is-allowed-sort-by.validator.ts`）——白名单在声明时闭包捕获进 `constraints`，校验器自包含；装饰器同时在 **prototype** 上赋值 `allowedSortBy`，使 `getOrderBy()` 回退与白名单同源。**类型注记**：`allowedSortBy` 刻意以 interface merge 声明而非类字段——`useDefineForClassFields` 下无初始化器字段会以 undefined 遮蔽原型值。单测 6 例（基类默认/子类覆盖/枚举/单独约束/回退主字段/未声明白名单保守拒绝）。
+- **1.2**：`PaginationSortDto` 挂基类白名单（`['createdAt','updatedAt']`）；`sortOrder` 补 `@IsIn`；`getOrderBy()` 改**零参数**，回退取白名单首项。
+- **5.1（D7）**：`paginateWithSort` 删除 `defaultSortBy` 参数，13 个调用点同步移除实参——DTO 成为排序契约唯一真相源。
+- **5.2（D8）**：孤儿 `SortDto` 已删除（grep 确认无引用）。
+- **2.x**：16 个 DTO 各一行 `@SortWhitelist([...])`（首项 = 原 defaultSortBy）；3.1 全量核对通过（白名单首项恰为原默认）。**偏离**：equipment/filters 白名单额外含 `model`、catalogs 含 `name`——既有 e2e"加权排序忽略 ?sortBy"场景传的是这些真实模型字段（D5 同理），入白名单后 admin 分支排序合法、b2c 分支继续忽略。
+- **2.3 修正**：system 4 个 DTO（users/permissions/notices/menu）的服务**硬编码 orderBy、不消费 sortBy**（属 P2-2 同型的死参数问题，不在本变更范围），仅给保守白名单（`sort` 给 menu/notice）。
+- **4.x**：e2e 新增 5.9 四例——`sortOrder=DROP`→400 无 Prisma 信息、`sortBy=__proto__`→400 且 findMany 未被调用、合法组合→200、b2c `sortBy=sortOrder`→200 加权排序生效。
+- **门禁**：单测 **268/268**（core 115）；全量 e2e **7 套件 / 78 用例**（+4）；两 build ✓；`validate --strict` ✓。无迁移。admin/mall/domain 的 dto 均一行声明，无其他样板。
+- **BREAKING**：白名单外 `sortBy` 与非法 `sortOrder` 现返回 400（此前 500 + Prisma message 回显）；省略排序与合法值行为不变。

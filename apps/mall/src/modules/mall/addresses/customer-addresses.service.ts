@@ -76,7 +76,6 @@ export class CustomerAddressesService extends BaseService {
       query,
       where,
       undefined,
-      'createdAt',
     );
     return {
       ...result,

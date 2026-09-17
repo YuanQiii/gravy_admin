@@ -3,7 +3,9 @@ import { IsOptional, IsString, IsEnum } from 'class-validator';
 import { PaginationSortDto } from '@gvray/core';
 
 import { MenuType } from './create-menu.dto';
+import { SortWhitelist } from '@gvray/core';
 
+@SortWhitelist(['sort', 'createdAt', 'updatedAt'])
 export class QueryMenuDto extends PaginationSortDto {
   @ApiPropertyOptional({ description: '菜单名称' })
   @IsOptional()

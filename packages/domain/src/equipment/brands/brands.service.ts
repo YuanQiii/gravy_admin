@@ -81,7 +81,6 @@ export class BrandsService extends BaseService {
       query,
       where,
       undefined,
-      'sortOrder',
     );
     return {
       ...result,
