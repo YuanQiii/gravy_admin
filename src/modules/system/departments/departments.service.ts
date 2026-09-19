@@ -288,8 +288,6 @@ export class DepartmentsService extends BaseService {
       // 处理状态过滤
       if (queryDto?.status !== undefined) {
         whereConditions.status = queryDto.status;
-      } else {
-        whereConditions.status = CommonStatus.ENABLED;
       }
 
       // 处理名称搜索
@@ -359,18 +357,14 @@ export class DepartmentsService extends BaseService {
         allDepartments = await this.prisma.department.findMany({
           where: {
             departmentId: { in: Array.from(departmentIdsToInclude) },
-            status:
-              queryDto?.status !== undefined
-                ? queryDto.status
-                : CommonStatus.ENABLED,
+            ...(queryDto?.status !== undefined && { status: queryDto.status }),
           },
           orderBy: [{ sort: 'asc' }, { createdAt: 'asc' }],
         });
       }
     } else {
-      // 没有搜索条件时，获取所有启用状态的部门
+      // 没有搜索条件时，获取所有部门
       allDepartments = await this.prisma.department.findMany({
-        where: { status: CommonStatus.ENABLED },
         orderBy: [{ sort: 'asc' }, { createdAt: 'asc' }],
       });
     }
