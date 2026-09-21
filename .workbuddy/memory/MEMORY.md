@@ -25,9 +25,12 @@
 
 ## 约束文档体系（2026-09-21 重构后，改文档前先读这一节）
 
-- **载体三层**：`AGENTS.md`（自动加载入口，154 行 / 8 节）> `.agents/project/`（**唯一**语料目录，10 篇摘要）> 源码 / Swagger / OpenAPI（冲突时以源码为准）。根有 `CLAUDE.md`，**内容只有一行 `@AGENTS.md`**，禁止往其中复制任何内容。
+- **载体三层**：`AGENTS.md`（自动加载入口，**179 行 / 11394 字符 / 8 节**）> `.agents/project/`（**唯一**语料目录，**10 篇**摘要）> 源码 / Swagger / OpenAPI（冲突时以源码为准）。根有 `CLAUDE.md`，**内容只有一行 `@AGENTS.md`**，禁止往其中复制任何内容。
+- ⚠️ **语料文档不得复述根文件的规则（规范 7，见 ADR 0017 补充说明）**。分工 = 根文件「一句话规则（自动加载，必须自足）」＋ 语料「该规则的机制 / 字段 / 步骤」；只复述而无细节的条目应删除。**实证**：`.agents/project/architecture.md` 曾长期保留一条已被 `AccessGuard` 取代的守卫写法（「受保护接口显式使用 `JwtAuthGuard`」）——`AGENTS.md` 里那份同日订正了，语料那份**没跟着改**，全仓实测这样写的 controller 为 **0**。**改根文件规则时必须 grep 语料是否也写着同一句。**
+- **状态描述的唯一家**＝`AGENTS.md` 的「已知缺陷与待确认」（每条必须带**复核方式**；只写结论的句子会腐烂）。`CONTEXT.md` 作为词典**不记状态与实现细节**；`hermes/` 与 `.agents/project/pitfalls.md` 只记"为什么 / 是否有意"，指回那一节而不复述状态。
+- **规则与护栏要分开说**：未被机器强制的规则在根文件里显式标 **⚠️ 未机器强制**（现存 4 条：自增 `id` 不外露、权限码不硬编码、`core`→`domain` 无守卫、`$transaction` 判据）。改这类规则时别以为有 lint 会拦。
 - **路由表只有一个家**：`AGENTS.md` 的「按需阅读与同步更新」（读方向 + 写方向合并成一张表）。**不允许**在语料目录或 `hermes/` 里再起第二张映射表——`hermes/README.md` 曾自带一份，已删。
-- **`AGENTS.md` 有 `## 知识位置` 一节**，登记 6 处：`CONTEXT.md` / `.agents/project/` / `docs/adr/` / `docs/` / `hermes/` / `wayfinder/`。新增知识目录时登记在这里，不要新建第二张表。
+- **`AGENTS.md` 有 `## 知识位置` 一节**，登记 7 处：`CONTEXT.md` / `.agents/project/` / `docs/adr/` / `docs/` / `hermes/` / `wayfinder/` / `openspec/`。新增知识目录时登记在这里，不要新建第二张表。
 - **文档层术语已定死（见 `CONTEXT.md` 的 `### Documentation layers`）**：`Corpus`＝`.agents/project/`、`Experience library`＝`hermes/`、`Human docs`＝`docs/`、`Glossary`＝`CONTEXT.md`。**不要用「知识库」统称它们**。
 - **本仓 markdown 不受 formatter 管辖**：`format` script 的 glob 只有 `apps/**/*.ts`、`packages/**/*.ts`、`test/**/*.ts`；对未改动的 md 跑 `prettier --check` 三个全 FAIL。→ **不要擅自格式化 md**。
 - **自检已落地（2026-09-21）**：`scripts/check-docs.mjs`（**零依赖**，从 `agent-constraint-docs` skill 拷入，CONFIG 用默认值即可）+ `pnpm docs:check`。检查四类**会静默腐烂**的东西：①相对链接可达（按文件自身目录解析）②文档提到的命令真实存在 ③无指向根文件的 `§` 章节号指针 ④**语料目录不得有 `README.md` 索引**。
