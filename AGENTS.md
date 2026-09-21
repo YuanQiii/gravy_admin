@@ -2,7 +2,7 @@
 
 本文件是 agent 自动加载入口，只保留高优先级规则。详细规范按需读取，不在这里导入长文档。
 
-指令优先级：本文件（自动加载入口）> `.agents/project/` 按需文档；两者与源码冲突时以源码为准。若将来新增 `CLAUDE.md`，必须在其中保留一行 `@AGENTS.md` 导入——否则 Claude Code 只认 `CLAUDE.md`，本文件不再被加载。
+指令优先级：本文件（自动加载入口）> `.agents/project/` 按需文档；两者与源码冲突时以源码为准。仓库根有 `CLAUDE.md`，内容只有一行 `@AGENTS.md` 导入（供 Claude Code）——**不要往其中复制任何内容**，复制必然漂移。
 
 ## 项目概况
 
@@ -10,7 +10,7 @@ GVRAY 后端为 Monorepo 双应用 + 共享内核：NestJS 11 + TypeScript，Pri
 
 ## 关键目录
 
-- `apps/admin/src/`：Admin 应用（运营端）——业务模块（`modules/`，系统管理在 `apps/admin/src/modules/system/`）、admin 专属基础设施（`core/`：JwtAuthGuard / RolesGuard / PermissionsGuard / jwt.strategy 等）
+- `apps/admin/src/`：Admin 应用（运营端）——业务模块（`modules/`，系统管理在 `apps/admin/src/modules/system/`）、admin 专属基础设施（`core/` 只剩 `guards/feature-flag.guard.ts` 与 `interceptors/session-heartbeat.interceptor.ts`；`JwtAuthGuard` / `RolesGuard` / `PermissionsGuard` / `jwt.strategy` 都在 `packages/core/src/core/`）
 
 - `apps/mall/src/`：Mall 应用（商城端）——匿名浏览 + 客户自助（`modules/mall/`、`modules/customer-auth/`、`modules/customer-activity/`）、客户认证基础设施（`core/`：CustomerJwtGuard / customer-jwt.strategy / @CurrentCustomer）
 
@@ -19,6 +19,20 @@ GVRAY 后端为 Monorepo 双应用 + 共享内核：NestJS 11 + TypeScript，Pri
 - `packages/domain/src/`：共享领域包（`@gvray/domain`）——equipment 五件套与 inquiry 的 Service/DTO（providers-only，无 controller）
 
 - `prisma/`：`schema.prisma`、`seed.ts`、`seeds/`（单一所有权，核心包相对路径消费）
+
+## 知识位置
+
+下列位置各自只负责一类内容，都是**单一所有者**；写文档时不要把它们的内容复制到别处。
+
+| 位置 | 内容 | 何时读 |
+| --- | --- | --- |
+| [CONTEXT.md](CONTEXT.md) | 领域术语表：Customer / User 边界、Equipment / Filter、Inquiry 状态机、文档层术语 | 讨论业务语义、命名或边界时 |
+| [.agents/project/](.agents/project/) | 面向 agent 的规范摘要（**唯一语料目录**，路由表见下方「按需阅读与同步更新」） | 按下方路由表取用，不要全量读取 |
+| [docs/adr/](docs/adr/) | 架构决策记录，命名 `NNNN-kebab-title.md` | 改架构、数据模型、认证或部署前，先确认不推翻既有决策 |
+| [docs/](docs/) | 人类向长文档（响应格式、配置、部署、AI 工程体系等）——`.agents/project/` 只存摘要，详细版在这里 | 需要比摘要更细的说明时 |
+| [hermes/](hermes/) | 经验库三库：`pitfalls/` 踩坑、`decisions/` 决策摘要、`patterns/` 工程模式 | 复现异常、新开接口或架构改动前 |
+| [wayfinder/](wayfinder/) | 在役专题地图：`map.md` 的目标 / 已定基线 / 禁止重开项 + `tickets/` 待办 | 接手正在推进的专题前，先接上进度 |
+| [openspec/](openspec/) | 行为规格与变更流水线：`specs/` 是已定稿规格，`changes/` 是在途变更（`archive/` 为已归档）；由 `openspec` CLI 管理，**不要手工建目录** | 改行为契约前先读 `specs/`；提案 / 落地 / 归档走 `openspec` CLI |
 
 ## 开发硬规则
 
@@ -34,13 +48,18 @@ GVRAY 后端为 Monorepo 双应用 + 共享内核：NestJS 11 + TypeScript，Pri
 
 - 路径使用 tsconfig alias：应用内 `@/*`（各自指向 `apps/<app>/src`），跨 app 共享一律 `import ... from '@gvray/core'` / `@gvray/domain`（只允许 barrel 公开面，禁止 `@gvray/*/src` 深路径与 app 间交叉 import），避免深层相对路径。
 
-- 系统管理模块路由使用 `system/...` 前缀；受保护接口显式使用 `JwtAuthGuard`（apps/admin），配合 `RolesGuard` / `PermissionsGuard`，读取类监控接口可省略 `RolesGuard`。客户自助/浏览接口（mall）用 `CustomerJwtGuard` / `@CurrentCustomer()`。`FeatureFlagGuard` 仅 admin 挂载，是全局守卫，仅对标记 `@FeatureFlag(...)` 的路由生效。
+- 系统管理模块路由使用 `system/...` 前缀。受保护接口默认 `@UseGuards(AccessGuard)`（`packages/core/src/core/guards/access.guard.ts`）——它内部按 Jwt → GuestWrite → Roles → Permissions 顺序编排，公开路由由 `@Public()` 短路。**5 个刻意差异化的变体不迁移到 AccessGuard**：auth / profile / dashboard / monitor / online-users 各自显式拼接守卫，强行统一等于改变行为。客户自助/浏览接口（mall）用 `CustomerJwtGuard`（可选认证的用 `OptionalCustomerGuard`）/ `@CurrentCustomer()`。`FeatureFlagGuard` 仅 admin 挂载，是全局守卫，仅对标记 `@FeatureFlag(...)` 的路由生效，且不在编排链中。
 
 - 获取当前用户统一使用 `@CurrentUser()`（admin）/ `@CurrentCustomer()`（mall）；跳过操作日志用 `@NoOperationLog()`。
 
-- 结构化日志收敛在 `packages/core/src/logging/`：访问日志由最外层 `RequestLogInterceptor` 统一产出（成功 info / 慢附 body / 失败 error 只记一次），`HttpExceptionFilter` 不记日志；关联 ID 读 `req.id`（`LOG_REQ_ID_HEADER`，缺失生成 UUID），敏感字段脱敏名单用 `packages/core/src/shared/constants/sensitive-keys.constant.ts` 单一来源。`OperationLogInterceptor` 仅 admin 挂载，mall 不产生审计写。
+- 日志与审计的三条不变量：访问日志**只**由最外层 `RequestLogInterceptor` 产出（`HttpExceptionFilter` 不记日志）；敏感字段名单以 `packages/core/src/shared/constants/sensitive-keys.constant.ts` 为**单一来源**；`OperationLogInterceptor` 仅 admin 挂载，mall 不产生审计写。实现细节与字段明细见 [coding.md](.agents/project/coding.md)。
 
-- 未经确认不运行数据库重置/迁移/seed、权限导入、部署发布等破坏性命令。
+- 下列操作必须先说明影响范围、取得确认，再执行：
+  - 数据库：`pnpm db:reset`、`prisma migrate dev` / `prisma:migrate:deploy`、`pnpm prisma:seed`
+  - 权限数据：`POST /system/permissions/scan`（按 Controller 元数据新增 / 更新 / **删除**权限记录）
+  - 生成物：`pnpm prisma:generate`（重写生成的 Prisma Client）、`pnpm build`（重写 `dist/`）、`pnpm openapi:export`（写 `openapi/`，且必须先启动两个应用）
+  - 部署与基础设施：部署脚本、`docker compose down -v`、镜像发布与回滚
+  - 任何删除文件或重置数据的命令
 
 - 不确定文件位置时先 `grep` / `glob`，不假设路径。
 

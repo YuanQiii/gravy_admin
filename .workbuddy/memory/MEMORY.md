@@ -19,9 +19,25 @@
 - `openspec new change` 若目录已存在会失败（不会覆盖）——子代理被中断后可能留下空壳目录，需先检查 `.openspec.yaml` 是否存在再补齐。
 - Change 的 delta 文件路径：`openspec/changes/<name>/specs/<capability>/spec.md`，capability 名必须是 `openspec/specs/` 下已有目录名（或新引入的 kebab-case）。
 
-## 仓库事实校正（与 `AGENTS.md` 不一致处）
+## 仓库事实校正
 
-- `AGENTS.md` 声称 `prisma/schema.prisma` 使用 `relationMode = "prisma"`「无外键约束」：**不实**。`datasource` 块未声明该选项，`prisma/migrations/0_init/migration.sql` 建立了真实外键（如 `inquiries_shippingAddressId_fkey ... ON DELETE SET NULL`），即级联行为是 **DB 级**的。`snapshot-inquiry-shipping-address` 的 tasks 4.2 已列入订正项。
+- **已落地**：`AGENTS.md` 曾声称 `prisma/schema.prisma` 使用 `relationMode = "prisma"`「无外键约束」——**不实**，级联是 **DB 级**的（`prisma/migrations/0_init/migration.sql` 建了真实 `FOREIGN KEY`）。**2026-09-21 已订正**，现 `AGENTS.md:55` 写作「**未声明** `relationMode`（Prisma 默认 `foreignKeys`）」并附迁移文件证据。旧审计里把它列为「P0-1 未修」的记载已过期。
+
+## 约束文档体系（2026-09-21 重构后，改文档前先读这一节）
+
+- **载体三层**：`AGENTS.md`（自动加载入口，154 行 / 8 节）> `.agents/project/`（**唯一**语料目录，10 篇摘要）> 源码 / Swagger / OpenAPI（冲突时以源码为准）。根有 `CLAUDE.md`，**内容只有一行 `@AGENTS.md`**，禁止往其中复制任何内容。
+- **路由表只有一个家**：`AGENTS.md` 的「按需阅读与同步更新」（读方向 + 写方向合并成一张表）。**不允许**在语料目录或 `hermes/` 里再起第二张映射表——`hermes/README.md` 曾自带一份，已删。
+- **`AGENTS.md` 有 `## 知识位置` 一节**，登记 6 处：`CONTEXT.md` / `.agents/project/` / `docs/adr/` / `docs/` / `hermes/` / `wayfinder/`。新增知识目录时登记在这里，不要新建第二张表。
+- **文档层术语已定死（见 `CONTEXT.md` 的 `### Documentation layers`）**：`Corpus`＝`.agents/project/`、`Experience library`＝`hermes/`、`Human docs`＝`docs/`、`Glossary`＝`CONTEXT.md`。**不要用「知识库」统称它们**。
+- **本仓 markdown 不受 formatter 管辖**：`format` script 的 glob 只有 `apps/**/*.ts`、`packages/**/*.ts`、`test/**/*.ts`；对未改动的 md 跑 `prettier --check` 三个全 FAIL。→ **不要擅自格式化 md**。
+- **自检已落地（2026-09-21）**：`scripts/check-docs.mjs`（**零依赖**，从 `agent-constraint-docs` skill 拷入，CONFIG 用默认值即可）+ `pnpm docs:check`。检查四类**会静默腐烂**的东西：①相对链接可达（按文件自身目录解析）②文档提到的命令真实存在 ③无指向根文件的 `§` 章节号指针 ④**语料目录不得有 `README.md` 索引**。
+  - **覆盖范围**：根文件 `AGENTS.md` + 语料目录 `.agents/project/`（递归）+ 仓库内任何目录级 `AGENTS.md`。**不含** `docs/`、`hermes/`、`docs/adr/`——这三处的链接不在它的覆盖内。
+  - **已做过「违规探针」验证**（2026-09-21，fixture 在 `$TEMP/cd-probe`）：4 类违规全部拦住（死链 / 不存在的命令 / `AGENTS.md §5` / 语料索引），**且 0 误报**（`playbook §4`、散文里的 `make sure`、`pnpm can`、`npm run test:*` 通配形态、`pnpm install` 内建命令全部静默）。退出码：违规=1，通过=0。
+  - **未接 CI**（仓库无 `.github/`）。
+  - ⚠️ **注意它的判据是窄的**：正文里的 `[<路径>](<路径>)` 这类**模板占位**在代码围栏内**不会**被它报（它对代码围栏的处理比自写脚本好）。反过来，**自己随手写的链接检查脚本会误报**这类占位——本会话用 `$TEMP/gvray-linkcheck-all.mjs` 时就误报了 7 条。**别把这些"误报"当缺陷去改**。
+- **语料目录 `.agents/project/` 现为 9 篇**（`README.md` 索引已于 2026-09-21 按 ADR 0017 删除，不要再建）。
+- **已知残留**：`docs/adr/` 的 6 条断链**已修**（2026-09-21）；`docs/specs/anonymous-filter-weighted-sort.md` 的 3 条 `file:///c:/...` 绝对路径也已改为相对链接。**`file:///` 式绝对路径是本仓的一个反复出现的缺陷形态**（ADR 0009 一处、docs/specs 三处），见到就改。
+- **裁决记录**：`docs/adr/0017-constraint-docs-single-routing-table.md`（记录了为什么删语料索引、为什么放弃 2000 字符上限、路由表单一归口的代价）。
 
 ## 项目级 skill 的加载方式
 

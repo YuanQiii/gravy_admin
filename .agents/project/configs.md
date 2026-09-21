@@ -1,6 +1,6 @@
 # 配置项摘要
 
-详细分析见 [../../CONFIGS_ANALYSIS.md](../../CONFIGS_ANALYSIS.md)。使用配置项前请以当前源码、seed 和 `ConfigsService` / `ConfigsRuntimeController` 实现为准。
+详细分析见 [../../docs/configs.md](../../docs/configs.md)。使用配置项前请以当前源码、seed 和 `ConfigsService` / `ConfigsRuntimeController` 实现为准。
 
 ## 配置来源
 
@@ -14,7 +14,7 @@
 2. 同步 seed 注释和用途说明。
 3. 如需前端读取，确认 `isPublic` 和 group 字段。
 4. 如需后端读取，检查 `ConfigsService` 或 `isFeatureEnabled()` 等是否已接入；避免只加配置不接业务。
-5. 同步 [../../CONFIGS_ANALYSIS.md](../../CONFIGS_ANALYSIS.md) 并在其中标注核验日期。
+5. 同步 [../../docs/configs.md](../../docs/configs.md) 并在其中标注核验日期。
 
 ## 功能开关（Feature Flag）
 
@@ -29,4 +29,4 @@
 
 ## 已知待对齐项
 
-- `CONFIGS_ANALYSIS.md` 需定期与源码和 seed 核验，避免配置状态标注过时。
+- `docs/configs.md` 需定期与源码和 seed 核验，避免配置状态标注过时。

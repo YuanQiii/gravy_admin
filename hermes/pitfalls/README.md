@@ -7,7 +7,7 @@
 ## 1. Docker / 部署
 
 - **[P1] entrypoint 脚本 CRLF 导致容器 exit 127**。Docker entrypoint scripts 必须使用 **LF 行尾**；CRLF 会触发 `/bin/sh: line N: $'\r'` 或 exit 127。→ 提交前核对行尾。
-- **[P2] Redis host 误设为 `localhost`**。应用容器内必须用 Redis 容器名（如 `redis`）而非 `localhost`，否则连不上 Redis 容器。→ 见 [docker-compose.dev.yml](../docker-compose.dev.yml)。
+- **[P2] Redis host 误设为 `localhost`**。应用容器内必须用 Redis 容器名（如 `redis`）而非 `localhost`，否则连不上 Redis 容器。→ 见 [docker-compose.dev.yml](../../docker-compose.dev.yml)。
 - **[P3] 端口映射重启不生效**。改动端口后仅 `restart` 可能不生效，需**强制重建容器**（数据在 volumes，不影响）。否则代理/连接异常。
 - **[P4] compose 注释 service 却留子元素**。注释掉 service 块（如 `app:`）但 `build:` 等子元素未一并注释 → YAML 解析错误。注释要整块。
 - **[P5] 容器冒烟需挂对网络 + Redis host**。冒烟测试需把应用容器 join 到 dev compose 网络（如 `gvray_nest-dev`），并把 `REDIS_HOST` 指向 dev redis 容器名；否则应用能起但 Redis 刷 `client error`、`/health` 失败。
@@ -24,7 +24,7 @@
 ## 3. 日志 / 可观测性
 
 - **[P12] 结构化 vs 人类可读**。生产 JSON 结构化、开发 pretty-print（nestjs-pino）。
-- **[P13] 敏感字段脱敏**。`password`/`authorization`/`token` 用 pino `redact.paths` 统一脱敏，单一来源 [sensitive-keys.constant.ts](../src/shared/constants/sensitive-keys.constant.ts)。
+- **[P13] 敏感字段脱敏**。`password`/`authorization`/`token` 用 pino `redact.paths` 统一脱敏，单一来源 [sensitive-keys.constant.ts](../../packages/core/src/shared/constants/sensitive-keys.constant.ts)。
 - **[P14] request id 被自增覆盖**。主处理用 pinoHttp `genReqId`；`RequestIdMiddleware` 作兜底防数字自增类 id 覆盖（从 `x-request-id` 取，缺失生成 UUID）。关联 id 读者用 `req.id`。
 - **[P15] access log 与 exception log 去重**。成功在 access log（info/慢附 body）、失败只在 error log 带 stack，`HttpExceptionFilter` 不再重复记，避免一条请求被记两次。
 

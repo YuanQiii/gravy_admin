@@ -1,6 +1,6 @@
 # 统一响应格式摘要
 
-详细说明见 [../../UNIFIED_RESPONSE_GUIDE.md](../../UNIFIED_RESPONSE_GUIDE.md)。当前实现以 `src/core/interceptors/response.interceptor.ts`、`src/shared/utils/response.util.ts` 和 `src/shared/interfaces/response.interface.ts` 为准。
+详细说明见 [../../docs/response-format.md](../../docs/response-format.md)。当前实现以 `packages/core/src/core/interceptors/response.interceptor.ts`、`packages/core/src/shared/utils/response.util.ts` 和 `packages/core/src/shared/interfaces/response.interface.ts` 为准。
 
 ## 核心约定
 
@@ -24,4 +24,4 @@
 ## 修改响应格式时
 
 1. 检查 `ResponseUtil`、`ResponseInterceptor`、`HttpExceptionFilter` 输出是否一致。
-2. 同步 [../../UNIFIED_RESPONSE_GUIDE.md](../../UNIFIED_RESPONSE_GUIDE.md) 和相关 Swagger 响应示例。
+2. 同步 [../../docs/response-format.md](../../docs/response-format.md) 和相关 Swagger 响应示例。

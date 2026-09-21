@@ -136,6 +136,14 @@ openspec init --tools <工具列表> --language <语言>
 9. hermes/README.md、hermes/pitfalls/README.md、hermes/decisions/README.md、hermes/patterns/README.md —— 只写「这库存什么 / 何时读 / 维护约定」
 10. 多工具入口指针 —— **只为本项目实际使用的工具创建**（如用 Claude Code 才建 CLAUDE.md）。Codex / Kilo Code 原生读 AGENTS.md，不需要指针。不确定时先不建
 
+> ⚠️ **本清单已被 [ADR 0017](adr/0017-constraint-docs-single-routing-table.md) 部分推翻（2026-09-21）**。照第 2、3 项施工会产生**已废弃的结构**：
+>
+> - **第 2 项**「六节骨架 + 总长 ≤2000 字符」：**字符上限已放弃**。本仓实际为 8 节 / 8264 字符；六节中的「## 需先问的变更」也未独立成节——需确认的变更收在「开发硬规则」的子列表里。节数以真实内容为准，不要为凑节数删内容。
+> - **第 3 项**「创建 `.agents/project/README.md` 映射表」：**该文件已删除，不要再创建**。路由表只有一个家 = `AGENTS.md` 的「按需阅读与同步更新」（读方向 + 写方向同一张表）；语料目录持有索引会与它必然漂移（实测已漂出 3 条死链），且 `pnpm docs:check` 会把语料目录里的 `README.md` 直接判为违规。
+> - **第 8 项** `docs/adr/README.md`：本仓**未创建**且暂不需要——ADR 索引的「结论版」在 `hermes/decisions/README.md`，「权威版」是 `docs/adr/` 目录本身。
+>
+> 其余各项（1、4、5、6、7、9、10）**仍然有效**。
+
 硬约束：
 - 不要把 AGENTS.md 的内容复制到其他文件
 - 不要创建 openspec/ 下的任何文件（那是 CLI 的职责）
@@ -439,6 +447,10 @@ _避免_：<被误用的叫法1>、<被误用的叫法2>
 ```
 
 ### 3.3 `.agents/project/README.md`
+
+> ⛔ **本节模板已作废（2026-09-21，见 [ADR 0017](adr/0017-constraint-docs-single-routing-table.md)）**：本仓**不再创建**这个文件。语料目录不得持有索引——索引就是根文件的路由表，两份必然漂移（实测已漂出 3 条死链）。路由表请写在 `AGENTS.md` 的「按需阅读与同步更新」一节（读方向 + 写方向同一张表）。`pnpm docs:check` 会检测语料目录里的 `README.md` 并判为违规。
+>
+> 以下模板仅作**历史参考**，不要照抄落地。
 
 ```markdown
 # AI Project Knowledge Index

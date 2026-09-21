@@ -77,8 +77,8 @@ Rejected. Adds a deployment dependency (Redis must be available) and `project_me
 
 - Planning artifacts: `openspec/changes/add-anonymous-equipment-access/` (proposal.md, specs/equipment/spec.md, design.md, tasks.md)
 - Term definition: [CONTEXT.md](../../CONTEXT.md) → *Anonymous Visitor*
-- Related guards: [src/core/guards/jwt-auth.guard.ts](../../src/core/guards/jwt-auth.guard.ts), [src/core/guards/guest-write.guard.ts](../../src/core/guards/guest-write.guard.ts), [src/core/guards/roles.guard.ts](../../src/core/guards/roles.guard.ts), [src/core/guards/permissions.guard.ts](../../src/core/guards/permissions.guard.ts)
-- Rate limit TODO: [src/main.ts:67](../../src/main.ts#L67) (existing TODO for ThrottlerModule + Redis)
+- Related guards: [packages/core/src/core/guards/jwt-auth.guard.ts](../../packages/core/src/core/guards/jwt-auth.guard.ts), [packages/core/src/core/guards/guest-write.guard.ts](../../packages/core/src/core/guards/guest-write.guard.ts), [packages/core/src/core/guards/roles.guard.ts](../../packages/core/src/core/guards/roles.guard.ts), [packages/core/src/core/guards/permissions.guard.ts](../../packages/core/src/core/guards/permissions.guard.ts)
+- Rate limiting: the former TODO for ThrottlerModule + Redis is **resolved** — `ThrottlerModule` + a global `ThrottlerGuard` are registered in [apps/admin/src/app.module.ts](../../apps/admin/src/app.module.ts) and [apps/mall/src/app.module.ts](../../apps/mall/src/app.module.ts).
 - Predecessor ADR: ADR 0004 (equipment/filter data import) — surfaced `findAllEnabled` raw-row AGENTS.md violation referenced in Consequences
 
 ---

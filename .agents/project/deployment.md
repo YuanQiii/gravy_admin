@@ -1,6 +1,6 @@
 # 部署摘要
 
-详细说明见 [../../DOCKER\_DEPLOYMENT.md](../../DOCKER_DEPLOYMENT.md)。
+详细说明见 [../../docs/deployment.md](../../docs/deployment.md)。
 
 ## 常用命令
 
@@ -58,7 +58,7 @@ pnpm docker:deploy
 
 - 修改 `.env.example` 时，同步部署文档的环境变量说明。
 
-- 修改 Docker Compose、Nginx、端口、健康检查或部署脚本时，同步 [../../DOCKER\_DEPLOYMENT.md](../../DOCKER_DEPLOYMENT.md)。
+- 修改 Docker Compose、Nginx、端口、健康检查或部署脚本时，同步 [../../docs/deployment.md](../../docs/deployment.md)。
 
 - 修改运行时配置前，确认 `packages/core/src/config/*.ts`（共享）与 `apps/<app>` 各自 `.env.*`、环境变量读取逻辑。
 

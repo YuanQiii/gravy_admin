@@ -152,3 +152,6 @@ prisma/backups/
 # Local tooling artifacts (understand index / agent review reports)
 .ua/
 .arch-*.html
+
+# Generated OpenAPI contracts (pnpm openapi:export — pulled from running instances, not a source)
+openapi/

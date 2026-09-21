@@ -404,9 +404,9 @@ LIMIT ${take} OFFSET ${skip}
 
 ### 相关文档
 
-- [docs/adr/0005-anonymous-visitor-access.md](file:///c:/Project/gvray/docs/adr/0005-anonymous-visitor-access.md)：匿名访客访问机制 + 本次在末尾追加"加权排序扩展与 VisibilityOpts 三分流"章节
-- [docs/adr/0004-import-equipment-filter-data.md](file:///c:/Project/gvray/docs/adr/0004-import-equipment-filter-data.md)：迁移 SQL 验证的列名 camelCase 双引号约定
-- [AGENTS.md](file:///c:/Project/gvray/AGENTS.md)：Controller 只处理路由/鉴权/DTO、业务逻辑放 Service、禁止返回未过滤 Prisma 对象、禁止泄露自增 `id` 等硬规则
+- [docs/adr/0005-anonymous-visitor-access.md](../adr/0005-anonymous-visitor-access.md)：匿名访客访问机制 + 本次在末尾追加"加权排序扩展与 VisibilityOpts 三分流"章节
+- [docs/adr/0004-import-equipment-filter-data.md](../adr/0004-import-equipment-filter-data.md)：迁移 SQL 验证的列名 camelCase 双引号约定
+- [AGENTS.md](../../AGENTS.md)：Controller 只处理路由/鉴权/DTO、业务逻辑放 Service、禁止返回未过滤 Prisma 对象、禁止泄露自增 `id` 等硬规则
 
 ### 后续演进
 

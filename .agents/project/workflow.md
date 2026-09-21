@@ -3,7 +3,7 @@
 ## 上下文策略
 
 - 先定位任务涉及的模块，再读取 Controller → Service → DTO → 常量。
-- 不要一次性读取 `src/`、`docs/`、根目录大文档或生成文件。
+- 不要一次性读取 `apps/`、`packages/`、`docs/`、根目录大文档或生成文件。
 - 涉及数据库变更时，再读取 `prisma/schema.prisma`、seed 和 seeds/ 下相关文件。
 - 文档与源码/配置冲突时，以当前源码和配置为准；无法确认时标注“需确认”。
 
@@ -17,8 +17,8 @@
 
 ## 添加新模块
 
-1. 在 `src/modules/` 下创建模块目录，参考 `users`、`roles`、`configs` 等现有模块结构。
-2. 在对应聚合 Module 中导入新模块（系统管理模块通常在 `SystemModule`）。
+1. 在 `apps/admin/src/modules/`（mall 为 `apps/mall/src/modules/`）下创建模块目录；系统管理类模块放 `apps/admin/src/modules/system/`，参考 `system/users`、`system/roles`、`system/configs` 等现有结构。
+2. 在对应聚合 Module 中导入新模块（系统管理模块在 `apps/admin/src/modules/system/system.module.ts`）。
 3. Controller 使用合适路径、Swagger tag、DTO 和鉴权守卫。
 4. 如需 API 权限，在权限常量中定义权限码，并在 Controller 方法上使用 `@RequirePermissions()` 引用常量。
 5. 写操作默认受 `GuestWriteGuard` 约束；确需允许游客写入时才显式添加 `@AllowGuestWrite()`。
@@ -34,6 +34,7 @@
 
 ## 命令安全边界
 
-- 可按需用于低风险验证：`pnpm build`、相关 `pnpm test`、只读 `grep/find/git status`。
-- 执行前必须确认：`pnpm prisma:seed`、`pnpm db:reset`、`pnpm api:import`、部署脚本、Docker volume 清理、删除文件或重置数据的命令。
+- 可按需用于低风险验证：相关 `pnpm test`、只读 `grep/find/git status`。
+
+- 执行前必须确认：`pnpm build`（重写 `dist/` 与生成物）、`pnpm openapi:export`（写 `openapi/`，且需两个应用已启动）、`pnpm prisma:generate`（重写生成的 Prisma Client）、`pnpm prisma:seed`、`pnpm db:reset`、权限扫描 `POST /system/permissions/scan`（新增/更新/删除权限数据）、部署脚本、Docker volume 清理、删除文件或重置数据的命令。
 - 不要在用户未授权时操作生产环境、发布镜像、回滚部署或清空数据库。

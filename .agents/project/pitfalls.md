@@ -4,7 +4,7 @@
 
 ## 死代码删除
 
-- 删除前必须 `grep -rn "\.methodName(" src/` 确认调用方归零，而非凭"名字很像"判断。`touchSession`/`heartbeat`/`paginateWithResponse` 曾看似在用，实为零调用。
+- 删除前必须 `grep -rn "\.methodName(" apps/ packages/` 确认调用方归零，而非凭"名字很像"判断。`touchSession`/`heartbeat`/`paginateWithResponse` 曾看似在用，实为零调用。
 - 删除后再次 grep 归零；保留同族现役 API（如 `touchSessionByJti`、`paginateWithSort`）避免误删。
 - "建模了却永不生效"的抽象要分清"管理面"与"执行面"：`DataScopeService` 的分配/查询方法真实在用，但其强制执行方法（`getUserDataScope`/`buildDataScopeQuery` 等）grep 核实为零调用、且业务表无 `departmentId` 可过滤——属自包含死代码，直接删除而非标注保留，并在 CONTEXT.md 声明"记录型元数据、未接入查询"为显式边界，防再次误判为已生效。
 

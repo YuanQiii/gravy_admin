@@ -10,7 +10,7 @@
 
 `Customer` 自 ADR 0002 起独立于后台 `User`，但 CONTEXT.md 中 Customer 的登录被标记为「future（自注册或微信 OAuth）」。滤清器 B2C 浏览接口（`equipment/filters` GET）是 `@Public()`、仅按 `visibility`（anonymous）过滤，无需登录。
 
-现有 `customer-activity`（收藏/历史）接口在 [favorites.controller.ts](file:///c:/Project/gvray/src/modules/customer/customer-activity/favorites.controller.ts) 中由**后台管理员显式传** **`customerId`** 拼装，并非 B2C 客户自助操作的登录态。这割裂了 B2C 语义：客户的活动数据与客户身份脱钩，无法承载「该客户收藏了什么」。
+现有 `customer-activity`（收藏/历史）接口在 [favorites.controller.ts](../../apps/mall/src/modules/customer-activity/favorites.controller.ts) 中由**后台管理员显式传** **`customerId`** 拼装，并非 B2C 客户自助操作的登录态。这割裂了 B2C 语义：客户的活动数据与客户身份脱钩，无法承载「该客户收藏了什么」。
 
 需求：给滤清器 B2C 业务补登录态，使客户能以 `Customer` 身份登录并取回自己的收藏/历史，同时提供开发环境测试账号。
 

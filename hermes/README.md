@@ -4,13 +4,13 @@
 
 > 命名：Hermes 是信使之神——这里存放让后续工作不再"重新踩坑"的信使型内容。
 
-## 子目录
+## 内容
 
-| 子目录                               | 内容                      | 何时读                     |
-| --------------------------------- | ----------------------- | ----------------------- |
-| [pitfalls/](pitfalls/README.md)   | 踩坑记录：已发生的问题、根因、规避动作     | 复现异常、改部署/迁移/日志/认证等高风险面时 |
-| [decisions/](decisions/README.md) | 决策逻辑：ADR 索引 + 新增变更的决策摘要 | 新开接口/架构改动前，确认不重复既往否决    |
-| [patterns/](patterns/README.md)   | 工程模式：可复用不变量、深模块/薄适配器骨架  | 新增模块、下沉机制、写日志/守卫/DTO 时  |
+- `pitfalls/` —— 踩坑记录：已发生的问题、根因、规避动作。
+- `decisions/` —— 决策逻辑：ADR 索引 + 变更的决策摘要。
+- `patterns/` —— 工程模式：可复用不变量、深模块 / 薄适配器骨架。
+
+> **「何时读」不在本文件维护**——路由表只有一个家，见 [AGENTS.md](../AGENTS.md) 的「知识位置」与「按需阅读与同步更新」两节。本文件只描述"这库存什么"与维护约定。
 
 ## 维护约定
 
@@ -24,9 +24,11 @@
 
 - **不写**：可直接从 `AGENTS.md` / ADR / spec 读到的当前状态描述，只记「为什么 / 别踩 / 教训」。
 
-## 本次内容来源
+## 内容来源
 
-- 历史全部：`docs/adr/` 0001–0009 + 项目记忆（hard constraints / conventions / lessons learned）+ 归档变更。
+- [docs/adr/](../docs/adr/) 的全部决策记录（索引见 [decisions/README.md](decisions/README.md)）。
+- 已归档的 OpenSpec 变更（`openspec/changes/archive/`）。
+- 项目记忆中的硬约束 / 约定 / 教训。
 
-- 最近归档：`2026-09-07-add-b2c-customer-auth-and-test-users`、`2026-09-07-add-hot-brands`。
+> 不在此列"最近回填了哪几条"——那种清单每次回填就过期一次。要看当前索引，读 `decisions/README.md` 与 `pitfalls/`、`patterns/` 目录本身。
 
