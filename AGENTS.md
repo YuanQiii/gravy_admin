@@ -133,7 +133,7 @@ pnpm docker:up          # 启动生产 compose
 | 维度 | 命令 | 实测状态 |
 | --- | --- | --- |
 | fmt | `prettier "apps/**/*.ts" "packages/**/*.ts" "test/**/*.ts" --check` | **FAIL** — 212 个文件待格式化（既有基线） |
-| lint | `eslint "{src,apps,libs,test}/**/*.ts"` | **FAIL** — 1068 条（942 error / 126 warning，既有基线） |
+| lint | `eslint "{apps,packages,test}/**/*.ts"` | **FAIL** — 1718 条（1515 error / 203 warning，既有基线；2026-09-21 修正 glob 后重测，修正前为 1068 条） |
 | typecheck | **未声明**；推断的根目录 `tsc --noEmit` 不可用 | **NOT AVAILABLE** — 裸跑 `tsc` 读不到各 app tsconfig 里的 `@/*` 别名，成批报 TS2307（模块找不到）属于**测量方式错误**，不代表类型检查失败；需按 `-p apps/<app>/tsconfig.json` 重测并由人确认 |
 | test | `cross-env NODE_ENV=test jest --ci` | **PASS** |
 | build | `pnpm build` | **NOT RUN**（会写 `dist/`，需要时手动跑并确认改动范围） |
@@ -152,4 +152,25 @@ pnpm docker:up          # 启动生产 compose
    - 任何情况下不允许把原本通过的 `test` 变成失败
 2. 按顶部「按需阅读与同步更新」表判断本次改动要不要动文档，要动就改完。
 3. 文档改动与代码放在同一个提交里。
+
+## 已知缺陷与待确认
+
+> 这一节是「状态描述」的**唯一家**：什么已修、什么还没定性、已知的失败都在这里。改动任何一项时，连同**复核方式**一起更新——只写结论的句子会腐烂，写明怎么验证的句子不会。
+
+### 已修：依赖方向守护曾有一个执行盲区（2026-09-21）
+
+`package.json` 的 `lint` glob 原为 `{src,apps,libs,test}/**/*.ts`：其中 `src`、`libs` 是**单应用时代的残留目录**（现已不存在），而 **`packages/` 缺失**。后果是 `eslint.config.mjs` 里 `files: ['packages/**/*.ts']` 的 `no-restricted-imports`（**ADR 0010 的依赖方向守护**）**全仓没有任何命令会执行它**——规则定义了，却从来没有跑过。
+
+已改为 `{apps,packages,test}/**/*.ts`；重测后 lint 基线从 **1068 条升至 1718 条**（+650，全部来自 `packages/`）—— 这 650 条此前从未被任何命令看到。
+
+**复核方式**：`eslint "{apps,packages,test}/**/*.ts" | tail -1` 报出的问题数应包含来自 `packages/` 的条目；并核对四个 workspace 包（`apps/admin`、`apps/mall`、`packages/core`、`packages/domain`）**均无自己的 `scripts`** —— 即 `pnpm lint` 是全仓唯一的 lint 入口。
+
+### 待人工确认（尚未定性，不要照此行动）
+
+1. **`.env.development` / `.env.test` / `.env.production` 已入库** —— `.gitignore` 只忽略 `.env` 与 `.env.*.local`。若这些文件含真实凭据，属**历史泄露**（历史会被索引，仅删除文件不够）。
+   复核：逐个打开确认是否只有示例值 / 占位值。
+2. **`packages/domain/package.json` 的 `main` / `types`** 指向 `../../dist/packages/domain/domain/src/index.js`（多一段 `/domain/`），而 `packages/core` 的 `main` 少了一段 tsc 实际产出的 `src` 路径。应用目前经 tsconfig `paths` 直接消费源码，故可能是不生效的死配置。
+   复核：先确认 `dist/` 里的实际产物路径，再决定改哪一边。
+3. **根 `tsconfig.json` 的 `@/*` → `src/*`** 与 `apps/*/src` 布局不匹配（单应用残留），会让裸跑 `tsc --noEmit` 成批报 TS2307 —— 这正是上表 `typecheck` 一行的成因。
+   复核：确认它是否只作 IDE 兜底；若是残留，应删除或改为 project references。
 
