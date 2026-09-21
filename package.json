@@ -46,7 +46,9 @@
     "docker:dev:logs": "docker compose -f docker-compose.dev.yml logs -f app",
     "docker:up": "docker compose up",
     "docker:down": "docker compose down -v --remove-orphans",
-    "docker:logs": "docker compose logs -f app"
+    "docker:logs": "docker compose logs -f app",
+    "openspec:sync-skills": "ts-node scripts/sync-openspec-skills.ts",
+    "openapi:export": "ts-node scripts/export-openapi.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.1.2",
