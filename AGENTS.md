@@ -36,17 +36,21 @@ GVRAY 后端为 Monorepo 双应用 + 共享内核：NestJS 11 + TypeScript，Pri
 
 ## 开发硬规则
 
-- 先读相关模块，不要整仓读取；文档与源码冲突时以源码为准。
+- 先定位任务涉及的模块再读，**不要整仓读取**；文档与源码冲突时以源码为准。上下文策略与阅读顺序见 [workflow.md](.agents/project/workflow.md)。
+
+- **包管理器只用 pnpm**（`package.json` 的 `packageManager` 已声明 `pnpm@9.15.9`）：不要用 npm / yarn / bun 安装或改动依赖，也不要手改 `pnpm-lock.yaml`。
 
 - Controller 只处理路由、鉴权、DTO、Swagger；业务逻辑放 Service。
 
 - 返回业务数据由 `ResponseInterceptor` 自动包装；自定义 message/code/分页用 `ResponseUtil`；分页结构为 `{ items, total, page, pageSize }`。
 
-- 禁止返回未过滤的 Prisma 对象；禁止响应中出现 `password`、token、secret；禁止暴露数据库自增 `id`（对外暴露业务 UUID，如 `userId`）。
+- 禁止返回未过滤的 Prisma 对象；禁止响应中出现 `password`、token、secret；禁止暴露数据库自增 `id`（对外暴露业务 UUID，如 `userId`）。⚠️ **未机器强制**——靠 `select` + DTO（`@Exclude()`）约定落实，没有 lint 规则拦截；投影机制见 [dto-swagger.md](.agents/project/dto-swagger.md)。
 
-- 权限码使用 `@gvray/core` 的 `permissions.constant`（`packages/core/src/shared/constants/permissions.constant.ts`）常量（`{module}:{resource}:{action}`），不硬编码。
+- 权限码使用 `@gvray/core` 的 `permissions.constant`（`packages/core/src/shared/constants/permissions.constant.ts`）常量（`{module}:{resource}:{action}`），不硬编码。⚠️ **未机器强制**——无 lint 规则，只有 `POST /system/permissions/scan` 事后从 Controller 元数据推导出差异。
 
-- 路径使用 tsconfig alias：应用内 `@/*`（各自指向 `apps/<app>/src`），跨 app 共享一律 `import ... from '@gvray/core'` / `@gvray/domain`（只允许 barrel 公开面，禁止 `@gvray/*/src` 深路径与 app 间交叉 import），避免深层相对路径。
+- 路径使用 tsconfig alias：应用内 `@/*`（各自指向 `apps/<app>/src`），跨 app 共享一律 `import ... from '@gvray/core'` / `@gvray/domain`（只允许 barrel 公开面，禁止 `@gvray/*/src` 深路径与 app 间交叉 import），避免深层相对路径。**依赖方向 DAG（ADR 0010 决策 6）**：`apps → {core, domain}`、`domain → core`——即 **`core` 不得 import `domain`**。其中「packages 不得 import apps」与「禁止 `@gvray/*/src` 深路径」有 eslint 守卫（`eslint.config.mjs` 的 `packages/**` 块，见「已知缺陷」）；**`core → domain` 这个方向没有守卫**，只靠本规则约束。
+
+- **不要"顺手清理" `any`**：`tsconfig.base.json` 的 `noImplicitAny: false` 与 `eslint.config.mjs` 的 `@typescript-eslint/no-explicit-any: off` 都是有意的设置，`any` 在本仓是被接受的写法。在无行为变更的重构里删 `any` 属于扩大范围。
 
 - 系统管理模块路由使用 `system/...` 前缀。受保护接口默认 `@UseGuards(AccessGuard)`（`packages/core/src/core/guards/access.guard.ts`）——它内部按 Jwt → GuestWrite → Roles → Permissions 顺序编排，公开路由由 `@Public()` 短路。**5 个刻意差异化的变体不迁移到 AccessGuard**：auth / profile / dashboard / monitor / online-users 各自显式拼接守卫，强行统一等于改变行为。客户自助/浏览接口（mall）用 `CustomerJwtGuard`（可选认证的用 `OptionalCustomerGuard`）/ `@CurrentCustomer()`。`FeatureFlagGuard` 仅 admin 挂载，是全局守卫，仅对标记 `@FeatureFlag(...)` 的路由生效，且不在编排链中。
 
@@ -54,32 +58,20 @@ GVRAY 后端为 Monorepo 双应用 + 共享内核：NestJS 11 + TypeScript，Pri
 
 - 日志与审计的三条不变量：访问日志**只**由最外层 `RequestLogInterceptor` 产出（`HttpExceptionFilter` 不记日志）；敏感字段名单以 `packages/core/src/shared/constants/sensitive-keys.constant.ts` 为**单一来源**；`OperationLogInterceptor` 仅 admin 挂载，mall 不产生审计写。实现细节与字段明细见 [coding.md](.agents/project/coding.md)。
 
+- **生产禁跑 `prisma db push`**；一切 schema 变更走 migration——admin 容器启动执行 `migrate deploy`，`prisma/migrations/` 缺失即 fail-closed 退出，绝不 fallback 到 `db push`；mall 容器不做任何 schema 同步。变更路径选择、级联语义（DB 原生外键）、事务判据见 [database.md](.agents/project/database.md)。
+
 - 下列操作必须先说明影响范围、取得确认，再执行：
   - 数据库：`pnpm db:reset`、`prisma migrate dev` / `prisma:migrate:deploy`、`pnpm prisma:seed`
   - 权限数据：`POST /system/permissions/scan`（按 Controller 元数据新增 / 更新 / **删除**权限记录）
   - 生成物：`pnpm prisma:generate`（重写生成的 Prisma Client）、`pnpm build`（重写 `dist/`）、`pnpm openapi:export`（写 `openapi/`，且必须先启动两个应用）
-  - 部署与基础设施：部署脚本、`docker compose down -v`、镜像发布与回滚
+  - 部署与基础设施：`pnpm docker:build` 与 `docker:build:push`（构建并推送镜像）、`pnpm docker:deploy` 及其 `rollback` / `status` / `logs` 子命令、`docker compose down -v`
   - 任何删除文件或重置数据的命令
 
-- 不确定文件位置时先 `grep` / `glob`，不假设路径。
+- 做出任何路径 / 文件 / 符号的断言之前，先用 `grep` / `glob` 验证它存在——不假设路径，也不凭印象填路径。
 
 - 错误信息与日志 message 统一使用英文，Swagger 描述统一使用中文。
 
 - 提交使用 conventional commits（`feat:` / `fix:` / `refactor:` 等）；commit message 默认使用中文，`type(scope): 描述` 中的描述与正文用中文书写，仅保留英文专有名词/技术术语不变。
-
-## 数据库约定
-
-- 本地开发数据库用 `docker-compose.dev.yml`（Postgres 17）；测试/生产用 `docker-compose.yml`。
-
-- `prisma/schema.prisma` **未声明** `relationMode`（Prisma 默认 `foreignKeys`）——关系约束由数据库**原生外键**实现：`prisma/migrations/0_init/migration.sql` 建出真实 `FOREIGN KEY`，并带 `ON DELETE SET NULL` / `CASCADE` / `RESTRICT`。级联行为是 **DB 级**的，任何绕过 Prisma Client 的删除同样会触发（例如硬删 `customer_addresses` 会把 `inquiries.shippingAddressId` 置空）。
-
-- 查询用户等敏感对象优先用 `select` 排除 `password`、自增 `id`；返回前用 DTO / `plainToInstance(..., { excludeExtraneousValues: true })` 控制结构。
-
-- 多表写入或强一致场景使用 `this.prisma.$transaction(...)`。
-
-- **生产禁跑** **`prisma db push`**；一切 schema 变更走 migration——开发用 `prisma migrate dev`（生成 + 应用），admin 容器启动经脚本 [db-bootstrap](scripts/db-bootstrap.ts)（薄 CLI，调用 `@gvray/core` 的共享 `bootstrapDatabase`，见 ADR 0007）执行 `migrate deploy`，`prisma/migrations/` 缺失即 fail-closed 退出，绝不 fallback 到 `db push`；mall 容器不执行任何 schema 同步。常用命令见下方。
-
-- 容器入口 [docker/entrypoint.sh](docker/entrypoint.sh) 是薄 adapter：dev 不做 schema 同步（本机跑 `migrate dev`），生产调用 `node dist/scripts/db-bootstrap.js` 后 `exec CMD`。
 
 ## 按需阅读与同步更新
 
@@ -92,11 +84,11 @@ GVRAY 后端为 Monorepo 双应用 + 共享内核：NestJS 11 + TypeScript，Pri
 | 改权限码 / 权限扫描 | [permissions.md](.agents/project/permissions.md) | 同左 |
 | 改统一响应格式 | [response-format.md](.agents/project/response-format.md) | 同左 |
 | 改配置项 / seed 配置 | [configs.md](.agents/project/configs.md) | 同左 |
+| 改数据库 schema / 迁移 / 级联行为 / 事务 / seed 数据 | [database.md](.agents/project/database.md) | 同左 |
 | 改部署 / Docker / 环境变量 | [deployment.md](.agents/project/deployment.md) | 同左 |
 | 改密码 / 日志 / 审计 / 安全策略 | [coding.md](.agents/project/coding.md) | 同左 |
 | 沉淀工程经验 / 回顾踩坑 | [pitfalls.md](.agents/project/pitfalls.md) | 同左 |
 | 工作流与上下文策略 | [workflow.md](.agents/project/workflow.md) | 同左 |
-| 改数据库 schema / 迁移 / 级联行为 | 本文件「数据库约定」 | 本文件「数据库约定」 |
 | 新增依赖 / 换包管理器 / 改 `package.json` scripts | 本文件「验证与收尾」的 Gate 表 | 重测该表 |
 | 只改实现细节、不动对外契约 | — | 否 |
 
@@ -140,7 +132,7 @@ pnpm docker:up          # 启动生产 compose
 
 复测方法：重跑上表命令（fmt / lint 用只读形式，即上表写法）。FAIL 必须先看一条错误样本再归因（代码 / 环境 / 配置）；同一根因带出的连锁报错只算一条。
 
-> 上表是**基线复测表**，不是每次任务的检查清单——它列的是全仓命令，实测单次输出约 1700 行（fmt 214 / lint 1440 / typecheck 53）。日常按下方 DoD 的**改动范围**跑即可，只有改了工具或 `scripts`、或需要重新确认基线时才跑全仓。
+> 上表是**基线复测表**，不是每次任务的检查清单——它列的是全仓命令，2026-09-21 实测单次输出约 2532 行（fmt 214 / lint 2265 / typecheck 53）。日常按下方 DoD 的**改动范围**跑即可，只有改了工具或 `scripts`、或需要重新确认基线时才跑全仓。
 
 ### 完成定义（DoD）
 
@@ -155,7 +147,7 @@ pnpm docker:up          # 启动生产 compose
 
 ## 已知缺陷与待确认
 
-> 这一节是「状态描述」的**唯一家**：什么已修、什么还没定性、已知的失败都在这里。改动任何一项时，连同**复核方式**一起更新——只写结论的句子会腐烂，写明怎么验证的句子不会。
+> 这一节是「状态描述」的**唯一家**：什么已修、什么还没定性、已知的失败与规范脱节都在这里。改动任何一项时，连同**复核方式**一起更新——只写结论的句子会腐烂，写明怎么验证的句子不会。
 
 ### 已修：依赖方向守护曾有一个执行盲区（2026-09-21）
 
@@ -165,12 +157,23 @@ pnpm docker:up          # 启动生产 compose
 
 **复核方式**：`eslint "{apps,packages,test}/**/*.ts" | tail -1` 报出的问题数应包含来自 `packages/` 的条目；并核对四个 workspace 包（`apps/admin`、`apps/mall`、`packages/core`、`packages/domain`）**均无自己的 `scripts`** —— 即 `pnpm lint` 是全仓唯一的 lint 入口。
 
+### 已修：`.agents/project/architecture.md` 长期保留一条已被取代的守卫写法（2026-09-21）
+
+该文件原写「受保护接口显式使用 `JwtAuthGuard`」，并要求「系统管理 Controller 统一使用 `@UseGuards(JwtAuthGuard, GuestWriteGuard, RolesGuard, PermissionsGuard)`」——那是被 `AccessGuard` 取代的旧模式，实测全仓这样写的 controller **0 个**。同一条错误也曾在 `AGENTS.md` 出现（同日早些时候已订正为「默认 `AccessGuard` + 5 个刻意变体」），但语料里那份没跟着改。
+
+根因不是"漏改一次"，而是**语料文档复述了根文件的规则**：复述的那份不会随原始规则一起更新。该文件已改为只保留架构层内容（模块结构 / 关键目录 / 双应用边界 / 分页），其余一律改为指针。
+
+**复核方式**：`grep -rn "JwtAuthGuard, GuestWriteGuard, RolesGuard, PermissionsGuard" apps/ --include="*.controller.ts"` 应返回 0；引用 `JwtAuthGuard` 的 controller 应恰好是 auth / profile / dashboard / monitor / online-users 这 5 个。
+
 ### 待人工确认（尚未定性，不要照此行动）
 
-1. **`.env.development` / `.env.test` / `.env.production` 已入库** —— `.gitignore` 只忽略 `.env` 与 `.env.*.local`。若这些文件含真实凭据，属**历史泄露**（历史会被索引，仅删除文件不够）。
-   复核：逐个打开确认是否只有示例值 / 占位值。
+1. **9 个 `.env.*` 文件已入库**：根 `.env.development` / `.env.production` / `.env.test`，加 `apps/admin/` 与 `apps/mall/` 下各 3 个（根 `.env.example` 属有意入库；`.env`、`.env.e2e` 未入库）。`.gitignore` 只忽略 `.env` 与 `.env.*.local`。若这些文件含真实凭据，属**历史泄露**——git 历史会被索引，仅删当前文件不够，需轮换凭据。
+   复核：`git ls-files | grep "\.env"` 列出已入库清单，逐个确认是否只有示例值 / 占位值。
 2. **`packages/domain/package.json` 的 `main` / `types`** 指向 `../../dist/packages/domain/domain/src/index.js`（多一段 `/domain/`），而 `packages/core` 的 `main` 少了一段 tsc 实际产出的 `src` 路径。应用目前经 tsconfig `paths` 直接消费源码，故可能是不生效的死配置。
    复核：先确认 `dist/` 里的实际产物路径，再决定改哪一边。
 3. **根 `tsconfig.json` 的 `@/*` → `src/*`** 与 `apps/*/src` 布局不匹配（单应用残留），会让裸跑 `tsc --noEmit` 成批报 TS2307 —— 这正是上表 `typecheck` 一行的成因。
    复核：确认它是否只作 IDE 兜底；若是残留，应删除或改为 project references。
-
+4. **`UsersService.remove()` 不失效被删用户的权限缓存**（已定性为**有意非目标**，原因见 `.agents/project/pitfalls.md`）：被删 / 被禁用的用户在 access token TTL 内仍持旧权限码，另立变更跟踪 JWT 撤销联动。**不要顺手补失效逻辑。**
+   复核：`remove()` 方法体内 `invalidate` 命中 0 次。
+5. **`$transaction` 规范与实际脱节**（判据见 [database.md](.agents/project/database.md)）：全仓 `$transaction(` 调用点仅 **18 处 / 10 个文件**，其中 admin 业务代码仅 4 处（`modules/auth/auth.service.ts` 1 处、`modules/addresses/addresses.service.ts` 3 处）。
+   复核：用 Grep 统计 `\$transaction\(`（glob `*.ts`，排除 `test/`）与各 Service 内 `prisma.<model>.create|update|delete|upsert` 的调用点数，两者量级差异即为缺口。

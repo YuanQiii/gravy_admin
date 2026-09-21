@@ -35,7 +35,7 @@
   - **已做过「违规探针」验证**（2026-09-21，fixture 在 `$TEMP/cd-probe`）：4 类违规全部拦住（死链 / 不存在的命令 / `AGENTS.md §5` / 语料索引），**且 0 误报**（`playbook §4`、散文里的 `make sure`、`pnpm can`、`npm run test:*` 通配形态、`pnpm install` 内建命令全部静默）。退出码：违规=1，通过=0。
   - **未接 CI**（仓库无 `.github/`）。
   - ⚠️ **注意它的判据是窄的**：正文里的 `[<路径>](<路径>)` 这类**模板占位**在代码围栏内**不会**被它报（它对代码围栏的处理比自写脚本好）。反过来，**自己随手写的链接检查脚本会误报**这类占位——本会话用 `$TEMP/gvray-linkcheck-all.mjs` 时就误报了 7 条。**别把这些"误报"当缺陷去改**。
-- **语料目录 `.agents/project/` 现为 9 篇**（`README.md` 索引已于 2026-09-21 按 ADR 0017 删除，不要再建）。
+- **语料目录 `.agents/project/` 现为 10 篇**（`README.md` 索引已于 2026-09-21 按 ADR 0017 删除，不要再建）：`architecture` / `coding` / `configs` / **`database`** / `deployment` / `dto-swagger` / `permissions` / `pitfalls` / `response-format` / `workflow`。`database.md` 是 2026-09-21 新篇，承接原根文件的 `## 数据库约定`（schema 变更路径 / 级联是 DB 级 / 事务判据）；**容器启动时的 schema 同步仍归 `deployment.md`，两篇分工不要混**。
 - **已知残留**：`docs/adr/` 的 6 条断链**已修**（2026-09-21）；`docs/specs/anonymous-filter-weighted-sort.md` 的 3 条 `file:///c:/...` 绝对路径也已改为相对链接。**`file:///` 式绝对路径是本仓的一个反复出现的缺陷形态**（ADR 0009 一处、docs/specs 三处），见到就改。
 - **裁决记录**：`docs/adr/0017-constraint-docs-single-routing-table.md`（记录了为什么删语料索引、为什么放弃 2000 字符上限、路由表单一归口的代价）。
 
