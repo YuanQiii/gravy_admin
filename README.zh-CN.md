@@ -137,8 +137,6 @@ docker/                 # Docker 部署配置
 - [`AGENTS.md`](./AGENTS.md) — AI 编程助手自动加载入口（TRAE / Claude Code 等通用）
 - [`.agents/project/`](./.agents/project/) — 按需知识库（架构 / DTO / 权限 / 响应格式）
 
-> 📖 [AI 开发指南 →](docs/ai-development.md)
-
 ## 📚 文档
 
 | 文档 | 说明 |

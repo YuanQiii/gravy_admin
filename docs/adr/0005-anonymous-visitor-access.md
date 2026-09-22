@@ -117,7 +117,7 @@ ADR 0005 上线后，B2C 转化反馈：anonymous 列表中信息残缺（多字
 - 未来 B2C Customer 登录上线时，控制器只需将 `visibility` 传 `'b2c'` 即可复用现有加权排序 + status 过滤逻辑，无需改 service 内部分流判断。
 - 新增 3 处模块内私有常量（EQUIPMENT_WEIGHTED_FIELDS / CATALOG_WEIGHTED_FIELDS / WEIGHTED_SORT_FIELDS）与对应 SUM SQL，新增/修改加权字段时需同时：
   1. 更新模块内字段常量；
-  2. 更新 `docs/specs/anonymous-filter-weighted-sort.md` 权重表；
+  2. 权重数值的权威来源是模块内字段常量本身；本 ADR 增补里的权重表是**当时的快照**，数值变动时不必回改 ADR（在提交信息里说明即可）；
   3. 调整对应 e2e 测试的 A/B/C 分值构造数据。
 - raw SQL 使用 `Prisma.sql` + `Prisma.raw` 双轨：所有用户输入（keyword、status、id）都经 `${...}` 参数化；列名与权重（常量）经 `Prisma.raw` 内联，不暴露 SQL 注入面。
 - 测试中 `prisma.$queryRaw` mock 为三个模块共享同一个根 jest.fn()，在每个加权排序 describe 的 `beforeEach` 中显式 `mockClear()` + `mockResolvedValue(...)`，保证 5.6/5.7/5.8 之间不交叉污染 mock 调用记录。

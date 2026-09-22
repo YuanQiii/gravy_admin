@@ -28,7 +28,7 @@ const FILTER_UNIQUE_PREFIX_BY_FIELD: Record<string, string> = {
 /**
  * 匿名访客加权排序字段表 — 用于 B2C 浏览场景下"信息齐全优先"排序。
  *
- * 三档权重（来自 spec docs/specs/anonymous-filter-weighted-sort.md）：
+ * 三档权重（权威来源为 ADR 0005 增补「加权排序扩展与 VisibilityOpts 三分流」）：
  * - 核心展示型（gencode/photoUuid/drawingUuid）权重 5 — B2C 转化关键
  * - 关键参数型（weight/volume）权重 3 — 核心规格
  * - 详细参数型（dimensionD1/D2/D3/D7/H1/H2/H3/D8）权重 1 — 尺寸细节
@@ -153,8 +153,8 @@ export class FiltersService extends BaseService {
    * $queryRaw 返回的 Decimal 字段为 string，由 FilterResponseDto 的 @Type(() => Number)
    * 在 plainToInstance 阶段转 number。
    *
-   * 详见 spec docs/specs/anonymous-filter-weighted-sort.md 与 CONTEXT.md
-   * *Completeness-weighted sort* 词条、ADR 0005 增补。
+   * 详见 ADR 0005 的两条增补、CONTEXT.md 的 *Completeness-weighted sort* 词条，
+   * 行为契约见 openspec/specs/b2c/browse/spec.md（B2C 浏览排序与限流）。
    */
   private async findAllWithWeightedSort(
     query: QueryFilterDto,

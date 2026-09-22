@@ -137,8 +137,6 @@ Typical NestJS starters only give you a skeleton — the parts an enterprise pro
 - [`AGENTS.md`](./AGENTS.md) — auto-loaded entry point for AI coding assistants (TRAE / Claude Code and others)
 - [`.agents/project/`](./.agents/project/) — on-demand knowledge base (architecture / DTO / permissions / response format)
 
-> 📖 [AI Development Guide →](docs/ai-development.md)
-
 ## 📚 Documentation
 
 | Document | Description |

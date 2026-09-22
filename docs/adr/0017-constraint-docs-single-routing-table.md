@@ -73,5 +73,5 @@
 - `scripts/check-docs.mjs`（自检实现，含 CONFIG 常量）
 - `AGENTS.md` →「知识位置」「按需阅读与同步更新」「验证与收尾」
 - `CONTEXT.md` →「Documentation layers」
-- `docs/ai-engineering-playbook.md`（被推翻的两条规范已就地标注）
+- `docs/ai-engineering-playbook.md`（**已删除**，2026-09-22 文档收敛；其被推翻的两条规范与结论见上方「补充说明」，全文在 git 历史中可取回）
 - 关联：ADR 0010（Monorepo 双应用）
