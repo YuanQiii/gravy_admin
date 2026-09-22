@@ -10,9 +10,13 @@
 //   4 **no `README.md` index in the corpus directory** — the index is the root file's routing table, and the two will inevitably drift
 //      (real experience: one repo's corpus index pointed 8 links at non-existent files)
 //
-// **Coverage** = the root file + the corpus directories **recursively** + every directory-level `AGENTS.md` in the repo.
-// All three were measured holes: a dead link in `docs/guides/<sub>/x.md`, a `§` pointer in `packages/*/AGENTS.md`, and a
-// corpus living somewhere unexpected each used to print "All passed". Depth and file count are capped, and hitting a cap says so.
+// **Coverage** = the root file + the corpus directories **recursively** + **`CONFIG.extraDirs`** (recursively) + every
+// directory-level `AGENTS.md` in the repo. All four were measured holes: a dead link in `docs/guides/<sub>/x.md`, a `§`
+// pointer in `packages/*/AGENTS.md`, a corpus living somewhere unexpected, and human docs outside the corpus (this
+// repo's `docs/` and `wayfinder/`) — each used to print "All passed". Depth and file count are capped, and hitting a cap says so.
+//
+// `extraDirs` is deliberately **not** folded into `CORPUS_CANDIDATES`: a corpus dir is subject to "must not hold an
+// index" (`docs/README.md` is a legitimate index), and adding a second corpus candidate would itself be a finding.
 //
 // The corpus directory itself is **auto-detected** (`CORPUS_CANDIDATES`) and the resolved list is printed, because a
 // hard-coded path once made a repo print "1 file(s) / All passed" while its 8 scenario docs went unchecked.
@@ -57,6 +61,14 @@ const CONFIG = {
   ignoreLinkPrefixes: [],
   /** Corpus directories must not contain a README.md index */
   forbidCorpusIndex: true,
+  /** **Additional** directories to cover (relative to root), walked **recursively**, on top of the root file + corpus
+   *  + every directory-level `AGENTS.md`. For hand-written human docs that live outside the corpus: they rot just as
+   *  quietly, but nothing used to watch them. `docs/` already covers its own subdirectories (`adr/`, `experience/`),
+   *  so listing it once is enough.
+   *  Note the `forbidCorpusIndex` rule applies to `corpusDirs` **only** — an index inside an extra dir is legitimate
+   *  (`docs/README.md` is exactly that). Keeping `extraDirs` separate from `CORPUS_CANDIDATES` is deliberate: adding
+   *  `docs/guides` there would claim a **second corpus**, which is itself a finding. */
+  extraDirs: ['docs', 'wayfinder'],
   /** Command source: 'auto' picks automatically by the manifest files present in the repo (several may combine).
    *  Pinning one source **skips** the others entirely, and a skipped source produces no finding at all — it is a
    *  configuration choice, not a claim about the repo. Conflating that with "unreadable" once made a repo report
@@ -91,8 +103,8 @@ if (has('--help') || has('-h')) {
       'Checks: 1 relative links reachable (resolved against the file\'s own directory) 2 commands mentioned in docs exist (npm scripts / make target / cargo builtin)',
       '       3 no section-number pointer to the root file (checked in **every** doc covered) 4 corpus directory has no README.md index',
       '',
-      'Coverage: root file + corpus dirs (recursive) + every directory-level AGENTS.md. A bare (non-code-span) command mention is treated as prose and skipped.',
-      `Current config: rootDoc=${CONFIG.rootDoc} · corpusDirs=${Array.isArray(CONFIG.corpusDirs) ? CONFIG.corpusDirs.join(',') : CONFIG.corpusDirs} · commandSource=${CONFIG.commandSource}`,
+      'Coverage: root file + corpus dirs (recursive) + extraDirs (recursive) + every directory-level AGENTS.md. A bare (non-code-span) command mention is treated as prose and skipped.',
+      `Current config: rootDoc=${CONFIG.rootDoc} · corpusDirs=${Array.isArray(CONFIG.corpusDirs) ? CONFIG.corpusDirs.join(',') : CONFIG.corpusDirs} · extraDirs=${Array.isArray(CONFIG.extraDirs) ? CONFIG.extraDirs.join(',') || '(none)' : String(CONFIG.extraDirs)} · commandSource=${CONFIG.commandSource}`,
       `Corpus candidates (used when corpusDirs=auto): ${CORPUS_CANDIDATES.map((d) => `\`${d}\``).join(' / ')}`,
       'Edit the CONFIG block at the top of this file to change config.',
       ''
@@ -142,6 +154,15 @@ if (CONFIG.corpusDirs === 'auto') {
     );
   }
 }
+
+/** Resolve `extraDirs` the same way, and **say so** when a configured directory is missing — a stale entry here means
+ *  the docs it was meant to cover are silently unchecked again, which is the exact failure mode this file guards against. */
+const EXTRA_DIRS = (Array.isArray(CONFIG.extraDirs) ? CONFIG.extraDirs : []);
+const extraMissing = EXTRA_DIRS.filter((d) => {
+  const abs = join(ROOT, d);
+  return !(existsSync(abs) && statSync(abs).isDirectory());
+});
+const EXTRA_DIRS_PRESENT = EXTRA_DIRS.filter((d) => !extraMissing.includes(d));
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -218,6 +239,12 @@ function docFiles() {
   for (const dir of CORPUS_DIRS) {
     const abs = join(ROOT, dir);
     if (!existsSync(abs) || !statSync(abs).isDirectory()) continue;
+    walkFiles(abs, 0, (p) => {
+      if (/\.md$/i.test(p)) add(p, true);
+    });
+  }
+  for (const dir of EXTRA_DIRS_PRESENT) {
+    const abs = join(ROOT, dir);
     walkFiles(abs, 0, (p) => {
       if (/\.md$/i.test(p)) add(p, true);
     });
@@ -492,8 +519,14 @@ const nestedCount = docs.filter(
 process.stdout.write(
   `Docs self-check: ${docs.length} file(s) — root \`${CONFIG.rootDoc}\`` +
     `${nestedCount ? ` + ${nestedCount} directory-level \`AGENTS.md\`` : ''}` +
-    `${CORPUS_DIRS.length ? ` + corpus ${CORPUS_DIRS.map((d) => `\`${d}\``).join(' + ')} (recursive)` : ' (no corpus directory found)'}\n`
+    `${CORPUS_DIRS.length ? ` + corpus ${CORPUS_DIRS.map((d) => `\`${d}\``).join(' + ')} (recursive)` : ' (no corpus directory found)'}` +
+    `${EXTRA_DIRS_PRESENT.length ? ` + extra ${EXTRA_DIRS_PRESENT.map((d) => `\`${d}\``).join(' + ')} (recursive)` : ''}\n`
 );
+if (extraMissing.length) {
+  corpusNotes.push(
+    `\`extraDirs\` names ${extraMissing.map((d) => `\`${d}\``).join(' / ')}, which do not exist in this repo — those docs are **not** being checked. Fix the config or drop the entry.`
+  );
+}
 notes.push(...corpusNotes, ...coverageNotes);
 if (notes.length) {
   process.stdout.write('\nNotes (not counted as problems):\n');
