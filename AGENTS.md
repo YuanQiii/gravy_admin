@@ -153,7 +153,7 @@ AI 会话的上下文是有限资源——"文档写得越多越好"在这类体
 | --- | --- | --- |
 | 常读核心总量（本文件 + `CONTEXT.md` + `.agents/project/` + `docs/experience/` + `README.md` + 各包级 `AGENTS.md`） | **≤ 1200 行** | 1071 行 |
 | 单篇语料（`.agents/project/*.md`） | **≤ 100 行** | 最大 90（`dto-swagger.md`） |
-| 根文件（本文件） | **≤ 200 行** | 196 行 |
+| 根文件（本文件） | **≤ 200 行** | 197 行 |
 | 包级 `AGENTS.md` | **20–80 行** | 33 / 23 / 23 行（admin / mall / core） |
 | 经验库单篇（`docs/experience/*/README.md`） | **≤ 60 行**（超则按主题拆） | 最大 53（`pitfalls/`） |
 
