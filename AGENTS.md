@@ -87,7 +87,7 @@ GVRAY 后端为 Monorepo 双应用 + 共享内核：NestJS 11 + TypeScript，Pri
 | 改数据库 schema / 迁移 / 级联行为 / 事务 / seed 数据 | [database.md](.agents/project/database.md) | 同左 |
 | 改部署 / Docker / 环境变量 | [deployment.md](.agents/project/deployment.md) | 同左 |
 | 改密码 / 日志 / 审计 / 安全策略 | [coding.md](.agents/project/coding.md) | 同左 |
-| 沉淀工程经验 / 回顾踩坑 | [pitfalls.md](.agents/project/pitfalls.md) | 同左 |
+| 沉淀工程经验 / 回顾踩坑 | [pitfalls/README.md](docs/experience/pitfalls/README.md)（经验库，**不在语料目录**） | 同左 |
 | 工作流与上下文策略 | [workflow.md](.agents/project/workflow.md) | 同左 |
 | 新增依赖 / 换包管理器 / 改 `package.json` scripts | 本文件「验证与收尾」的 Gate 表 | 重测该表 |
 | 只改实现细节、不动对外契约 | — | 否 |
@@ -190,7 +190,7 @@ AI 会话的上下文是有限资源——"文档写得越多越好"在这类体
    复核：先确认 `dist/` 里的实际产物路径，再决定改哪一边。
 3. **根 `tsconfig.json` 的 `@/*` → `src/*`** 与 `apps/*/src` 布局不匹配（单应用残留）。影响面**限于裸跑** `tsc --noEmit` 的场景（会成批报 TS2307）；按 workspace 逐个跑（`-p apps/<app>/tsconfig.json`）不受影响 —— 这也是上表 typecheck 的实测方式。
    复核：`tsc --noEmit` 报 TS2307，而 `tsc -p apps/admin/tsconfig.json --noEmit` 为 0 错误 —— 两者并存即证明该残留仍在。
-4. **`UsersService.remove()` 不失效被删用户的权限缓存**（已定性为**有意非目标**，原因见 `.agents/project/pitfalls.md`）：被删 / 被禁用的用户在 access token TTL 内仍持旧权限码，另立变更跟踪 JWT 撤销联动。**不要顺手补失效逻辑。**
+4. **`UsersService.remove()` 不失效被删用户的权限缓存**（已定性为**有意非目标**，原因见 [docs/experience/pitfalls/README.md](docs/experience/pitfalls/README.md) 第 5 节）：被删 / 被禁用的用户在 access token TTL 内仍持旧权限码，另立变更跟踪 JWT 撤销联动。**不要顺手补失效逻辑。**
    复核：`remove()` 方法体内 `invalidate` 命中 0 次。
 5. **`$transaction` 规范与实际脱节**（判据见 [database.md](.agents/project/database.md)）：全仓 `$transaction(` 调用点仅 **18 处 / 10 个文件**，其中 admin 业务代码仅 4 处（`modules/auth/auth.service.ts` 1 处、`modules/addresses/addresses.service.ts` 3 处）。
    复核：用 Grep 统计 `\$transaction\(`（glob `*.ts`，排除 `test/`）与各 Service 内 `prisma.<model>.create|update|delete|upsert` 的调用点数，两者量级差异即为缺口。

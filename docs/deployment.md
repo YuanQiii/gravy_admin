@@ -217,3 +217,8 @@ lsof -i :3000
 | 健康检查失败 → 自动回滚 | 应用启动超时或崩溃 | `docker logs gvray-admin-app` 查原因 |
 | 数据库连接失败 | PostgreSQL 未就绪或密码错误 | 检查 DATABASE_URL 和 PostgreSQL 状态 |
 | 端口已被占用 | 旧容器未清理 | `docker ps` 找到并停止旧容器 |
+| Redis 刷 `client error`、`/health` 失败（容器冒烟时） | 应用容器没 join 到 dev compose 的网络，或 `REDIS_HOST` 还指向 `localhost` | 把应用容器 join 到 dev 网络（`docker compose ... networks`），`REDIS_HOST` 用 dev 的 redis 服务名；容器内**不能**写 `localhost` |
+| 改了端口，`restart` 后不生效 | 端口映射变更需要重建容器，`restart` 不够 | 强制重建容器（数据在 volumes 里，不受影响） |
+| compose 报 YAML 解析错误 | 注释掉了 service 块但留下 `build:` 等子元素 | 注释要整块 |
+| 登录返回 401「账号不存在」 | 种子数据没写进库 | 先跑 `pnpm prisma:seed`，再怀疑认证逻辑 |
+| 登录短密码返回 400 而不是 401 | DTO 的校验先拦住了 | 这是正常行为——先排查 DTO 校验，再断言认证语义 |

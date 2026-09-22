@@ -70,6 +70,8 @@
 
 **同批处置：`hermes/` → `docs/experience/`，并取消其中的 `decisions/` 桶。** 改名的依据是「自解释、不依赖隐喻、与 `docs/adr/` 同族（adr = 决策、experience = 经验）」。取消 `decisions/` 的依据是**它已经腐烂**：它的 ADR 索引停在 **0016**，而 `docs/adr/` 实际有 **17 篇**——漏掉的正是 0017 自己那条；它的「最近变更决策摘要」只回填了 **2 条**，而 `openspec/changes/archive/` 有 **38** 个归档变更（2/38，该节基本是死的）。这两块职责各有更权威的家：ADR 结论归 `docs/adr/` 目录本身（**不建索引**——ADR 文件名本身即结论，而索引是同一份映射的第二副本，必然漂移）；变更决策摘要归 `openspec/changes/archive/*/{proposal,design}.md`。**注**：本 ADR 决策 3 曾把「索引的结论版」指向 `hermes/decisions/README.md`，该指向随本处置作废。
 
+**同批处置：语料目录里的 `.agents/project/pitfalls.md` 并入经验库（语料 10 篇 → 9 篇纯规范）。** 该文件自述就是"工程反模式与教训清单…与 coding.md 互补：coding 讲该如何写，此处讲曾因此踩坑"——**连语料自己都承认那篇是经验而不是规范**，这正是"经验在两层各有一个家"（本 ADR 背景段列出的 P1 项）的根源。处置：把其中不被别处覆盖的重构 / 收敛类经验并入 `docs/experience/pitfalls/`，并借机按"条目必须能退休"清理重复——P6（禁 `prisma db push`）与 `AGENTS.md` 硬规则重复、P13（敏感字段脱敏）与 `AGENTS.md` 指定的 `sensitive-keys.constant.ts` 单一来源重复、P15（access log 只由最外层拦截器产出）与 `AGENTS.md` 三条不变量重复、P1（entrypoint CRLF）已被 `.gitattributes` 的 `*.sh text eol=lf` 取代，均删除；P2/P3/P4/P5 与 P19/P21 属"某类任务才读"的操作坑，迁入 `docs/deployment.md` 的故障排查表。此后语料只放规则与机制，经验只在 `docs/experience/` 一处。
+
 ## 参考
 
 - `scripts/check-docs.mjs`（自检实现，含 CONFIG 常量）
