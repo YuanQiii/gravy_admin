@@ -144,8 +144,11 @@ jobs:
           if [ "$fail" = 0 ]; then echo "fmt 棘轮：无新增格式问题"; fi
           exit $fail
 
+      # `!cancelled()` 让本步骤在 fmt 步骤失败后**仍然执行**：两个棘轮互相独立
+      # （一个是格式、一个是 lint error 数），一次运行把两类问题都报出来，
+      # 比"修完格式再推一次才发现 lint 也红"少一个来回。
       - name: lint 棘轮（error 数不得高于基线）
-        if: steps.changed.outputs.count != '0'
+        if: ${{ !cancelled() && steps.changed.outputs.count != '0' }}
         run: |
           base='${{ steps.changed.outputs.base }}'
           count_errors() {
