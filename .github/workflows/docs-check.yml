@@ -1,0 +1,49 @@
+name: Docs check
+
+# 文档自检独立成文：本工作流按 paths 过滤，只在文档相关文件变动时运行；
+# 重型的类型检查与测试在 ci.yml 中，且对纯文档改动不触发。
+# `scripts/check-docs.mjs` 零依赖，因此本工作流不需要 pnpm install。
+
+on:
+  pull_request:
+    paths:
+      - 'AGENTS.md'
+      - 'CLAUDE.md'
+      - 'CONTEXT.md'
+      - 'README.md'
+      - '.agents/**'
+      - 'docs/**'
+      - 'wayfinder/**'
+      - 'scripts/check-docs.mjs'
+      - 'package.json'
+  push:
+    branches: [main]
+    paths:
+      - 'AGENTS.md'
+      - 'CLAUDE.md'
+      - 'CONTEXT.md'
+      - 'README.md'
+      - '.agents/**'
+      - 'docs/**'
+      - 'wayfinder/**'
+      - 'scripts/check-docs.mjs'
+      - 'package.json'
+  workflow_dispatch:
+
+concurrency:
+  group: docs-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check-docs:
+    name: docs:check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: 文档自检（死链 / 命令真实性 / § 指针 / 语料索引）
+        run: node scripts/check-docs.mjs

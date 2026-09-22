@@ -1,0 +1,16 @@
+# 所有权：指令文件与知识载体是"团队共用的生产配置"，改动需经负责人评审，不走直推。
+#
+# ⚠️ 请确认 owner 句柄有效：本文件使用远端 org（https://github.com/gvray/gvray-admin）。
+#    若 `@gvray` 不是有效的用户或 team，GitHub 会忽略这些条目，规则静默失效。
+
+# 根入口与各包入口（agent 自动加载的约束文件）
+AGENTS.md     @gvray
+**/AGENTS.md  @gvray
+
+# agent 按需语料目录
+.agents/      @gvray
+
+# 决策记录与经验库
+docs/adr/         @gvray
+docs/experience/  @gvray
+hermes/           @gvray

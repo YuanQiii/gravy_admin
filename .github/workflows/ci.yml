@@ -1,0 +1,89 @@
+name: CI
+
+# 重型门禁：类型检查与测试。纯文档改动不跑本工作流（见 `paths`），
+# 文档改动由独立的 docs-check.yml 负责。
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '**'
+      - '!**.md'
+  push:
+    branches: [main]
+    paths:
+      - '**'
+      - '!**.md'
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: typecheck + test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - run: corepack enable
+
+      - run: pnpm install --frozen-lockfile
+
+      # 必须逐个 workspace 用 -p：裸跑根目录 tsc 会因根 tsconfig 的 @/* 残留成批报 TS2307
+      - name: typecheck（四个 workspace 全绿才算通过）
+        run: |
+          set -e
+          for ws in apps/admin apps/mall packages/core packages/domain; do
+            echo "::group::tsc -p $ws/tsconfig.json"
+            pnpm exec tsc -p "$ws/tsconfig.json" --noEmit
+            echo "::endgroup::"
+          done
+
+      - name: test
+        run: pnpm test -- --ci
+
+  lint-ratchet:
+    name: fmt + lint（棘轮：仅本次改动文件）
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - run: corepack enable
+
+      - run: pnpm install --frozen-lockfile
+
+      # 既有基线是红的（fmt 212 文件 / lint 1718 条），因此只对本次改动的文件设卡：
+      # 本次不新增问题即通过，不要求把全仓刷绿。
+      - name: 计算本次改动的 TS 文件
+        id: changed
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            git fetch --no-tags origin "${{ github.base_ref }}"
+            RANGE="origin/${{ github.base_ref }}...HEAD"
+          else
+            RANGE="${{ github.event.before }}..${{ github.sha }}"
+          fi
+          git diff --name-only --diff-filter=ACMR "$RANGE" | grep -E '^(apps|packages|test)/.*\.ts$' > changed.txt || true
+          echo "count=$(wc -l < changed.txt)" >> "$GITHUB_OUTPUT"
+          echo "--- 本次改动 ---"
+          cat changed.txt
+
+      - name: prettier --check（改动文件）
+        if: steps.changed.outputs.count != '0'
+        run: pnpm exec prettier --check $(cat changed.txt | tr '\n' ' ')
+
+      - name: eslint（改动文件）
+        if: steps.changed.outputs.count != '0'
+        run: pnpm exec eslint $(cat changed.txt | tr '\n' ' ')
