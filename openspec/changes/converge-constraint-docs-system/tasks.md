@@ -31,24 +31,28 @@
 
 ## 4. P3 · 拆嵌套入口
 
-> ⏸ **实施时发现的设计问题，已暂停等待决定（2026-09-22）。**
+> ✅ **已执行（2026-09-22，用户选择"先下沉、再拆"）。**
 >
-> 逐项核对后：**根 `AGENTS.md` 已经写满了四个包的关键事实**（`apps/admin` 的 system 前缀与 5 个刻意守卫变体清单、`apps/mall` 的 `CustomerJwtGuard` 系列与"不产生审计写"、`packages/domain` 的 providers-only、依赖方向 DAG 与"`core`→`domain` 无守卫"），因此按"只写 delta、不复述根文件"（本变更 `constraint-docs` 规格第 2 条 + `docs/adr/0017` 补充说明的规范 7）来写，四个包级文件实际只剩：
+> 做法：先把根 `AGENTS.md` 里"按包"的内容（四个目录清单、admin 的 5 个守卫变体表与 `FeatureFlagGuard`、mall 的 `CustomerJwtGuard` 系列与可见性/负向契约）**下沉**到包级文件，再把根文件相应改为指针，并在「按需阅读与同步更新」表加一行"改 `apps/*` 或 `packages/*` 内的代码 → 先读该包 `AGENTS.md`"（保持路由表单一归口）。
 >
-> | 包 | 真正属于本包、且不在根文件的增量 | 估算篇幅 |
-> | --- | --- | --- |
-> | `apps/admin` | `system/` 下 13 个 controller 的前缀事实 · `src/core/` 仅剩两个文件的现状 | ~10 行 |
-> | `apps/mall` | `public-routes.ts` + 契约测试的**负向契约与其自增强约束**（"要开放请新立变更，不要删断言"）· 本端不注册的三个横切清单 · 两个应用本地都默认 3000 的端口坑 | ~18 行 |
-> | `packages/core` | 目录清单 · 深模块先例清单（可从源码读出） | ~12 行 |
-> | `packages/domain` | providers-only 已在根文件「关键目录」写明 | ~0 行 |
+> **实测结果**：
 >
-> 三者都低于规格设定的 **30–80 行下限**，且继续写就必然复述根文件规则——那是本变更要消灭的病。**这不是"没做完"，而是任务 4.1–4.4 的前提在实施时被实证推翻。** 三条出路见本次交付说明中的提问（只建 mall 一份 / 先把根文件的按包内容下沉再建 / 放弃 P3），需你选择后再继续。
+> - 建成 3 份：`apps/admin/AGENTS.md` **33 行** · `apps/mall/AGENTS.md` **23 行** · `packages/core/AGENTS.md` **23 行**。
+> - **`packages/domain/AGENTS.md` 不建**：其增量（providers-only 无 controller）已写在根文件「关键目录」一行里，真实增量≈0，建文件只能靠复述根文件 → 按任务 4.4 的例外条款记录不建理由，根文件保留该行内容。
+> - **根文件没有变短**：194 → 195 行（字符 12318 → 12021）。这是**预期之外的实证**：移走的 4 条目录清单被 4 条指针替代，又新增 1 行路由表行。收益在结构（就近优先拿到本包约定）而非行数。
+> - 规模红线相应调整：包级下限 **30 → 20 行**（内容驱动的下限优于预估数字，已同步 spec 与 design）；常读核心总量实测 **1173 行**（含三份包级文件）仍 ≤1200，但余量只剩 27 行。
+> - `docs:check` 覆盖数由 11 文件升到 **14 文件**（自动纳入目录级 `AGENTS.md`），仍 All passed。
 
-- [ ] 4.1 新增 `apps/admin/AGENTS.md`（30–80 行 delta：`system/...` 前缀、权限码与权限扫描端点、`OperationLogInterceptor` 仅本端挂载、5 个刻意差异化守卫变体不迁移）。验证：行数落在 30–80，且逐句 grep 确认不含根文件已有规则句
-- [ ] 4.2 新增 `apps/mall/AGENTS.md`（`CustomerJwtGuard` / `OptionalCustomerGuard` / `@CurrentCustomer()`、可见性三分流、不产生审计写、负向契约由 `public-routes.ts` + 契约测试强制）。验证：同上
-- [ ] 4.3 新增 `packages/core/AGENTS.md`（深模块与薄适配器、只暴露 barrel、不得 import domain）。验证：同上
-- [ ] 4.4 新增 `packages/domain/AGENTS.md`（providers-only 无 controller、equipment 五件套与 inquiry Service/DTO、事务与金额派生指向 `database.md`）。验证：同上；**若该包 delta 撑不起 30 行则不建**，并在本任务记录不建的理由
-- [ ] 4.5 根 `AGENTS.md` 相应减重至 ≤200 行（把已下沉到包级的内容改为指针）。验证：`wc -l AGENTS.md` ≤200，且 `Glob **/AGENTS.md` 计数为 5（或 4，若 4.4 判定不建）
+- [x] 4.1 新增 `apps/admin/AGENTS.md`（30–80 行 delta：`system/...` 前缀、权限码与权限扫描端点、`OperationLogInterceptor` 仅本端挂载、5 个刻意差异化守卫变体不迁移）。验证：行数落在 30–80，且逐句 grep 确认不含根文件已有规则句
+      → 实际 33 行；`system/` 前缀 + 13 个 controller 事实 + 守卫变体表（5 行表格）+ `FeatureFlagGuard` + 会话心跳。根文件原有的 5 变体清单已**移入**本文件（不再是复述）。
+- [x] 4.2 新增 `apps/mall/AGENTS.md`（`CustomerJwtGuard` / `OptionalCustomerGuard` / `@CurrentCustomer()`、可见性三分流、不产生审计写、负向契约由 `public-routes.ts` + 契约测试强制）。验证：同上
+      → 实际 23 行；含量最重的是**负向契约**（含"要开放请新立变更，不要删断言"）与两端同端口需 `PORT=3001` 的坑，外加一行显式例外（`AccessGuard` 不适用于客户侧）。
+- [x] 4.3 新增 `packages/core/AGENTS.md`（深模块与薄适配器、只暴露 barrel、不得 import domain）。验证：同上
+      → 实际 23 行；**只写根文件没有的**：目录清单、深模块的"消费者数量"判别标准与 `authenticateByRealm` 先例、"守卫顺序活在测试名里"、四个 workspace 包均无自有 `scripts`。依赖方向与 barrel 规则未复述（根文件已有）。
+- [x] 4.4 新增 `packages/domain/AGENTS.md`（providers-only 无 controller、equipment 五件套与 inquiry Service/DTO、事务与金额派生指向 `database.md`）。验证：同上；**若该包 delta 撑不起 30 行则不建**，并在本任务记录不建的理由
+      → **不建**。实测增量≈0（providers-only 已在根文件「关键目录」写明；排序纯函数已在 `hermes/patterns/README.md` §2；金额派生属规格层，见 `openspec/specs/inquiry/`），复述即为违规。根文件保留该行内容。
+- [x] 4.5 根 `AGENTS.md` 相应减重至 ≤200 行（把已下沉到包级的内容改为指针）。验证：`wc -l AGENTS.md` ≤200，且 `Glob **/AGENTS.md` 计数为 5（或 4，若 4.4 判定不建）
+      → 195 行 ≤200 ✓；`**/AGENTS.md` 计数 = **4**（根 + admin + mall + core），符合 4.4 的例外。
 
 ## 5. P4 · 收拢 + 精简 + 结晶
 

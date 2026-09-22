@@ -10,13 +10,13 @@ GVRAY 后端为 Monorepo 双应用 + 共享内核：NestJS 11 + TypeScript，Pri
 
 ## 关键目录
 
-- `apps/admin/src/`：Admin 应用（运营端）——业务模块（`modules/`，系统管理在 `apps/admin/src/modules/system/`）、admin 专属基础设施（`core/` 只剩 `guards/feature-flag.guard.ts` 与 `interceptors/session-heartbeat.interceptor.ts`；`JwtAuthGuard` / `RolesGuard` / `PermissionsGuard` / `jwt.strategy` 都在 `packages/core/src/core/`）
+- `apps/admin/src/`：Admin 应用（运营端）——独立进程 / 端口 / 镜像 / Swagger。本包专属约定见 [apps/admin/AGENTS.md](apps/admin/AGENTS.md)
 
-- `apps/mall/src/`：Mall 应用（商城端）——匿名浏览 + 客户自助（`modules/mall/`、`modules/customer-auth/`、`modules/customer-activity/`）、客户认证基础设施（`core/`：CustomerJwtGuard / customer-jwt.strategy / @CurrentCustomer）
+- `apps/mall/src/`：Mall 应用（商城端）——纯后端 API（无前端页面）。本包专属约定见 [apps/mall/AGENTS.md](apps/mall/AGENTS.md)
 
-- `packages/core/src/`：共享内核（`@gvray/core`）——基础设施（decorators/guards/interceptors/filters/pipes/strategies）、`prisma/`（Nest Prisma Module/PrismaService，`@Global()`）、`shared/`（constants/DTO/interfaces/utils/services 含 BaseService）、`logging/`、`redis/`
+- `packages/core/src/`：共享内核 `@gvray/core`——基础设施与横切能力。本包专属约定见 [packages/core/AGENTS.md](packages/core/AGENTS.md)
 
-- `packages/domain/src/`：共享领域包（`@gvray/domain`）——equipment 五件套与 inquiry 的 Service/DTO（providers-only，无 controller）
+- `packages/domain/src/`：共享领域包 `@gvray/domain`——equipment 五件套与 inquiry 的 Service/DTO（**providers-only，无 controller**）。本包增量不足以单独成文，约定见 [architecture.md](.agents/project/architecture.md)
 
 - `prisma/`：`schema.prisma`、`seed.ts`、`seeds/`（单一所有权，核心包相对路径消费）
 
@@ -52,7 +52,7 @@ GVRAY 后端为 Monorepo 双应用 + 共享内核：NestJS 11 + TypeScript，Pri
 
 - **不要"顺手清理" `any`**：`tsconfig.base.json` 的 `noImplicitAny: false` 与 `eslint.config.mjs` 的 `@typescript-eslint/no-explicit-any: off` 都是有意的设置，`any` 在本仓是被接受的写法。在无行为变更的重构里删 `any` 属于扩大范围。
 
-- 系统管理模块路由使用 `system/...` 前缀。受保护接口默认 `@UseGuards(AccessGuard)`（`packages/core/src/core/guards/access.guard.ts`）——它内部按 Jwt → GuestWrite → Roles → Permissions 顺序编排，公开路由由 `@Public()` 短路。**5 个刻意差异化的变体不迁移到 AccessGuard**：auth / profile / dashboard / monitor / online-users 各自显式拼接守卫，强行统一等于改变行为。客户自助/浏览接口（mall）用 `CustomerJwtGuard`（可选认证的用 `OptionalCustomerGuard`）/ `@CurrentCustomer()`。`FeatureFlagGuard` 仅 admin 挂载，是全局守卫，仅对标记 `@FeatureFlag(...)` 的路由生效，且不在编排链中。
+- 受保护接口默认 `@UseGuards(AccessGuard)`（`packages/core/src/core/guards/access.guard.ts`）——它按 Jwt → GuestWrite → Roles → Permissions 顺序编排，公开路由由 `@Public()` 短路。**这个顺序是不变量**（`access.guard.spec.ts` 的测试名即断言）。两端各自的差异（admin 的 5 个刻意守卫变体与 `FeatureFlagGuard`、mall 的 `CustomerJwtGuard` 系列）写在对应包级文件里——**不要把变体收拢进 `AccessGuard`**。
 
 - 获取当前用户统一使用 `@CurrentUser()`（admin）/ `@CurrentCustomer()`（mall）；跳过操作日志用 `@NoOperationLog()`。
 
@@ -79,6 +79,7 @@ GVRAY 后端为 Monorepo 双应用 + 共享内核：NestJS 11 + TypeScript，Pri
 
 | 任务 / 改动 | 先读 | 完成后同步更新 |
 | --- | --- | --- |
+| 改 `apps/*` 或 `packages/*` 内的代码 | 该目录的 `AGENTS.md`（[admin](apps/admin/AGENTS.md) / [mall](apps/mall/AGENTS.md) / [core](packages/core/AGENTS.md)）——就近优先，它只写本包增量 | 同左；若改动改变了本包增量，一并更新 |
 | 新增或重构业务模块 | [architecture.md](.agents/project/architecture.md) + [dto-swagger.md](.agents/project/dto-swagger.md) + [permissions.md](.agents/project/permissions.md) | 同左三篇 |
 | 改 DTO / Swagger | [dto-swagger.md](.agents/project/dto-swagger.md) | 同左 |
 | 改权限码 / 权限扫描 | [permissions.md](.agents/project/permissions.md) | 同左 |
@@ -151,10 +152,12 @@ AI 会话的上下文是有限资源——"文档写得越多越好"在这类体
 
 | 红线 | 上限 | 2026-09-22 实测 |
 | --- | --- | --- |
-| 常读核心总量（`AGENTS.md` + `CONTEXT.md` + `.agents/project/` + 经验库 + `README.md`） | **≤ 1200 行** | 1078 行 |
+| 常读核心总量（本文件 + `CONTEXT.md` + `.agents/project/` + 经验库 + `README.md` + 各包级 `AGENTS.md`） | **≤ 1200 行** | 1173 行 |
 | 单篇语料（`.agents/project/*.md`） | **≤ 100 行** | 最大 90（`dto-swagger.md`） |
-| 根文件 `AGENTS.md` | **≤ 200 行** | 179 行（本节加入前） |
-| 包级 `AGENTS.md`（`apps/*`、`packages/*`） | **30–80 行** | 尚未创建 |
+| 根文件（本文件） | **≤ 200 行** | 195 行 |
+| 包级 `AGENTS.md` | **20–80 行** | 33 / 23 / 23 行（admin / mall / core） |
+
+> 包级下限取 20 而非 30：实测三个包的**真实增量**就是 23–33 行，把它撑到 30 行以上只能靠复述根文件——那正是要消灭的病。内容驱动的下限优于拍脑袋的数字。
 
 **不在阅读路径**（提供追溯，不作阅读材料）：`openspec/changes/archive/`（119 文件 / 6223 行）· `reports/` · `dist/` · `openapi/` · `logs/`。路由表不指向这些位置。
 

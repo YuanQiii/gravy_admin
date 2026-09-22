@@ -70,10 +70,4 @@ pnpm test                                                        # 单元测试
 
 ## 需要先确认再执行的变更
 
-以下几类操作**先说明影响范围、取得确认，再执行**（完整清单见 [AGENTS.md](AGENTS.md)）：
-
-- 数据库：`pnpm db:reset`、`prisma:migrate:dev`、`prisma:seed`
-- 权限数据：`POST /system/permissions/scan`（会按 Controller 元数据新增 / 更新 / **删除**权限记录）
-- 生成物：`pnpm prisma:generate`、`pnpm build`、`pnpm openapi:export`
-- 部署与基础设施：`pnpm docker:build`、`docker:deploy` 及其子命令、`docker compose down -v`
-- 任何删除文件或重置数据的命令
+有若干类操作**必须先说明影响范围、取得确认，再执行**——覆盖数据库、权限数据、生成物、部署与基础设施，以及任何删除文件或重置数据的命令。**完整清单以 [AGENTS.md](AGENTS.md) 的「开发硬规则」为准**，此处刻意不复述命令名（同一份清单存两处必然漂移）。

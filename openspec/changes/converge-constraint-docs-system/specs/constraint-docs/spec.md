@@ -44,7 +44,9 @@
 
 ### Requirement: 约束文档规模红线
 
-仓库 SHALL 对常读文档设定规模上限并在根文件写明：常读核心（根 `AGENTS.md` + `CONTEXT.md` + 语料目录 + `docs/experience/` + `README.md`）总量 SHALL NOT 超过 1200 行；单篇语料 SHALL NOT 超过 100 行；根 `AGENTS.md` SHALL NOT 超过 200 行；包级 `AGENTS.md` SHALL 控制在 30–80 行。
+仓库 SHALL 对常读文档设定规模上限并在根文件写明：常读核心（根 `AGENTS.md` + `CONTEXT.md` + 语料目录 + `docs/experience/` + `README.md` + 各包级 `AGENTS.md`）总量 SHALL NOT 超过 1200 行；单篇语料 SHALL NOT 超过 100 行；根 `AGENTS.md` SHALL NOT 超过 200 行；包级 `AGENTS.md` SHALL 控制在 20–80 行。
+
+> 下限取 20 而非 30：实施时实测三个包的真实增量是 23–33 行，撑到 30 行以上只能靠复述根文件。**内容驱动的下限优于预估的数字**——这也意味着该数字应随实测调整，而不是反过来让内容去凑数字。
 
 #### Scenario: 根文件超出上限
 
