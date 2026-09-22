@@ -13,7 +13,7 @@
 
 **Goals:**
 
-- 让 `specs/constraint-docs/spec.md` 的十条 Requirement 全部落地并被机器检查，而不是仅存在于散文里。
+- 让 `specs/constraint-docs/spec.md` 的 Requirement 全部落地并被机器检查，而不是仅存在于散文里。
 - 常读核心从 1068 行降到 ≤1200 行以内（目标约 950），`docs/` 顶层由 14 篇 2748 行收敛到 5 篇 ≤550 行。
 - 建立"改文档也走流程"的闭环：自检进 CI、指令文件有 owner、删除/改名有引用完整性检查。
 

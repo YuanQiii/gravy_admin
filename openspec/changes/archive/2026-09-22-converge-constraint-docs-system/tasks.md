@@ -133,3 +133,46 @@
       - 验证：新文件对 GVRAY 专有名词扫描 **13 项全 0**；`SKILL.md` 236 → 238 行（只加指针，未借机重构）。
 - [x] 7.2 运行该 skill 的自测脚本，确认未破坏既有行为。验证：自测通过；若涉及判断逻辑改动，另跑归一化对比
       → **已完成。** `node scripts/selftest.mjs` → **51/51 全绿、exit 0、44.4s**（改动全为文档，未触任何判断逻辑 → 按规格不需要归一化对比）。**另加一步对抗验证**：把 `check-docs.mjs` 复制到临时目录、CONFIG 改成 `rootDoc: 'SKILL.md'` + `corpusDirs: ['references']`，**用它检查本技能自己的文档** → 9 文件 All passed、exit 0、零假报；并加一处故意死链探针确认判红（`Found 1 problem(s): Relative link unreachable`），证明这个 "All passed" 是有效的而不是检查器没看那些文件。这正是 `references/anti-patterns.md` 里"从不拿检查器查自己的文档"那条的反面用例——当年那 11 条假报已被代码围栏规则修掉，现在可以放心跑。
+
+---
+
+## 归档记录（2026-09-22，归档动作本身）
+
+**命令与结果**
+
+```
+openspec archive converge-constraint-docs-system -y
+→ Specs to update: constraint-docs: create
+→ Applying changes to openspec/specs/constraint-docs/spec.md: + 11 added
+→ Totals: + 11, ~ 0, - 0, → 0
+→ Change 'converge-constraint-docs-system' archived as '2026-09-22-converge-constraint-docs-system'
+```
+
+- 归档前状态：4/4 artifacts `done`、未勾任务 **0**；`openspec instructions archive` 的 `context` 与 `operationGuidance` **均为空**（无额外约束需要应用）。
+- 归档前先把整个 `openspec/` 备份到仓库外（181 个 md）——本工作区有「`git rm` 会清空所在目录」的前科，归档含目录移动，故先留回退点。
+- 两条**非阻塞**警告，已接受并记录理由：
+  - `⚠ Why section should not exceed 1000 characters` —— proposal 的 Why 逐条带 `file:line` 证据，压缩会丢证据，而证据正是本体系的硬要求。
+  - `⚠ Consider splitting changes with more than 10 deltas` —— 本变更是**一个新能力的引入**（11 条 Requirement 同属 `constraint-docs`）；按"后归档者以后写者后的主规格为基准"的既有串行约束，拆成多个变更会让同一个 spec 文件被先后创建多次，反而制造新的串行依赖。
+
+**归档后验证（全部实测）**
+
+| 项 | 结果 |
+| --- | --- |
+| 主规格生成 | `openspec/specs/constraint-docs/spec.md`（11989 字节；`# constraint-docs Specification` + `## Purpose` + `## Requirements`，与 `b2c` / `logging` / `rbac` 等同形） |
+| Requirement 守恒 | delta 11 条 vs 主规格 11 条，**名称逐一相同、`diff` 零差异** |
+| `openspec validate --specs` | **13 passed / 0 failed**，exit 0 |
+| `openspec list` | `No active changes found.` |
+| `openspec/changes/` | 只剩 `archive/` |
+| 文件守恒 | 备份 181 个 md → 现况 182（**+1 即新建的主规格**，无丢失） |
+| `node scripts/check-docs.mjs` | All passed |
+
+**实施期提交**：`e5599df`（P0）→ `3ab4605`（P6），本会话共 30 个提交（含合并提交 `09f45c9`），已推送到 `YuanQiii/gravy_admin` 的 `main`。
+
+**补记 / 勘误（不静默改历史）**
+
+- 7.1 执行说明里写的「`SKILL.md` 236 → 238 行」**实测为 239 行**：该处 step 5 指针第一次**未落盘**（同一文件的多个 Edit 放进同一条消息时，只有最后一个存活，而工具对每个都回 "Successfully edited"），复核后重做，故比原记录多 1 行。原记录保留，差异在此说明。
+- `design.md:16` 原写「**十条** Requirement」，实测 **11 条**（`grep -c '^### Requirement:'` 与归档输出 `+ 11 added` 一致）。**没有把 10 改成 11，而是把数字删掉**——一处计数就是一处会腐烂的缓存，本变更自己的第一条要求就是这件事，留个数字等于在自己的归档件里留一个反例。同类用法（「知识位置 7 处 → 6 处」「四条红线」「README 六处」）**逐条核过，均为正确**，保留。
+- `design.md` 的三个 Open Question：① **P6 归属已定** → 并入既有 `agent-constraint-docs` 的 references（未新建 skill，见 7.1）；② 四条红线的实测值何时重测 —— **仍开放**；③ `pnpm build` 是否进 CI 第一期 —— **仍开放**（现为非阻塞 job 之外的明确排除项）。后两条属"另立任务"，本变更不承担。
+- **归档 ≠ 在生产生效**：本变更交付的是文档与门禁体系，改动均已在仓库内落盘、且两处新门禁已用故意违规探针实测会拦；但**运行时行为零变化**，无 schema / 接口 / 依赖改动，因此没有迁移类动作。
+
+**剩余**：无。`openspec/changes/` 下已无在途变更。
