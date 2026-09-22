@@ -122,5 +122,14 @@
 
 ## 7. P6 · 方法论进 skill（可选，仓库外动作，需单独确认后执行）
 
-- [ ] 7.1 把 `docs/ai-engineering-playbook.md` §3「资产最小模板」与 §6「棕地增量开发 + 门禁棘轮」提炼进 `agent-constraint-docs` 的 references（或按设计文档的 Open Question 另建 skill）。验证：skill 内新增文件存在，且内容不含任何 GVRAY 专有事实
-- [ ] 7.2 运行该 skill 的自测脚本，确认未破坏既有行为。验证：自测通过；若涉及判断逻辑改动，另跑归一化对比
+- [x] 7.1 把 `docs/ai-engineering-playbook.md` §3「资产最小模板」与 §6「棕地增量开发 + 门禁棘轮」提炼进 `agent-constraint-docs` 的 references（或按设计文档的 Open Question 另建 skill）。验证：skill 内新增文件存在，且内容不含任何 GVRAY 专有事实
+      → **已完成（2026-09-22）。** 但**没有照搬 §3**——实测后按"一条知识只有一个家"筛过：
+      - `§6 棕地 + 门禁棘轮`：**真实空白**（全库搜不到 `brownfield` / `棕地` / `ratchet` / `存量`）→ 新建两篇。
+        `references/brownfield.md`（121 行：核心反转"先读代码再提取词汇"· 步骤复用/替换表 · **AI 可写范围** · 只写增量不回填 · 经验库第一天就有真内容的红利 · 三个"生成→提取"的提示词 · 棕地反面清单）
+        `references/gate-ratchet.md`（46 行：按维度启动策略 · **逐文件对比基线**的判据 · 四个实测坑——范围含 merge 要取 `merge^1..merge`、空仓库首推 `event.before` 是全 0 SHA 会让 job 崩溃、对比前归一化换行、带 `if` 的步骤被隐式 `success()` 吞掉 · 三条接线细节）。**并点明"只查改动文件"是范围收窄不是棘轮**，会腐烂成"整个仓库永远不被检查"。
+      - `§3 六份资产最小模板`：**没有整篇搬**，逐项判定后只留真增量 → 新建 `references/artifact-set.md`（34 行：资产集与"本技能只写其中两个、其余只登记"的边界 · ADR 五段与经验库维护约定两条可审计最低要求 · **两件必须不建的东西**）。
+        被判定为**不复述**的：`§3.2 AGENTS.md 模板`（与 `gen-agents-md.mjs` 输出的骨架重复，且形状比现行输出顺序旧）、`§3.6 多工具入口`（`SKILL.md` 的 "Established practices" 已有 import/symlink 与支持面）；被判定为**已被证伪、只留结论**的：`§3.3 语料目录 README 索引`（ADR 0017 已禁止，`check-docs.mjs` 会判违规）、`§3.4 ADR 索引`（**同一个映射的第二副本**；实测停在前一条、漏掉的恰是论证"索引必然漂移"的那条，且**既不是链接也不是命令也不是章节指针——没有任何检查会抓到它** → 结论是"目录列表 + 自解释文件名就是索引"）。**恰好是本变更自己的论证在 §3.4 上被验证了一遍。**
+      - 同步改动：`SKILL.md` 4 行指针（step 1 / step 3 / step 5 / 审计 Enforcement 维度）+「Output order from scratch」加**Existing repo** 分支段（与既有 Empty repo 并列）；`references/prompt-template.md` 加同步表 1 行 + 段 I / 段 II 各 1 条指针（**只指不抄**，遵该文件既有纪律）。
+      - 验证：新文件对 GVRAY 专有名词扫描 **13 项全 0**；`SKILL.md` 236 → 238 行（只加指针，未借机重构）。
+- [x] 7.2 运行该 skill 的自测脚本，确认未破坏既有行为。验证：自测通过；若涉及判断逻辑改动，另跑归一化对比
+      → **已完成。** `node scripts/selftest.mjs` → **51/51 全绿、exit 0、44.4s**（改动全为文档，未触任何判断逻辑 → 按规格不需要归一化对比）。**另加一步对抗验证**：把 `check-docs.mjs` 复制到临时目录、CONFIG 改成 `rootDoc: 'SKILL.md'` + `corpusDirs: ['references']`，**用它检查本技能自己的文档** → 9 文件 All passed、exit 0、零假报；并加一处故意死链探针确认判红（`Found 1 problem(s): Relative link unreachable`），证明这个 "All passed" 是有效的而不是检查器没看那些文件。这正是 `references/anti-patterns.md` 里"从不拿检查器查自己的文档"那条的反面用例——当年那 11 条假报已被代码围栏规则修掉，现在可以放心跑。

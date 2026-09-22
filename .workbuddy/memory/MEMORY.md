@@ -1,16 +1,16 @@
 # MEMORY.md — gvray 项目长期笔记
 
-## openspec 变更流水线现状（2026-09-22 复核：积压已清，现有 1 个在途）
+## openspec 变更流水线现状（2026-09-22 复核：积压已清，现有 1 个在途且 apply 已完成）
 
 2026-09-16/17 的"业务审查问题清单逐项规划"曾产生 **17 个未归档 openspec 变更**。**2026-09-21 已全部归档**（archive 共 38 个）。
 
-**2026-09-22 新增在途变更 `converge-constraint-docs-system`**（文档体系重构）：`openspec validate --strict` 通过，4/4 artifacts complete（proposal / specs / design / tasks）。它新建了工程类能力 **`constraint-docs`**（10 条 Requirement）——与既有 `workspace`、`schema-migrations` 同类。
+**在途变更 `converge-constraint-docs-system`**（文档体系重构）—— **apply 44/44 完成（2026-09-22）**，`openspec validate --strict` 通过、4/4 artifacts complete。新建工程类能力 **`constraint-docs`**（10 条 Requirement），与既有 `workspace`、`schema-migrations` 同类。**只剩最后一步 `openspec archive converge-constraint-docs-system`。**
 
-**apply 进度 39/44**（2026-09-22 晚）：P0（只改错）、P1（接门禁，除推送）、P2（人向文件）、P3（拆嵌套入口）、P4（收拢 + 精简 + 结晶）、P5（改名 + 归位 + 删除 + 扩自检）全部完成；**余 5 项**——2.3/2.4/2.5（推送并观察 CI 首跑、探针验拦截、验棘轮，**阻塞于仓库权限**，见下）与 7.1/7.2（**P6 方法论进 skill，可选、仓库外、需用户单独确认**）。
+⚠️ **归档 ≠ 实现**：归档只把 delta 合并进 `openspec/specs/`。本次的实际改动已落盘（`AGENTS.md` / `README` / `.github/` / `CONTRIBUTING` / `SECURITY` / `docs/` / `.agents/` / `scripts/check-docs.mjs` / 包级 `AGENTS.md`），并按批次提交在本地 + 已推送到 `YuanQiii/gravy_admin`。
 
-⚠️ **P6 的素材位置**：`ai-engineering-playbook` / `workflow` 全文已从 `docs/` 删除，但**可取回**——删除前的 HEAD 是 `56b0d0d`，用 `git show 56b0d0d:docs/ai-engineering-playbook.md` 取。要提炼的是 playbook §3「六份资产最小模板」与 §6「棕地增量开发 + 门禁棘轮」（实测 `agent-constraint-docs` 的 5 篇 references 合计仅 361 行、且全库搜不到 `brownfield`/棕地，属该 skill 的空白）。
+批次与结果：P0 只改错 → P1 接门禁（`docs-check.yml` + `ci.yml` + `CODEOWNERS`，**已在远端跑通并做过探针验证**，见「git / 凭据 / 换行」节）→ P2 补 `CONTRIBUTING.md` / `SECURITY.md` → P3 下沉包级 `AGENTS.md`（`packages/domain` 按实测不建）→ P4 收拢精简 docs（顶层 14 篇 2748 行 → **5 篇约 506 行**）→ P5 `hermes/` → `docs/experience/`、取消 `decisions/`、语料 10 → **9 篇纯规范**、删 9 篇、自检覆盖 13 → **43 文件** → **P6 方法论出仓库进 skill**。
 
-**推送阻塞（2026-09-22）**：本地已与远端 `main` 合并并快进就绪，但 **GCM 凭据用户 `YuanQiii` 对 `gvray/gvray-admin` 只有 `pull` 权限**（GitHub API 实测 `permissions.push=false`）→ `git push` 403。解除路径：① 授予写权限/换凭据；② fork + PR。**用户已明确选择"先不推"**，等其决定。
+⚠️ **P6 的素材已用完，但全文可取回**：删除前的 HEAD 是 `56b0d0d`，用 `git show 56b0d0d:docs/ai-engineering-playbook.md` 取。**提炼时没有照搬 playbook §3**——逐项判定后只留真增量（`AGENTS.md` 模板与 `gen-agents-md.mjs` 的骨架重复且更旧；多工具入口已在 `Established practices`；语料目录索引已被 ADR 0017 禁止），唯一留存的新结论是 **ADR 索引**那条（同一个映射的第二副本，且没有任何检查会抓到它）。交付与筛选理由见 skill 内 `.workbuddy/memory/2026-09-22.md`。
 
 明细与当年的串行约束（`inquiries.service.ts` 被 7 变更触及、P3-4 → P3-5 / P0-2 → P2-4 的归档顺序）见 `.workbuddy/memory/2026-09-16-mall-issue-sweep.md`——**那段历史记录只作档案，已不再是要执行的任务清单**。
 
