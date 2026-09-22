@@ -68,6 +68,8 @@
 
 **当时提出、尚未做的两条后续建议**：① 建项目级 `.agents/skills/`，但只装**本仓自己的流程**（新增 admin 模块、加权限码、Prisma 迁移），判据是「这个技能换到别的项目还能用吗」——能则放全局 `~/.agents/skills/`，不能才放项目级；② 「教训型记忆」在公开项目里几乎没有实践，本仓的 pitfalls 已是较好样本——FAQ Q2 据此把 `docs/experience/` 列为经验库目录名的**最佳选择**（理由：与 `docs/adr/` 同族、自解释、不依赖隐喻），本变更 P5 采用 `hermes/` → `docs/experience/` 改名即以此条为据。
 
+**同批处置：`hermes/` → `docs/experience/`，并取消其中的 `decisions/` 桶。** 改名的依据是「自解释、不依赖隐喻、与 `docs/adr/` 同族（adr = 决策、experience = 经验）」。取消 `decisions/` 的依据是**它已经腐烂**：它的 ADR 索引停在 **0016**，而 `docs/adr/` 实际有 **17 篇**——漏掉的正是 0017 自己那条；它的「最近变更决策摘要」只回填了 **2 条**，而 `openspec/changes/archive/` 有 **38** 个归档变更（2/38，该节基本是死的）。这两块职责各有更权威的家：ADR 结论归 `docs/adr/` 目录本身（**不建索引**——ADR 文件名本身即结论，而索引是同一份映射的第二副本，必然漂移）；变更决策摘要归 `openspec/changes/archive/*/{proposal,design}.md`。**注**：本 ADR 决策 3 曾把「索引的结论版」指向 `hermes/decisions/README.md`，该指向随本处置作废。
+
 ## 参考
 
 - `scripts/check-docs.mjs`（自检实现，含 CONFIG 常量）
