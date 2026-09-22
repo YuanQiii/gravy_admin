@@ -84,16 +84,16 @@ _Avoid_: guest,游客 (those refer to the logged-in demo User account `guest/123
 
 ### Documentation layers (文档层)
 
-三个位置各只承载一类内容，**不要用同义词互相指代**——这是本仓最容易混的一组词。
+四个位置各只承载一类内容，**不要用同义词互相指代**——这是本仓最容易混的一组词。（`Experience library` 物理上位于 `docs/` 之下，但仍按内容类型单独命名，不与 `Human docs` 混称。）
 
 | Term | Meaning |
 | --- | --- |
 | `Corpus`（语料目录） | `.agents/project/` — 仓库**唯一**的、面向 agent 的规范摘要目录。取用方式由 `AGENTS.md` 的任务路由表决定，不默认全量读取。 |
-| `Experience library`（经验库） | `hermes/` — 沉淀下来的踩坑（`pitfalls/`）、决策摘要（`decisions/`）、工程模式（`patterns/`）。只记"为什么 / 别踩"，不记当前形态。 |
-| `Human docs`（正式文档） | `docs/` — 面向人的契约与规程长文档（响应格式、配置、部署、AI 工程体系等）。`docs/adr/` 的决策记录也归此层。 |
+| `Human docs`（正式文档） | `docs/` — 面向人的文档根层：契约与规程长文档（响应格式、配置、部署、项目结构）与 `docs/adr/` 的决策记录。 |
+| `Experience library`（经验库） | `docs/experience/` — `docs/` 的子层，2026-09-22 由 `hermes/` 改名而来：踩坑（`pitfalls/`）、工程模式（`patterns/`）。只记"为什么 / 别踩"，不记当前形态。原 `decisions/` 桶已取消——ADR 结论归 `docs/adr/` 目录本身（不建索引），变更决策摘要归 `openspec/changes/archive/`。 |
 | `Glossary`（领域词典） | 本文件 `CONTEXT.md` — 只定义术语，不含实现细节。 |
 
-_Avoid_: 用「知识库」统称以上任一（`hermes/` 与 `.agents/project/` 都曾自称"知识库"，但指的不是同一样东西）；把 `.agents/project/` 叫「主题文档 / 场景文档」（`docs/ai-engineering-*.md` 里的旧叫法）；把 `docs/` 叫「根目录大文档」（monorepo 之前的说法）。
+_Avoid_: 用「知识库」统称以上任一（经验库与 `.agents/project/` 都曾自称"知识库"，但指的不是同一样东西）；把 `.agents/project/` 叫「主题文档 / 场景文档」（`docs/ai-engineering-*.md` 的旧叫法，该批文件已删）；**用 `hermes` 指代经验库**（2026-09-22 已改名 `docs/experience/`）；把 `docs/` 叫「根目录大文档」（monorepo 之前的说法）。
 
 ## Conventions
 

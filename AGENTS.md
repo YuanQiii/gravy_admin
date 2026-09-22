@@ -29,8 +29,7 @@ GVRAY 后端为 Monorepo 双应用 + 共享内核：NestJS 11 + TypeScript，Pri
 | [CONTEXT.md](CONTEXT.md) | 领域术语表：Customer / User 边界、Equipment / Filter、Inquiry 状态机、文档层术语 | 讨论业务语义、命名或边界时 |
 | [.agents/project/](.agents/project/) | 面向 agent 的规范摘要（**唯一语料目录**，路由表见下方「按需阅读与同步更新」） | 按下方路由表取用，不要全量读取 |
 | [docs/adr/](docs/adr/) | 架构决策记录，命名 `NNNN-kebab-title.md` | 改架构、数据模型、认证或部署前，先确认不推翻既有决策 |
-| [docs/](docs/) | 人类向长文档（响应格式、配置、部署、AI 工程体系等）——`.agents/project/` 只存摘要，详细版在这里 | 需要比摘要更细的说明时 |
-| [hermes/](hermes/) | 经验库三库：`pitfalls/` 踩坑、`decisions/` 决策摘要、`patterns/` 工程模式 | 复现异常、新开接口或架构改动前 |
+| [docs/](docs/) | 人类向文档根层：响应格式、配置、部署、项目结构（`.agents/project/` 只存摘要，详细版在这里）——**含 `experience/` 子层**：经验库，`pitfalls/` 踩坑 + `patterns/` 工程模式（曾名 `hermes/`） | 需要比摘要更细的说明时；复现异常、新开接口或架构改动前 |
 | [wayfinder/](wayfinder/) | 在役专题地图：`map.md` 的目标 / 已定基线 / 禁止重开项 + `tickets/` 待办 | 接手正在推进的专题前，先接上进度 |
 | [openspec/](openspec/) | 行为规格与变更流水线：`specs/` 是已定稿规格，`changes/` 是在途变更（`archive/` 为已归档）；由 `openspec` CLI 管理，**不要手工建目录** | 改行为契约前先读 `specs/`；提案 / 落地 / 归档走 `openspec` CLI |
 

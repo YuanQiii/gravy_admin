@@ -84,8 +84,7 @@ packages/
 └── domain/             # @gvray/domain: shared domain package (equipment suite + inquiry, providers-only)
 
 prisma/                 # Schema + migrations + seed (single ownership, shared by both apps)
-docs/                   # Project documentation (incl. adr/ decision records)
-hermes/                 # Experience library (pitfalls / engineering patterns / decision summaries)
+docs/                   # Project documentation (adr/ decision records, experience/ library)
 .agents/project/        # Agent on-demand corpus (routing table in AGENTS.md)
 openspec/               # Behaviour specs and change pipeline
 wayfinder/              # Active topic maps and tickets
@@ -139,18 +138,13 @@ Typical NestJS starters only give you a skeleton — the parts an enterprise pro
 
 ## 📚 Documentation
 
-| Document | Description |
+| Location | What it holds |
 |:---|:---|
-| [🐳 Docker Deployment Guide](docs/deployment.md) | Dev / test / production deployment, rolling updates |
-| [📋 Unified Response Format](docs/response-format.md) | API response specification |
-| [⚙️ System Configuration](docs/configs.md) | Frontend/backend config mapping |
-| [🏗️ Project Structure Details](docs/project-structure.md) | Directory structure and module descriptions |
-| [🧪 API Testing Guide](docs/api-testing.md) | Swagger debugging and auth flow |
-| [Glossary](CONTEXT.md) | Customer / User boundaries, Equipment / Filter, Inquiry state machine, documentation layers |
-| [Architecture Decision Records](docs/adr/) | 17 ADRs: why it is designed this way, which options were rejected |
-| [Behaviour Specs & Change Pipeline](openspec/) | Frozen specs in `specs/`, in-flight changes in `changes/` |
-| [Active Topic Maps](wayfinder/) | Topics in progress, settled baselines, items not to be reopened |
-| [Experience Library](hermes/) | Pitfalls / engineering patterns / decision summaries |
+| [docs/](docs/README.md) | Index of human-facing docs: deployment how-to, config reference, API response format, project structure, ADRs, experience library |
+| [CONTEXT.md](CONTEXT.md) | Glossary: Customer / User boundaries, Equipment / Filter, Inquiry state machine, documentation layers |
+| [openspec/](openspec/) | Behaviour specs (`specs/`) and the change pipeline (`changes/`) |
+| [wayfinder/](wayfinder/) | Active topic maps: goals, settled baselines, items not to be reopened |
+| [.agents/project/](.agents/project/) | On-demand corpus for AI assistants (routing table in `AGENTS.md`) |
 
 ## 🌐 Companion Frontend
 

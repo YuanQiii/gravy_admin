@@ -84,8 +84,7 @@ packages/
 └── domain/             # @gvray/domain：共享领域包（equipment 五件套 + inquiry，providers-only）
 
 prisma/                 # Schema + 迁移 + Seed（单一所有权，两个应用共享）
-docs/                   # 项目文档（含 adr/ 决策记录）
-hermes/                 # 经验库（踩坑 / 工程模式 / 决策摘要）
+docs/                   # 项目文档（adr/ 决策记录、experience/ 经验库）
 .agents/project/        # agent 按需语料（路由表见 AGENTS.md）
 openspec/               # 行为规格与变更流水线
 wayfinder/              # 在役专题地图与工单
@@ -139,18 +138,13 @@ docker/                 # Docker 部署配置
 
 ## 📚 文档
 
-| 文档 | 说明 |
+| 位置 | 内容 |
 |:---|:---|
-| [🐳 Docker 部署指南](docs/deployment.md) | 开发 / 测试 / 生产部署、滚动更新 |
-| [📋 统一响应格式](docs/response-format.md) | API 响应规范 |
-| [⚙️ 系统配置项](docs/configs.md) | 前后端配置关联 |
-| [🏗️ 项目结构详解](docs/project-structure.md) | 目录结构与模块说明 |
-| [🧪 API 测试指南](docs/api-testing.md) | Swagger 调试与认证流程 |
+| [docs/](docs/README.md) | 人向文档索引：部署 how-to、配置参考、响应格式、项目结构、ADR、经验库 |
 | [领域术语表](CONTEXT.md) | Customer / User 边界、Equipment / Filter、Inquiry 状态机、文档层术语 |
-| [架构决策记录](docs/adr/) | 17 篇 ADR：为什么这样设计、哪些方案被否决 |
 | [行为规格与变更流水线](openspec/) | 已定稿规格在 `specs/`，在途变更在 `changes/` |
 | [在役专题地图](wayfinder/) | 正在推进的专题、已定基线、禁止重开项 |
-| [经验库](hermes/) | 踩坑 / 工程模式 / 决策摘要 |
+| [.agents/project/](.agents/project/) | AI 助手的按需语料（路由表在 `AGENTS.md`） |
 
 ## 🌐 配套前端
 
