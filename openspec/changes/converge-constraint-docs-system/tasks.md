@@ -36,8 +36,8 @@
 - [x] 3.1 新增 `CONTRIBUTING.md`，承接 `docs/api-testing.md` 的内容（Swagger 调试入口、默认测试账户、认证头格式），并写明本地启动、测试与合入前必须通过的检查。验证：`CONTRIBUTING.md` 含上述三块内容
       → 执行说明：其中提到的每条命令都已对着 `package.json` 的 `scripts` 逐条核对存在。
 - [x] 3.2 新增 `SECURITY.md`，写明已入库的 `.env.*` 清单（9 个）、`JWT_SECRET` 在 prod 与 dev 未分离的实测结论、漏洞上报渠道与处理方式。验证：`git ls-files | grep "\.env"` 的结果与文中清单一致
-- [ ] 3.3 删除 `docs/api-testing.md`（内容已进 `CONTRIBUTING.md`）。验证：`README.md` 与 `CONTRIBUTING.md` 中均无指向它的链接，`pnpm docs:check` 通过
-      → **阻塞于用户确认**：仓规「开发硬规则」把"任何删除文件"列入需先确认的操作；且 `README.md` 的文档表仍有一行指向它，需在同一次改动内一并移除。
+- [x] 3.3 删除 `docs/api-testing.md`（内容已进 `CONTRIBUTING.md`）。验证：`README.md` 与 `CONTRIBUTING.md` 中均无指向它的链接，`pnpm docs:check` 通过
+      → 已删。`CONTRIBUTING.md` 实测含三块内容（默认测试账户表、Swagger 调试流程、`Bearer <token>` 认证头）；`README.md` / `README.zh-CN.md` 的文档表原有一行指向它，已随「文档表改为知识位置清单」一并移除（见 5.4 说明）。全仓 `grep api-testing` 零残留。
 
 ## 4. P3 · 拆嵌套入口
 
@@ -73,7 +73,9 @@
 - [x] 5.3 把 `docs/ai-engineering-references.md`、`comparison-unibest.md`、`faq.md` 的结论摘成「体系设计依据」≤15 行写进 `docs/adr/0017` 的补充说明。验证：ADR 0017 新增补充说明段，含外部调研的数据来源与失效条件
       → 落地为「## 补充说明（2026-09-22，体系设计的外部依据留存）」：数据来源与采集方式、可复核的扫描事实（12 中 5 有 CI）、两条穿透性结论、明确的失效条件（2026-09-11 快照）、后续入口 `ItamarZand88/awesome-agent-conventions`、两条尚未做的后续建议。ADR 0017 由 65 → 77 行。
 - [x] 5.4 新增 `docs/README.md` 索引，按 Diátaxis 四象限（tutorial / how-to / reference / explanation）分组现有文档，并把 `experience/` 归入 explanation。验证：`docs/` 下每篇文档在索引里出现且只出现一次
-      → **执行顺序调整**：改到 6.8（删 9 篇）之后执行，否则索引写完还要回改两轮。
+      → 已建（36 行）。落位：tutorial **暂空**（由 README 快速开始 + CONTRIBUTING 承担，索引里写明）；how-to = `deployment.md`；reference = `configs.md` / `response-format.md`；explanation = `project-structure.md` / `adr/` / `experience/`。写入两条约定：**本文件是 `docs/` 的唯一索引**（不要再建第二个）、**不在阅读路径**清单。
+      → 连带消除 `docs/` 的第二份逐文件索引：两份 README 的「文档」表由 10 行改 5 行「知识位置」（docs 索引入口 / CONTEXT / openspec / wayfinder / 语料）。
+      → **执行顺序调整**：原排在 5.5 之前，实际改到 6.8（删 9 篇）之后执行，否则索引写完还要回改两轮。
 - [x] 5.5 删除 `docs/features.md` 并清理引用（`README.md` 相关行）。验证：`grep -rn "features\.md"` 无残留，`pnpm docs:check` 通过
       → 已删（`git rm`）。`README.md` / `README.zh-CN.md` / `CONTRIBUTING.md` / `docs/` / `.agents/` / `AGENTS.md` / `CONTEXT.md` 内**零残留引用**（P0 的 1.4 已先行移除文档表那一行）。另记：原 features.md 有 **46** 个 `[x]` 而 README Roadmap 只有 14 个——粒度更细的进度视图就此消失，这是既定取舍（进度视图属 issue tracker，不属文档）。
 - [x] 5.6 按 D8 对 `docs/deployment.md` ↔ `.agents/project/deployment.md`、`docs/response-format.md` ↔ `.agents/project/response-format.md` 各删自己那半重复内容，并加互链。验证：两对互链均可达；两文件的重复段落已不存在（逐段比对后记录结论）
@@ -83,23 +85,37 @@
 - [x] 5.7 精简 `docs/project-structure.md`：删除会腐烂的 ASCII 目录树，只保留"每个目录为什么这么挂"的说明。验证：文件 ≤65 行且不含 ASCII 树
       → 由 86 → **34 行**（含 5 个「为什么」小节：两个 app / 两个 packages / providers-only / `prisma/` 挂根 / apps 直连包源码）。同时移走两处**第二副本**：启动命令（真相源 `package.json` + `docs/deployment.md`）与 24 行 Mall 路由映射表（已收敛进 ADR 0010 补充说明）——后者正是本变更要消灭的"同一知识两处并存"。
 - [x] 5.8 验证：`docs/` 顶层为 5 篇（`README.md`、`configs.md`、`deployment.md`、`response-format.md`、`project-structure.md`）且合计 ≤550 行。验证：`ls docs/*.md | wc -l` = 5，`wc -l docs/*.md` 合计 ≤550
-      → 待 5.4 建索引后一次性验证（见 6.13）。
+      → **5 篇 / 501 行** ≤ 550 ✓（README 36 · configs 106 · deployment 219 · project-structure 40 · response-format 100）。索引完整性：4 篇顶层文档 + `adr/` + `experience/` 在 `docs/README.md` 中各出现一次。
+      → **执行顺序调整（记录）**：5.4 与 5.8 原排在 5.5–5.7 之前，但那时待删文件还在（索引写完还要回改两轮）。实际顺序为 5.1–5.3 结晶 → 5.5 删 features → 5.6 去重 → 5.7 精简 → P5 全部 → 5.4 建索引 → 5.8 验证。
 
 ## 6. P5 · 改名 + 归位 + 删除 + 扩自检
 
-- [ ] 6.1 用 `git mv` 把 `hermes/` 整体改名为 `docs/experience/`（内部 `pitfalls/`、`patterns/` 结构不变）。验证：`ls docs/experience` 显示三个条目；`git status` 中改动被识别为 rename
-- [ ] 6.2 更新 `docs/experience/README.md`：顶部加一行"曾名 `hermes/`"，并把「内容」列表改为实际存在的两个子库。验证：文件首段含"曾名 `hermes/`"且不含已取消的子库
-- [ ] 6.3 取消 `docs/experience/decisions/` 桶（ADR 结论索引与变更摘要删除，结论已由 5.3 与 `docs/adr/` 承载）。验证：`ls docs/experience` 不再含 `decisions`
-- [ ] 6.4 更新 `CONTEXT.md`：`Experience library` 词条指向 `docs/experience/`（并注明它现为 `docs/` 的子层）、更新 `_Avoid_` 清单。验证：`grep -n "hermes" CONTEXT.md` 无残留（除"曾名"说明外）
-- [ ] 6.5 更新根 `AGENTS.md`「知识位置」表：由 7 处改为 6 处，`docs/` 行注明含 `experience/` 子层。验证：表格行数与名称核对一致
-- [ ] 6.6 把 `.agents/project/pitfalls.md` 的内容并入 `docs/experience/pitfalls/` 并逐条去重（已知重复：权限缓存失效）。验证：`.agents/project/` 为 9 篇纯规范；经验层无重复条目（按规则签名 grep 核对）
-- [ ] 6.7 按经验分流判据处理既有条目：P1（已被 `.gitattributes` 覆盖）退休 · P6 / P13 / P15（与根文件重复）删除 · P17（与语料重复）合并 · P2/P3/P5 与 P19/P21 迁往 `docs/` 的 how-to 排查节。验证：逐条处置均有记录，经验层条目数下降且无重复
-- [ ] 6.8 删除 §2.7 分档内的 9 篇：`docs/ai-development.md`、`docs/ai-engineering-system-audit-2026-09-11.md`、`docs/specs/anonymous-filter-weighted-sort.md`、`docs/monorepo-migration-summary.md`、`docs/ai-engineering-{references,comparison-unibest,faq,workflow,playbook}.md`。验证：9 个路径均不存在
-- [ ] 6.9 清理受影响的引用：`README.md` 中指向 `docs/ai-development.md` 的链接、`docs/adr/0017` 中指向 playbook 的引用。验证：`grep -rn "ai-development\|ai-engineering"` 在文档中无残留（新增的补充说明除外，需逐条确认）
-- [ ] 6.10 给 `scripts/check-docs.mjs` 增加 `extraDirs` 配置项，覆盖 `docs/`、`docs/experience/`、`wayfinder/`（**不修改** `CORPUS_CANDIDATES`）。验证：运行后输出里列出新增的覆盖目录与文件数
-- [ ] 6.11 处置扩围后新出现的发现：逐条判断"修"或"进白名单"，不为了让检查通过而放宽判据。验证：`pnpm docs:check` exit 0，且每条被白名单放行的项都有理由记录
-- [ ] 6.12 用故意违规的探针复验扩围后的自检：能拦住四类违规，且对模板占位、散文短语、其他文档的 `§` 指针保持静默。验证：探针运行时 exit≠0，移除探针后 exit=0
-- [ ] 6.13 最终验证：常读核心（根 `AGENTS.md` + `CONTEXT.md` + `.agents/project/` + `docs/experience/` + `README.md`）合计 ≤1200 行；`grep` 确认无指向已删文件的引用。验证：`wc -l` 合计数字与 grep 结果均符合
+- [x] 6.1 用 `git mv` 把 `hermes/` 整体改名为 `docs/experience/`（内部 `pitfalls/`、`patterns/` 结构不变）。验证：`ls docs/experience` 显示三个条目；`git status` 中改动被识别为 rename
+      → `git mv` 一次完成，`git status` 显示为 **4 条 R（rename）**。⚠️ 改名使目录**深度 +1**，`docs/experience/{patterns,pitfalls}/README.md` 里 hermes 时代的 `../../` 相对链接全部失效——13 条，由 6.10 的扩围当场抓出（覆盖扩围前没有任何东西在看这批链接）。
+- [x] 6.2 更新 `docs/experience/README.md`：顶部加一行"曾名 `hermes/`"，并把「内容」列表改为实际存在的两个子库。验证：文件首段含"曾名 `hermes/`"且不含已取消的子库
+      → 34 → 35 行。同时补齐三条此前缺失的维护约定：**条目必须能退休**（被 `.gitattributes` / lint / 测试取代后删除并在提交信息记一行）、「一条只写一处」、「不写可直接从 AGENTS.md/ADR/spec 读到的当前状态」；并新增「结构约定」节（当前两桶三文件规模不拆成一坑一文件，单 README 超 ~60 行再拆）。
+- [x] 6.3 取消 `docs/experience/decisions/` 桶（ADR 结论索引与变更摘要删除，结论已由 5.3 与 `docs/adr/` 承载）。验证：`ls docs/experience` 不再含 `decisions`
+      → 已取消。注销依据与两个漂移数字（索引停在 0016 / 实际 17 篇；摘要 2 条 / 归档 38 个）写进 ADR 0017 补充说明。结论一览表**弃用而非搬迁**：ADR 文件名本身即结论（如 `0001-migrate-mysql-to-postgresql`），索引是同一份映射的第二副本。
+- [x] 6.4 更新 `CONTEXT.md`：`Experience library` 词条指向 `docs/experience/`（并注明它现为 `docs/` 的子层）、更新 `_Avoid_` 清单。验证：`grep -n "hermes" CONTEXT.md` 无残留（除"曾名"说明外）
+      → 词条改指 `docs/experience/` 并注明子层关系与 `decisions/` 取消；`_Avoid_` 新增「用 `hermes` 指代经验库」，删掉「把 `.agents/project/` 叫主题文档」里指向已删文件的旧出处。表头由"三个位置"改为"四个位置"（并说明其中一个是 `docs/` 的子层，命名仍独立）。
+- [x] 6.5 更新根 `AGENTS.md`「知识位置」表：由 7 处改为 6 处，`docs/` 行注明含 `experience/` 子层。验证：表格行数与名称核对一致
+      → 7 → **6 行**：`docs/` 行合并了原 `hermes/` 行（注明含 `experience/` 子层、踩坑 + 工程模式、"曾名 `hermes/`"），「何时读」列合并为两条触发。README / README.zh-CN.md 的目录树与文档表同步（文档表另见 5.4）。
+- [x] 6.6 把 `.agents/project/pitfalls.md` 的内容并入 `docs/experience/pitfalls/` 并逐条去重（已知重复：权限缓存失效）。验证：`.agents/project/` 为 9 篇纯规范；经验层无重复条目（按规则签名 grep 核对）
+      → 已并入（新增「4. 重构与收敛」组，收 12 条不被他处覆盖的工程经验）。`.agents/project/` 由 **10 → 9 篇纯规范**；`docs:check` 覆盖数 14 → 13。P17 与语料同主题条目**并为一条**（含 fail-closed 与 name/description 边界）。
+- [x] 6.7 按经验分流判据处理既有条目：P1（已被 `.gitattributes` 覆盖）退休 · P6 / P13 / P15（与根文件重复）删除 · P17（与语料重复）合并 · P2/P3/P5 与 P19/P21 迁往 `docs/` 的 how-to 排查节。验证：逐条处置均有记录，经验层条目数下降且无重复
+      → **退休**：P1（`.gitattributes` 的 `*.sh text eol=lf` 实测已覆盖）。**删除（与根文件重复）**：P6 禁 `db push`、P13 敏感字段脱敏、P15 access log 只由最外层拦截器产出。**合并**：P17。**迁出**：P2 Redis host、P3 端口需重建容器、P4 compose 注释要整块、P5 冒烟需 join 网络、P19 登录 401 先查 seed、P21 短密码 400 属 DTO 校验 → 进 `docs/deployment.md` 故障排查表（4 行 → **10 行**）。逐条处置均记入 ADR 0017 补充说明与提交信息。
+- [x] 6.8 删除 §2.7 分档内的 9 篇：`docs/ai-development.md`、`docs/ai-engineering-system-audit-2026-09-11.md`、`docs/specs/anonymous-filter-weighted-sort.md`、`docs/monorepo-migration-summary.md`、`docs/ai-engineering-{references,comparison-unibest,faq,workflow,playbook}.md`。验证：9 个路径均不存在
+      → 9 个路径均不存在；`docs/specs/` 随之消失。**取回方式已记录**：`git show 56b0d0d:docs/ai-engineering-playbook.md`（56b0d0d 为删除前 HEAD），供 P6 提炼时取用。
+- [x] 6.9 清理受影响的引用：`README.md` 中指向 `docs/ai-development.md` 的链接、`docs/adr/0017` 中指向 playbook 的引用。验证：`grep -rn "ai-development\|ai-engineering"` 在文档中无残留（新增的补充说明除外，需逐条确认）
+      → 逐条确认后，残留仅两处形态且均为**说明性提及**：ADR 补充说明中的"原 X 已删除"，与 ADR 0017 参考节的"（**已删除**…全文在 git 历史中可取回）"。实际清理了**四处**（超出任务预期）：两份 README 的「AI 开发指南」行、ADR 0017 参考节、ADR 0005 里「更新 `docs/specs/…` 权重表」的维护仪式（改为"权重权威来源是模块内字段常量，ADR 里的表只是快照"——原指令指向的文件已不存在）、以及 `packages/domain/src/equipment/filters/filters.service.ts` 的**两处源码注释**。全仓无 markdown 链接形式残留。
+- [x] 6.10 给 `scripts/check-docs.mjs` 增加 `extraDirs` 配置项，覆盖 `docs/`、`docs/experience/`、`wayfinder/`（**不修改** `CORPUS_CANDIDATES`）。验证：运行后输出里列出新增的覆盖目录与文件数
+      → 新增 `extraDirs: ['docs', 'wayfinder']`（递归；`docs/` 已含其子目录 `adr/` 与 `experience/`，故不必单列）。输出头部增加 `+ extra \`docs\` + \`wayfinder\` (recursive)`；覆盖由 **13 → 43 文件**。与 `CORPUS_CANDIDATES` 分开是刻意的：语料目录受「不得持有索引」约束，而 `docs/README.md` 正是合法索引；塞进候选还会凭空造出"第二个语料"。另加"配置的目录不存在"告警（配置过期 = 那些文档又没人看）。
+- [x] 6.11 处置扩围后新出现的发现：逐条判断"修"或"进白名单"，不为了让检查通过而放宽判据。验证：`pnpm docs:check` exit 0，且每条被白名单放行的项都有理由记录
+      → **全部"修"，零白名单放行**：13 条报告全是真实死链（改名后深度 +1 造成的 `../../` 失效），已逐条改为 `../../../`。这正是扩围该买的东西——它们此前无人在看。
+- [x] 6.12 用故意违规的探针复验扩围后的自检：能拦住四类违规，且对模板占位、散文短语、其他文档的 `§` 指针保持静默。验证：探针运行时 exit≠0，移除探针后 exit=0
+      → 在临时 fixture（`--root` 指向）上实测：四类违规**全部拦下**（死链 / `package.json` 中不存在的脚本 / 指向根文件的 `§` / 语料目录持索引）→ **exit 1**；静默项**零误报**（模板占位 `[<路径>](<路径>)`、散文 `make sure` 与 `pnpm can`、其他文档的 `§`（`playbook §4`）、内建命令 `pnpm install`、通配 `pnpm test:*`）→ 清空违规后 **exit 0**。
+- [x] 6.13 最终验证：常读核心（根 `AGENTS.md` + `CONTEXT.md` + `.agents/project/` + `docs/experience/` + `README.md`）合计 ≤1200 行；`grep` 确认无指向已删文件的引用。验证：`wc -l` 合计数字与 grep 结果均符合
+      → 常读核心 **1071 行** ≤1200（本文件 196 + CONTEXT 110 + 语料 390 + experience 136 + README 160 + 包级 79；收敛前为 1173）。红线表已按最终实测刷新，并新增「经验库单篇 ≤60 行（超则按主题拆）」一条——`docs/experience/pitfalls/README.md` 53 行，恰好在线内。已删文件引用零残留（逐条确认见 6.9）。
 
 ## 7. P6 · 方法论进 skill（可选，仓库外动作，需单独确认后执行）
 

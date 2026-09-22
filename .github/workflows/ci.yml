@@ -72,22 +72,34 @@ jobs:
       - name: 计算基线与本次改动的 TS 文件
         id: changed
         run: |
+          # 单次推送带进来的文件数超过这个上限时，认为这次推送携带的是积压的历史提交，
+          # 而不是「本次改动」——按 before..sha 全量计算会把几十个历史提交的文件都算成本次新增，
+          # 门禁首跑即红，继而失去信任（design.md 把它列为明确风险）。
+          RATCHET_MAX_FILES=50
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             BASE="origin/${{ github.base_ref }}"
+            END="${{ github.sha }}"
             git fetch --no-tags origin "${{ github.base_ref }}"
-          elif [ "$(git rev-list --parents -n 1 "${{ github.sha }}" | wc -w)" -gt 2 ]; then
-            # 合并提交：只把「这次合并带进来的改动」算作本次改动。
-            # 若用 event.before..sha，被合并进来的历史提交会整批计入，
-            # 首个推送到 main 的合并会把几十个历史提交的文件全算上。
-            BASE="${{ github.sha }}^1"
           else
             BASE="${{ github.event.before }}"
+            END="${{ github.sha }}"
+            # 合并提交：只取「这次合并带进来的改动」。积压推送里最典型的就是一个 merge，
+            # 它的贡献正是从远端视角看的新工作。
+            MERGE=$(git rev-list --merges "$BASE..$END" 2>/dev/null | head -1)
+            if [ -n "$MERGE" ]; then
+              echo "本次推送含合并提交 $MERGE：以其 ^1.. 为改动集"
+              BASE="$MERGE^1"
+              END="$MERGE"
+            elif [ "$(git diff --name-only --diff-filter=ACMR "$BASE" "$END" | wc -l)" -gt "$RATCHET_MAX_FILES" ]; then
+              echo "推送范围超过 $RATCHET_MAX_FILES 个文件且不含合并提交：退回只检查最后一个提交"
+              BASE="$END^1"
+            fi
           fi
           echo "base=$BASE" >> "$GITHUB_OUTPUT"
-          git diff --name-only --diff-filter=ACMR "$BASE" "${{ github.sha }}" \
+          git diff --name-only --diff-filter=ACMR "$BASE" "$END" \
             | grep -E '^(apps|packages|test)/.*\.ts$' > changed.txt || true
           echo "count=$(wc -l < changed.txt)" >> "$GITHUB_OUTPUT"
-          echo "--- 基线 $BASE，本次改动 TS 文件 ---"
+          echo "--- 基线 $BASE → $END，本次改动 TS 文件 ---"
           cat changed.txt
 
       - name: fmt 棘轮（基线合规的文件不得变脏）
