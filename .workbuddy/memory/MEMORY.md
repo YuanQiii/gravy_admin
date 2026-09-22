@@ -108,8 +108,11 @@
   → **对策：本仓一律不要用 `git rm`。用 `rm <file>`（或 `rm -rf <dir>`）+ `git add -A <dir>`** —— 已实测安全（同样在 `docs/` 内做对照，目录完好）。
   → 恢复手段：`git checkout -- <dir>`（未提交的改动会丢，所以**改完立刻 commit**）。另在 `$TEMP/gvray-docs-backup/` 留有一份仓库外备份。
   → 与既有已知问题同源：本工作区 `.git` 本身有异常（`switch -c` 造未出生分支、曾整体变空）。**在这台机器上做批量文件操作时，先小步验证再全量执行。**
-- **远端仓库是 public，且本机凭据只读**：GCM 里的凭据是 GitHub 用户 **`YuanQiii`**（OAuth `gho_*`），对 `gvray/gvray-admin` 的权限实测为 `{admin:false, maintain:false, push:false, triage:false, pull:true}` → **`git push` 一律 403**（`Permission to gvray/gvray-admin.git denied to YuanQiii`）。解除路径：① 授予写权限/换凭据；② fork 后推分支并发 PR。
+- **远端仓库是 public，且本机凭据只读**：GCM 里的凭据是 GitHub 用户 **`YuanQiii`**（OAuth `gho_*`），对 `gvray/gvray-admin` 的权限实测为 `{admin:false, maintain:false, push:false, triage:false, pull:true}` → **`git push` 一律 403**（`Permission to gvray/gvray-admin.git denied to YuanQiii`）。
   查法：`git credential fill` 取 token → `curl -H "Authorization: Bearer $T" https://api.github.com/repos/gvray/gvray-admin` 看 `permissions`。
+- **推送目标是用户自己的仓库 `YuanQiii/gravy_admin`（2026-09-22 用户指定）**：注意名字是 **gravy_admin**（`YuanQiii/gvray-admin` 与 `gvray_admin` 都是 404）。它是**今天新建的空 public 仓库**（非 fork），当前凭据对它 **admin 全权限** → ✅ 通。
+  ⚠️ **但用户给的地址是 SSH 形式，在本机用不了**：`~/.ssh` 只有 `known_hosts`、无密钥，`ssh -T git@github.com` → `Permission denied (publickey)`。**可用的等价地址是 HTTPS**：`https://github.com/YuanQiii/gravy_admin.git`（已用 `git push --dry-run` 验证成功，`* [new branch] HEAD -> main`）。
+  → 要真走 SSH，需先在本机生成 key 并把公钥加到 GitHub；否则一律用 HTTPS。
 - **⚠️ 仓库 public + 三处 `.env.production` 的 `JWT_SECRET` 与各自 dev 相同**（根 / `apps/admin` / `apps/mall`；`POSTGRES_PASSWORD` 三处已分离）→ 任何人可签出合法 token。这是 SECURITY.md 的第一条，**尚未修**（修复=轮换密钥 + env 移出仓库，删当前文件不够，git 历史仍在）。
 - **远端长期停在单应用布局**：远端 `main`（`12c39a0`）仍是迁移前的 `src/`，本地已迁到 `apps/*`+`packages/*`。**合并时必须按「把远端语义改动搬到新位置」解决**，直接接受远端整文件 = 回退迁移。已实证：远端 2026-09-19 的国际化提交顺带回退了 5 类事实（PostgreSQL→MySQL、`AGENTS.md`→`CLAUDE.md`、`.agents/project/`→`.claude/project/`、`prisma:migrate:dev`→`prisma migrate dev`、单应用目录树）。
 - **换行判定只用 `git ls-files --eol`**：实测 **439 个 `.ts` 的索引全是 `i/lf`**，仅 19 个工作区文件是 `w/crlf`（`core.autocrlf=true` 造成）。→ `prettier --check <工作区文件>` 在 Windows 会报「全文件不合规」，**是假阳性，CI（Linux）看不到**。
