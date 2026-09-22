@@ -3,12 +3,6 @@
 🚀 基于 **NestJS 11**、**TypeScript**、**Prisma**、**PostgreSQL**、**Redis** 构建的企业级后台管理脚手架，内置 **RBAC 权限管理**、**JWT 认证**、**Swagger/OpenAPI**、**Docker 部署** 与 **AI 开发支持**，可直接作为企业后台项目的 **Starter Template**。
 
 
-<p align="center">
-  <img src="./docs/screenshots/20260808/light.webp" width="49%" alt="Light Theme" />
-  
-  <img src="./docs/screenshots/20260808/dark.webp" width="49%" alt="Dark Theme" />
-</p>
-
 ## ✨ 特性亮点
 
 - 🔐 **RBAC 权限体系** —— 动态权限扫描、菜单权限、API 权限、权限缓存，开箱即用
@@ -49,8 +43,8 @@ docker compose -f docker-compose.dev.yml up -d postgres redis
 
 # 方式二：已有本地 PostgreSQL + Redis，配置 .env 后跳过上一步
 
-pnpm prisma db push
-pnpm prisma db seed
+pnpm prisma:migrate:dev
+pnpm prisma:seed
 pnpm start:admin:dev
 # 需要商城端时另开终端：pnpm start:mall:dev
 ```
@@ -71,18 +65,30 @@ pnpm start:admin:dev
 ## 📁 项目结构
 
 ```
-src/
-├── core/       # 基础设施（decorators / guards / interceptors / filters / pipes）
-├── modules/    # 业务模块（auth / system / dashboard / profile）
-├── prisma/     # Prisma Module / PrismaService
-├── redis/      # Redis 基础设施（缓存 / 限流 / 分布式锁）
-├── shared/     # 共享层（constants / DTOs / utils / BaseService）
-└── main.ts
+apps/
+├── admin/              # Admin 应用（运营端）—— 独立进程 / 端口 / 镜像 / Swagger
+│   └── src/
+│       ├── modules/    # 业务模块 + system/（用户·角色·部门·岗位·菜单·配置·字典·公告·日志·监控）
+│       ├── core/       # admin 专属基础设施（feature-flag 守卫、会话心跳拦截器）
+│       └── main.ts     # 引导（共享引导逻辑走 @gvray/core 的 configureApp）
+└── mall/               # Mall 应用（商城端）—— 匿名浏览 + 客户自助，纯后端 API（无前端页面）
+    └── src/
+        ├── modules/    # mall（浏览 / 收藏 / 询价）、customer-auth、customer-activity
+        ├── core/       # 客户认证基础设施（CustomerJwtGuard / customer-jwt.strategy）
+        └── main.ts
 
-prisma/         # Schema + 迁移 + Seed
-docs/           # 项目文档
-docker/         # Docker 部署配置
-.agents/        # AI 知识库
+packages/
+├── core/               # @gvray/core：共享内核（decorators / guards / interceptors / filters /
+│                       #   pipes / strategies / prisma / redis / logging / shared 含 BaseService）
+└── domain/             # @gvray/domain：共享领域包（equipment 五件套 + inquiry，providers-only）
+
+prisma/                 # Schema + 迁移 + Seed（单一所有权，两个应用共享）
+docs/                   # 项目文档（含 adr/ 决策记录）
+hermes/                 # 经验库（踩坑 / 工程模式 / 决策摘要）
+.agents/project/        # agent 按需语料（路由表见 AGENTS.md）
+openspec/               # 行为规格与变更流水线
+wayfinder/              # 在役专题地图与工单
+docker/                 # Docker 部署配置
 ```
 
 > 📖 [完整项目结构 →](docs/project-structure.md)
@@ -136,12 +142,16 @@ docker/         # Docker 部署配置
 
 | 文档 | 说明 |
 |:---|:---|
-| [📖 功能特性清单](docs/features.md) | 完整功能模块与开发进度 |
 | [🐳 Docker 部署指南](docs/deployment.md) | 开发 / 测试 / 生产部署、滚动更新 |
 | [📋 统一响应格式](docs/response-format.md) | API 响应规范 |
 | [⚙️ 系统配置项](docs/configs.md) | 前后端配置关联 |
 | [🏗️ 项目结构详解](docs/project-structure.md) | 目录结构与模块说明 |
 | [🧪 API 测试指南](docs/api-testing.md) | Swagger 调试与认证流程 |
+| [领域术语表](CONTEXT.md) | Customer / User 边界、Equipment / Filter、Inquiry 状态机、文档层术语 |
+| [架构决策记录](docs/adr/) | 17 篇 ADR：为什么这样设计、哪些方案被否决 |
+| [行为规格与变更流水线](openspec/) | 已定稿规格在 `specs/`，在途变更在 `changes/` |
+| [在役专题地图](wayfinder/) | 正在推进的专题、已定基线、禁止重开项 |
+| [经验库](hermes/) | 踩坑 / 工程模式 / 决策摘要 |
 
 ## 🌐 配套前端
 

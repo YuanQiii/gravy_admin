@@ -120,19 +120,19 @@ pnpm docker:up          # 启动生产 compose
 
 ### Gate（五维度实测状态）
 
-上次实测：2026-09-21（只读形式，未跑 build）
+上次实测：2026-09-22（fmt / lint / test 沿用 2026-09-21 记录；typecheck 于 2026-09-22 补测；未跑 build）
 
 | 维度 | 命令 | 实测状态 |
 | --- | --- | --- |
 | fmt | `prettier "apps/**/*.ts" "packages/**/*.ts" "test/**/*.ts" --check` | **FAIL** — 212 个文件待格式化（既有基线） |
 | lint | `eslint "{apps,packages,test}/**/*.ts"` | **FAIL** — 1718 条（1515 error / 203 warning，既有基线；2026-09-21 修正 glob 后重测，修正前为 1068 条） |
-| typecheck | **未声明**；推断的根目录 `tsc --noEmit` 不可用 | **NOT AVAILABLE** — 裸跑 `tsc` 读不到各 app tsconfig 里的 `@/*` 别名，成批报 TS2307（模块找不到）属于**测量方式错误**，不代表类型检查失败；需按 `-p apps/<app>/tsconfig.json` 重测并由人确认 |
+| typecheck | `tsc -p apps/admin/tsconfig.json --noEmit`（另三个 workspace 同理：`apps/mall`、`packages/core`、`packages/domain`） | **PASS** — 2026-09-22 实测四个 workspace 全部 exit=0 / 0 error。**测量方式有讲究**：必须逐个 workspace 用 `-p`；裸跑根目录 `tsc --noEmit` 会因根 tsconfig 的 `@/*` 残留成批报 TS2307，那是**测量错误**不是类型错误 |
 | test | `cross-env NODE_ENV=test jest --ci` | **PASS** |
 | build | `pnpm build` | **NOT RUN**（会写 `dist/`，需要时手动跑并确认改动范围） |
 
 复测方法：重跑上表命令（fmt / lint 用只读形式，即上表写法）。FAIL 必须先看一条错误样本再归因（代码 / 环境 / 配置）；同一根因带出的连锁报错只算一条。
 
-> 上表是**基线复测表**，不是每次任务的检查清单——它列的是全仓命令，2026-09-21 实测单次输出约 2532 行（fmt 214 / lint 2265 / typecheck 53）。日常按下方 DoD 的**改动范围**跑即可，只有改了工具或 `scripts`、或需要重新确认基线时才跑全仓。
+> 上表是**基线复测表**，不是每次任务的检查清单——它列的是全仓命令，2026-09-21 实测单次输出约 2479 行（fmt 214 / lint 2265）。日常按下方 DoD 的**改动范围**跑即可，只有改了工具或 `scripts`、或需要重新确认基线时才跑全仓。
 
 ### 完成定义（DoD）
 
@@ -144,6 +144,21 @@ pnpm docker:up          # 启动生产 compose
    - 任何情况下不允许把原本通过的 `test` 变成失败
 2. 按顶部「按需阅读与同步更新」表判断本次改动要不要动文档，要动就改完。
 3. 文档改动与代码放在同一个提交里。
+
+### 文档规模红线（2026-09-22 实测）
+
+AI 会话的上下文是有限资源——"文档写得越多越好"在这类体系里是错的。以下四条是**配额**，超线即触发下沉或去重，不靠"感觉挺多了"来判断：
+
+| 红线 | 上限 | 2026-09-22 实测 |
+| --- | --- | --- |
+| 常读核心总量（`AGENTS.md` + `CONTEXT.md` + `.agents/project/` + 经验库 + `README.md`） | **≤ 1200 行** | 1078 行 |
+| 单篇语料（`.agents/project/*.md`） | **≤ 100 行** | 最大 90（`dto-swagger.md`） |
+| 根文件 `AGENTS.md` | **≤ 200 行** | 179 行（本节加入前） |
+| 包级 `AGENTS.md`（`apps/*`、`packages/*`） | **30–80 行** | 尚未创建 |
+
+**不在阅读路径**（提供追溯，不作阅读材料）：`openspec/changes/archive/`（119 文件 / 6223 行）· `reports/` · `dist/` · `openapi/` · `logs/`。路由表不指向这些位置。
+
+超线时的处置顺序：① 先问"这段是不是只有某类任务才用"——是则下沉到语料或目录级 `AGENTS.md`；② 再问"这段能不能从源码 / 配置直接读出来"——能则删掉留指针；③ 最后才考虑压缩措辞（收益最小、损耗最大）。
 
 ## 已知缺陷与待确认
 
@@ -171,8 +186,8 @@ pnpm docker:up          # 启动生产 compose
    复核：`git ls-files | grep "\.env"` 列出已入库清单，逐个确认是否只有示例值 / 占位值。
 2. **`packages/domain/package.json` 的 `main` / `types`** 指向 `../../dist/packages/domain/domain/src/index.js`（多一段 `/domain/`），而 `packages/core` 的 `main` 少了一段 tsc 实际产出的 `src` 路径。应用目前经 tsconfig `paths` 直接消费源码，故可能是不生效的死配置。
    复核：先确认 `dist/` 里的实际产物路径，再决定改哪一边。
-3. **根 `tsconfig.json` 的 `@/*` → `src/*`** 与 `apps/*/src` 布局不匹配（单应用残留），会让裸跑 `tsc --noEmit` 成批报 TS2307 —— 这正是上表 `typecheck` 一行的成因。
-   复核：确认它是否只作 IDE 兜底；若是残留，应删除或改为 project references。
+3. **根 `tsconfig.json` 的 `@/*` → `src/*`** 与 `apps/*/src` 布局不匹配（单应用残留）。影响面**限于裸跑** `tsc --noEmit` 的场景（会成批报 TS2307）；按 workspace 逐个跑（`-p apps/<app>/tsconfig.json`）不受影响 —— 这也是上表 typecheck 的实测方式。
+   复核：`tsc --noEmit` 报 TS2307，而 `tsc -p apps/admin/tsconfig.json --noEmit` 为 0 错误 —— 两者并存即证明该残留仍在。
 4. **`UsersService.remove()` 不失效被删用户的权限缓存**（已定性为**有意非目标**，原因见 `.agents/project/pitfalls.md`）：被删 / 被禁用的用户在 access token TTL 内仍持旧权限码，另立变更跟踪 JWT 撤销联动。**不要顺手补失效逻辑。**
    复核：`remove()` 方法体内 `invalidate` 命中 0 次。
 5. **`$transaction` 规范与实际脱节**（判据见 [database.md](.agents/project/database.md)）：全仓 `$transaction(` 调用点仅 **18 处 / 10 个文件**，其中 admin 业务代码仅 4 处（`modules/auth/auth.service.ts` 1 处、`modules/addresses/addresses.service.ts` 3 处）。
