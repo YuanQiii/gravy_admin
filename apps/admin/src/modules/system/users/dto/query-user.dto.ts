@@ -1,10 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsOptional, IsString, IsEnum } from 'class-validator';
-import { Type } from 'class-transformer';
-import { PaginationSortDto, UserStatus } from '@gvray/core';
-import { SortWhitelist } from '@gvray/core';
-
-
+import { PaginationSortDto, SortWhitelist, UserStatus } from '@gvray/core';
 
 /**
  * 查询用户DTO
@@ -49,7 +45,6 @@ export class QueryUserDto extends PaginationSortDto {
     example: UserStatus.ENABLED,
   })
   @IsOptional()
-  @Type(() => Number)
   @IsEnum(UserStatus)
   status?: UserStatus;
 
