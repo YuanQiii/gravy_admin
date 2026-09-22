@@ -1,5 +1,7 @@
 # Docker 部署指南
 
+> 面向人的操作手册。**机制与约束**（双 service 的挂载/入口行为、环境变量注意点、迁移策略的 fail-closed 细节）见 [.agents/project/deployment.md](../.agents/project/deployment.md)，两者不重复。
+
 ## 概览
 
 项目有两套独立的 Docker 工作流：
@@ -10,11 +12,13 @@
 | **测试 / 生产** | `docker-compose.yml` | 只 pull 镜像，env 外部注入 |
 | **生产独立部署** | `docker/scripts/deploy.sh` | 滚动更新，自动回滚，独立管理 PostgreSQL |
 
+两套 compose 都是**双 service**（`admin` + `mall`）。下文以 admin 为例，mall 的 service 名、镜像与端口见 [.agents/project/deployment.md](../.agents/project/deployment.md)。
+
 ---
 
 ## 一、本地开发（docker-compose.dev.yml）
 
-挂载 `./src` 目录，修改代码自动热更新，无需手动重启。
+挂载 `./apps` + `./packages`（pnpm workspace 的两个目录），修改代码自动热更新，无需手动重启。
 
 ```bash
 # 启动（首次会 build dev 镜像）
@@ -28,9 +32,9 @@ pnpm docker:dev:down
 ```
 
 **特点**
-- 端口：`3000`
+- 端口：`admin` 为 `3000`，`mall` 为 `3001`（`MALL_PORT`）
 - PostgreSQL 密码固定为 `password`（仅本地用）
-- 数据库首次启动自动执行 `prisma db push` + seed
+- **dev 容器不做任何 schema 同步**：`NODE_ENV=development` 时 `entrypoint.sh` 直接 exec 应用，schema 与 seed 由宿主机执行（`pnpm prisma:migrate:dev` + `pnpm prisma:seed`）
 
 ---
 
@@ -165,11 +169,15 @@ pnpm docker:build:scan
 
 ## 五、数据库管理
 
-容器启动时 `entrypoint.sh` 自动执行：
+**容器启动不碰 schema 的定义方式**（本仓硬规则：生产禁跑 `prisma db push`，一切 schema 变更走 migration）：
 
-1. 有 `prisma/migrations/` → `prisma migrate deploy`
-2. 无迁移文件 → `prisma db push`
-3. 用户表为空 → 自动 seed
+| 环境 | 启动时行为 |
+|---|---|
+| 生产（admin 容器，`NODE_ENV !== development`） | 跑 `db-bootstrap`：应用已提交迁移（`prisma migrate deploy`）；`prisma/migrations/` 缺失或为空即**非零退出**，绝不回退 `db push`；空库自动 seed |
+| 开发（`NODE_ENV=development`） | `entrypoint.sh` 直接 exec 应用，不做任何 schema 同步 |
+| mall 容器（任何环境） | 镜像不含 migrations/schema，永不执行 schema 同步 |
+
+迁移路径选择与一次性基线见 [.agents/project/deployment.md](../.agents/project/deployment.md) 的「数据库迁移策略」；决策依据见 [ADR 0007](adr/0007-db-bootstrap-deep-module.md)（fail-closed 引导）与 [ADR 0008](adr/0008-baseline-drift-gate-and-image-whitelist.md)（基线与镜像白名单）。
 
 ```bash
 # 本地开发：只启动 PostgreSQL，不启动 app

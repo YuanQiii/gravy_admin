@@ -66,14 +66,24 @@
 
 ## 5. P4 · 收拢 + 精简 + 结晶
 
-- [ ] 5.1 把 `docs/monorepo-migration-summary.md` 的独有内容（§5 Mall 路由映射、§8 回滚与后续）摘成 ≤15 行写进 `docs/adr/0010` 的补充说明。验证：ADR 0010 新增补充说明段，且含路由映射表
-- [ ] 5.2 把 `docs/specs/anonymous-filter-weighted-sort.md` 的独有内容（决策来源 grilling 三轮 15 题、Out of Scope、后续演进）摘成 ≤15 行写进 `docs/adr/0005` 的补充说明。验证：ADR 0005 新增补充说明段
-- [ ] 5.3 把 `docs/ai-engineering-references.md`、`comparison-unibest.md`、`faq.md` 的结论摘成「体系设计依据」≤15 行写进 `docs/adr/0017` 的补充说明。验证：ADR 0017 新增补充说明段，含外部调研的数据来源与失效条件
-- [ ] 5.4 新增 `docs/README.md` 索引，按 Diátaxis 四象限（tutorial / how-to / reference / explanation）分组现有文档，并把 `experience/` 归入 explanation。验证：`docs/` 下每篇文档在索引里出现且只出现一次
-- [ ] 5.5 删除 `docs/features.md` 并清理引用（`README.md` 相关行）。验证：`grep -rn "features\.md"` 无残留，`pnpm docs:check` 通过
-- [ ] 5.6 按 D8 对 `docs/deployment.md` ↔ `.agents/project/deployment.md`、`docs/response-format.md` ↔ `.agents/project/response-format.md` 各删自己那半重复内容，并加互链。验证：两对互链均可达；两文件的重复段落已不存在（逐段比对后记录结论）
-- [ ] 5.7 精简 `docs/project-structure.md`：删除会腐烂的 ASCII 目录树，只保留"每个目录为什么这么挂"的说明。验证：文件 ≤65 行且不含 ASCII 树
-- [ ] 5.8 验证：`docs/` 顶层为 5 篇（`README.md`、`configs.md`、`deployment.md`、`response-format.md`、`project-structure.md`）且合计 ≤550 行。验证：`ls docs/*.md | wc -l` = 5，`wc -l docs/*.md` 合计 ≤550
+- [x] 5.1 把 `docs/monorepo-migration-summary.md` 的独有内容（§5 Mall 路由映射、§8 回滚与后续）摘成 ≤15 行写进 `docs/adr/0010` 的补充说明。验证：ADR 0010 新增补充说明段，且含路由映射表
+      → 落地为「## 补充说明（2026-09-22，迁移执行细节留存）」：路由映射**改写为规则式**（`b2c/<资源>` 与 `customer/<资源>` 一律去前缀 + 资源清单 + admin 零变化），不再逐行复制 24 行表格；另含迁移当时的验证证据、六步回滚方式、三条仍成立的遗留。ADR 0010 由 91 → 103 行。
+- [x] 5.2 把 `docs/specs/anonymous-filter-weighted-sort.md` 的独有内容（决策来源 grilling 三轮 15 题、Out of Scope、后续演进）摘成 ≤15 行写进 `docs/adr/0005` 的补充说明。验证：ADR 0005 新增补充说明段
+      → 落地为「## 补充说明（2026-09-22，加权排序规格的独有内容留存）」：明确的非目标（8 类）、性能依据与升级触发条件、测试缝选择（HTTP seam 为主 + mock 共享根 fn 的交叉污染陷阱）、三轮 grilling 15 个决策点来源。ADR 0005 由 170 → 184 行。
+- [x] 5.3 把 `docs/ai-engineering-references.md`、`comparison-unibest.md`、`faq.md` 的结论摘成「体系设计依据」≤15 行写进 `docs/adr/0017` 的补充说明。验证：ADR 0017 新增补充说明段，含外部调研的数据来源与失效条件
+      → 落地为「## 补充说明（2026-09-22，体系设计的外部依据留存）」：数据来源与采集方式、可复核的扫描事实（12 中 5 有 CI）、两条穿透性结论、明确的失效条件（2026-09-11 快照）、后续入口 `ItamarZand88/awesome-agent-conventions`、两条尚未做的后续建议。ADR 0017 由 65 → 77 行。
+- [x] 5.4 新增 `docs/README.md` 索引，按 Diátaxis 四象限（tutorial / how-to / reference / explanation）分组现有文档，并把 `experience/` 归入 explanation。验证：`docs/` 下每篇文档在索引里出现且只出现一次
+      → **执行顺序调整**：改到 6.8（删 9 篇）之后执行，否则索引写完还要回改两轮。
+- [x] 5.5 删除 `docs/features.md` 并清理引用（`README.md` 相关行）。验证：`grep -rn "features\.md"` 无残留，`pnpm docs:check` 通过
+      → 已删（`git rm`）。`README.md` / `README.zh-CN.md` / `CONTRIBUTING.md` / `docs/` / `.agents/` / `AGENTS.md` / `CONTEXT.md` 内**零残留引用**（P0 的 1.4 已先行移除文档表那一行）。另记：原 features.md 有 **46** 个 `[x]` 而 README Roadmap 只有 14 个——粒度更细的进度视图就此消失，这是既定取舍（进度视图属 issue tracker，不属文档）。
+- [x] 5.6 按 D8 对 `docs/deployment.md` ↔ `.agents/project/deployment.md`、`docs/response-format.md` ↔ `.agents/project/response-format.md` 各删自己那半重复内容，并加互链。验证：两对互链均可达；两文件的重复段落已不存在（逐段比对后记录结论）
+      → **deployment 一对**：语料侧删「常用命令」（命令真相源是 `package.json`，用法在 docs 的 how-to）；docs 侧删「数据库管理」里对迁移策略的复述（改为三行环境行为表 + 指向语料篇）。**逐段比对结论**：真正的重复是①命令清单②两套工作流的通用描述③迁移策略；语料独有的是环境变量注意点（DATABASE_URL 组装 / CORS / 微信 / healthcheck / 日志变量）与 fail-closed 细节，docs 独有的是 how-to（本地开发 / 测试生产 / 独立部署 / 镜像构建 / 排查表）。
+      → **response-format 一对**：语料侧压掉对 `ResponseUtil` 用法与分页键集的复述（留一句指针）；docs 侧**修掉 6 条迁移前旧路径**（`src/...` → `packages/core/src/...`，逐条 `ls` 验证存在）并加回链。**逐段比对结论**：这一对重复很少——语料的 `showType` 状态码映射与 docs 的 JSON 结构/示例/最佳实践互为补充，非重复；真正的缺陷是 docs 的组件表路径过期（本仓反复出现的缺陷形态）。
+      → 顺手修了 docs/deployment.md 的**两处事实错误**：`挂载 ./src`（实为 `./apps` + `./packages`，dev compose 实测）与「无迁移文件 → `prisma db push`」——`docker/entrypoint.sh` 实测为 `NODE_ENV=development` 直接 exec、否则跑 `db-bootstrap`（fail-closed，**明确拒绝 db push**），原文与硬规则「生产禁跑 db push」直接冲突。
+- [x] 5.7 精简 `docs/project-structure.md`：删除会腐烂的 ASCII 目录树，只保留"每个目录为什么这么挂"的说明。验证：文件 ≤65 行且不含 ASCII 树
+      → 由 86 → **34 行**（含 5 个「为什么」小节：两个 app / 两个 packages / providers-only / `prisma/` 挂根 / apps 直连包源码）。同时移走两处**第二副本**：启动命令（真相源 `package.json` + `docs/deployment.md`）与 24 行 Mall 路由映射表（已收敛进 ADR 0010 补充说明）——后者正是本变更要消灭的"同一知识两处并存"。
+- [x] 5.8 验证：`docs/` 顶层为 5 篇（`README.md`、`configs.md`、`deployment.md`、`response-format.md`、`project-structure.md`）且合计 ≤550 行。验证：`ls docs/*.md | wc -l` = 5，`wc -l docs/*.md` 合计 ≤550
+      → 待 5.4 建索引后一次性验证（见 6.13）。
 
 ## 6. P5 · 改名 + 归位 + 删除 + 扩自检
 

@@ -1,16 +1,7 @@
 # 部署摘要
 
-详细说明见 [../../docs/deployment.md](../../docs/deployment.md)。
-
-## 常用命令
-
-```bash
-pnpm build
-pnpm start:admin
-pnpm docker:dev:up
-pnpm docker:up
-pnpm docker:deploy
-```
+详细说明见 [../../docs/deployment.md](../../docs/deployment.md)（面向人的 how-to：本地开发 / 测试生产 / 独立部署 / 镜像构建 / 排查）。
+**命令清单不在本文件重复**——真相源是 `package.json` 的 `scripts`，用法见 `docs/deployment.md` 对应小节。
 
 ## 两套 Docker 工作流
 

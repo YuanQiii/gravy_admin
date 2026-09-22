@@ -1,86 +1,40 @@
 # 项目结构详解
 
-Monorepo 双应用 + 共享内核（ADR 0010）。结构总览：
+Monorepo 双应用 + 共享内核（决策与被否方案见 [ADR 0010](adr/0010-monorepo-dual-app-shared-kernel.md)）。本文只讲**每个位置为什么这么挂**——具体目录清单的权威来源是 [AGENTS.md](../AGENTS.md) 的「关键目录」与各包自己的 `AGENTS.md`，此处不复述（复述必然漂移）。
 
-```
-apps/
-├── admin/                  # Admin 应用（运营端，独立进程/端口/镜像/Swagger）
-│   └── src/
-│       ├── app.module.ts   # 挂载全量横切（OperationLog/FeatureFlag/RolesGuard/PermissionsGuard 等）
-│       ├── main.ts         # Swagger + 端口（共享引导走 @gvray/core configureApp）
-│       ├── core/           # admin 专属基础设施：JwtAuthGuard / RolesGuard / PermissionsGuard / jwt.strategy /
-│       │                   #      SessionHeartbeatInterceptor（依赖 admin TokenService）
-│       └── modules/        # 业务模块：auth / system / dashboard / profile / equipment / inquiry /
-│                           #      customers / addresses ...
-└── mall/                   # Mall 应用（商城端，独立进程/端口/镜像/Swagger）
-    └── src/
-        ├── app.module.ts   # 只挂 RequestLog/Response/HttpException/Throttler（无 OperationLog/FeatureFlag）
-        ├── main.ts         # Swagger（标题 GVRAY Mall API）+ 端口
-        ├── core/           # 客户认证基础设施：CustomerJwtGuard / customer-jwt.strategy / @CurrentCustomer()
-        └── modules/
-            ├── mall/       # 聚合：browse（filters/equipment/catalogs/brands/filter-types）
-            │              #        + inquiries + addresses（匿名浏览 + 客户自助）
-            ├── customer-auth/    # 客户认证（login/refresh/logout）
-            └── customer-activity/# 客户收藏/浏览历史
+## 为什么是两个 app
 
-packages/
-├── core/                   # 共享内核 @gvray/core（唯一 import 面 = barrel index.ts）
-│   └── src/
-│       ├── core/           # decorators / filters / guards(公共) / interceptors / pipes / strategies / session
-│       ├── shared/         # constants（权限码/敏感键/realm 等）、services（BaseService/VisibilityOpts 三分流）、utils
-│       ├── prisma/         # Prisma Module / PrismaService（@Global()）
-│       ├── logging/        # pino 结构化访问日志（RequestLogInterceptor / request-id middleware）
-│       ├── redis/          # Redis 全局模块
-│       └── bootstrap/      # bootstrapDatabase（db-bootstrap 深模块，ADR 0007）/ configureApp / baseline
-└── domain/                 # 共享领域包 @gvray/domain（equipment 五件套 + inquiry 的 providers-only 服务与 DTO）
+`apps/admin`（运营端）与 `apps/mall`（商城端）是两个消费域，各有独立进程、端口、镜像与 Swagger。拆开的收益是**变更与爆炸半径互不相扰**：任一端发版不再重启另一端；限流预算按端核算；横切按端挂载——mall 的匿名流量不查 admin 的 FeatureFlag 配置表、也不写 admin 的审计表。
 
-prisma/                     # Prisma Schema + migrations + seed（单一所有权，核心包相对路径消费）
+边界与代价：两端仍共享同一 DB 与 Redis（本决策拆进程不拆数据）；两端**互不 import**，只能经共享内核通信（有 eslint 守卫）。
 
-scripts/                    # db-bootstrap.ts（薄 CLI）/ docker-build.ts / docker-deploy.ts ...
-docker/                     # entrypoint.sh / nginx / 部署与构建脚本
-openspec/                   # OpenSpec 变更提案与 specs
-docs/                       # 文档 / ADR / 学习指南
-```
+## 为什么是两个 packages
 
-## 启动命令
+分界线是**变更节奏**：`packages/core` 随基础设施演进（季度级），`packages/domain` 随业务漂移（周级）。合成一个 god package 会让"改一行加权排序"也 bump 基础设施版本；再拆细则在 2 人团队里是负杠杆。
 
-```bash
-pnpm build                # build:packages → build:scripts → build:admin → build:mall
-pnpm start:admin          # node dist/apps/admin/apps/admin/src/main.js
-pnpm start:mall           # node dist/apps/mall/apps/mall/src/main.js
-pnpm docker:dev:up        # dev compose 双 service（admin:3000，mall:3001）
-pnpm docker:up            # 生产 compose 双 service
-```
+- `packages/core`：共享内核（装饰器 / 守卫 / 拦截器 / 过滤器 / 管道 / 策略 + Prisma + Redis + 日志 + BaseService）。唯一 import 面是 barrel `index.ts`，禁止 `@gvray/*/src` 深路径。
+- `packages/domain`：共享领域包（equipment 五件套 + inquiry 的 Service/DTO）。
+- **没有 customer 共享包**：两端 customer 相关零共享 service 代码，合并是空接缝，且违背 [ADR 0002](adr/0002-independent-customer-model.md) 的两种信任维度。
 
-## Mall 路由旧→新映射（发布说明）
+## 为什么包只导出 Module（providers-only）
 
-商城端在本次迁移中剥除历史路径前缀，并在类名/模块名统一 `b2c`→`mall`。**破坏性变更**，mall 调用方按下表同步：
+包只导出 Nest Module（Service + DTO），**不带 controller**。路由前缀、守卫组合、限流预算、Swagger 分组都是**端特定**关注点，所以 controller 是两端各自的薄 adapter，归端不归包。
 
-| 旧路径（迁移前） | 新路径（迁移后） |
-|---|---|
-| `GET /b2c/filters` | `GET /filters` |
-| `GET /b2c/filters/:id` | `GET /filters/:id` |
-| `GET /b2c/equipment` | `GET /equipment` |
-| `GET /b2c/equipment/:id` | `GET /equipment/:id` |
-| `GET /b2c/catalogs` | `GET /catalogs` |
-| `GET /b2c/catalogs/:id` | `GET /catalogs/:id` |
-| `GET /b2c/brands` | `GET /brands` |
-| `GET /b2c/brands/:id` | `GET /brands/:id` |
-| `GET /b2c/brands/hot` | `GET /brands/hot` |
-| `GET /b2c/filter-types` | `GET /filter-types` |
-| `GET /b2c/filter-types/options` | `GET /filter-types/options` |
-| `GET /b2c/filter-types/:id` | `GET /filter-types/:id` |
-| `POST /customer/inquiries` | `POST /inquiries` ←B2C 客户询价 |
-| `GET /customer/inquiries` | `GET /inquiries` |
-| `GET /customer/inquiries/:id` | `GET /inquiries/:id` |
-| `POST /customer/addresses` | `POST /addresses` ←客户自助收货地址 |
-| `GET /customer/addresses` | `GET /addresses` |
-| `PATCH /customer/addresses/:id` | `PATCH /addresses/:id` |
-| `DELETE /customer/addresses/:id` | `DELETE /addresses/:id` |
-| `POST /customer/auth/login` | `POST /auth/login` |
-| `POST /customer/auth/refresh` | `POST /auth/refresh` |
-| `POST /customer/auth/logout` | `POST /auth/logout` |
-| `POST /customer/favorites` | `POST /favorites` |
-| `GET /customer/history` | `GET /history` |
+## 为什么 `prisma/` 挂在根
 
-> 后台（Admin）路由零变化：`equipment/*`、`customer/addresses`、`inquiry/*`、`system/*` 等保持原样。
+单一所有权：`schema.prisma` + `migrations` + PrismaService 全归 `@gvray/core`，两个 app 都禁止各自 generate；`migrate deploy` 只随 **admin** 容器入口执行（fail-closed），mall 容器永不碰 schema——防双容器启动时的竞争。
+
+## 为什么 apps 直接消费包的源码
+
+apps 的 tsconfig paths 把 `@gvray/*` 指向 `packages/*/src`，包源码与 app 进同一次编译（无需先构建包）。代价是公共 rootDir 上移后 dist 结构变为 `dist/apps/... + dist/packages/...`，启动命令与 Dockerfile 需相应调整。
+
+## 其他顶层目录
+
+- `prisma/`：Schema + 迁移 + seed，两端共享（单一所有权）。
+- `scripts/`：db-bootstrap 薄 CLI、docker-build / docker-deploy 等工程脚本。
+- `docker/`：`entrypoint.sh`、nginx 配置、部署与构建脚本。
+- `openspec/`：行为规格（`specs/`）与变更流水线（`changes/`）。
+- `docs/`：人向文档，含 `adr/`（决策记录）与经验库、以及 `wayfinder/`（在役专题）。
+- `.agents/project/`：agent 按需语料，路由表见 [AGENTS.md](../AGENTS.md)。
+
+> mall 路由的旧→新映射是一次性 BREAKING 发布说明，已随迁移报告收敛进 [ADR 0010 的补充说明](adr/0010-monorepo-dual-app-shared-kernel.md)。

@@ -2,6 +2,8 @@
 
 所有 API 通过 `ResponseInterceptor` 自动包装为统一结构；异常由 `HttpExceptionFilter` 统一处理。Controller 只做路由/鉴权/DTO，业务逻辑放 Service。
 
+> 面向人的使用指南。**给 agent 的规则摘要**（默认包装语义、`showType` 状态码映射、改响应格式时的同步清单）见 [.agents/project/response-format.md](../.agents/project/response-format.md)。
+
 ## 响应结构
 
 ```json
@@ -33,19 +35,19 @@
 }
 ```
 
-> `showType` 为数值枚举：`0=静默 1=警告 2=错误消息 3=通知 4=默认 9=跳转`。
+> `showType` 为数值枚举：`0=静默 1=警告 2=错误消息 3=通知 4=默认 9=跳转`。哪些 HTTP 状态码映射到哪个 `showType`，见 [.agents/project/response-format.md](../.agents/project/response-format.md)。
 
 ## 核心组件
 
 | 组件 | 文件 |
 |------|------|
-| 响应接口 | `src/shared/interfaces/response.interface.ts` |
-| 响应工具 | `src/shared/utils/response.util.ts` |
-| 响应拦截器 | `src/core/interceptors/response.interceptor.ts` |
-| 异常过滤器 | `src/core/filters/http-exception.filter.ts` |
-| 跳过装饰器 | `src/core/decorators/skip-response-format.decorator.ts` |
-| 分页 DTO | `src/shared/dtos/pagination.dto.ts` |
-| 基础服务 | `src/shared/services/base.service.ts` |
+| 响应接口 | `packages/core/src/shared/interfaces/response.interface.ts` |
+| 响应工具 | `packages/core/src/shared/utils/response.util.ts` |
+| 响应拦截器 | `packages/core/src/core/interceptors/response.interceptor.ts` |
+| 异常过滤器 | `packages/core/src/core/filters/http-exception.filter.ts` |
+| 跳过装饰器 | `packages/core/src/core/decorators/skip-response-format.decorator.ts` |
+| 分页 DTO | `packages/core/src/shared/dtos/pagination.dto.ts` |
+| 基础服务 | `packages/core/src/shared/services/base.service.ts` |
 
 ## ResponseUtil 速查
 
