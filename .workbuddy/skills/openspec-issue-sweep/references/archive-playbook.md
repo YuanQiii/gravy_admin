@@ -69,3 +69,23 @@ let block = main.slice(s, e).trimEnd();
 3. 应用后 `information_schema` 复查列/索引、`_prisma_migrations` 登记、业务表读写冒烟。
 4. 列名 camelCase 带双引号（`"unitPrice"`），表名以 `@@map` 为准。
 5. 回填类 UPDATE 设计成幂等（WHERE 只命中与派生规则不符的行），干净库 no-op，可在生产安全重放。
+
+## 新能力归档（2026-09-22 实证：`constraint-docs`，无冲突路径）
+
+delta 若只含 **`## ADDED Requirements` 且主规格尚不存在**，归档是**纯新增、零冲突、不需要 delta 重放**——这是最省事的一种，别套用上面的重放流程。判据与证据：
+
+- 归档前先 `ls -d openspec/specs/<capability>`：不存在 → 会走 `create`，不会撞上任何既有 Scenario。
+- 输出可直接当交叉校验用：`Specs to update: <cap>: create` + `Applying changes to ...: + N added` + `Totals: + N, ~ 0, - 0, → 0`。把这里的 **N** 与 `grep -c '^### Requirement:' delta的spec.md` 对一遍——**两者必须相等**；不等说明 delta 或主规格有一处被改过而没同步。
+
+**归档前必备份 `openspec/` 到仓库外**（本仓工作区有「`git rm` 会清空所在目录」的前科，而归档含目录移动）。本次实测未触发，但这不是可以省掉备份的理由。终验再加一条**文件守恒**：备份的 md 数 → 现况 md 数，差值应恰等于「新建的主规格数」。
+
+**主规格的形状由 CLI 决定，不要手改**：CLI 生成的 `create` 结果带 H1（`# <cap> Specification` + `## Purpose` + `## Requirements`）。本仓主规格里 H1 有无**混用**（`b2c` / `logging` / `rbac` / `customer/auth` 有，`workspace` / `equipment` / `inquiry` 没有）——**不要为了"统一"去动已存在的那些**，等它们各自被变更改到时自然收敛。
+
+**归档件的数字断言要复核**（2026-09-22 实录）：`design.md` 写「十条 Requirement」而实际 **11 条**。处置遵循本仓纪律——**删掉数字，而不是把 10 改成 11**（一处计数就是一处会腐烂的缓存）；同一段里别的计数（「7 处 → 6 处」「四条红线」）逐条 grep 核过后是对的，保留。**这类错误不会有任何检查报出来**，只能靠人核。
+
+**两条非阻塞警告怎么读**：
+
+- `⚠ Why section should not exceed 1000 characters` —— 若 Why 逐条带 `file:line` 证据，压缩就是丢证据，**接受警告并在归档记录里写理由**。
+- `⚠ Consider splitting changes with more than 10 deltas` —— **不必然该拆**。若那些 delta 同属**一个新能力的引入**，拆开会让同一个 spec 文件被多个变更先后创建，反而制造新的串行约束。
+
+`openspec instructions archive --change <name> --json` 的 `context` / `operationGuidance` **可能都是 `null`** —— 那是正常情况（无额外约束），不是失败，继续走内建流程。
