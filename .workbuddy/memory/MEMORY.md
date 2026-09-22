@@ -85,11 +85,22 @@
 
 **结构性建议**：hermes 现在 171 行 / 三桶，**这个规模不该拆成一坑一文件**（44 个小文件比一个 README 难导航）；改按"读的时机"分组（部署前 / 改 schema 前 / 新增端点前 / 排查失败时），单桶超 ~60 行再拆。每条必须链源码或 ADR。
 
-- **防膨胀红线（2026-09-22 实测后定，建议写进 `AGENTS.md`「验证与收尾」）**：常读核心总量 **≤ 1200 行**（现状约 1070 = 全仓 13100 行的 8%）· 单篇语料 **≤ 80 行** · 根文件 **≤ 200 行**（现 179）。**不在阅读路径**（不算文档）：`openspec/changes/archive/`（119 文件 / 6223 行，占全仓 47%）· `reports/` · `dist/` · `openapi/` · `logs/`。
+- **防膨胀红线（2026-09-22 落地，已写进 `AGENTS.md`「验证与收尾」）**：常读核心总量 **≤ 1200 行** · 单篇语料 **≤ 100 行** · 根文件 **≤ 200 行** · 包级 `AGENTS.md` **20–80 行**。实测校准说明：单篇语料原拟 ≤80，但 `dto-swagger.md` 本就 90 行，定 80 等于宣布违规 → **红线必须落在现实里**；包级下限原拟 30 行，实测真实增量只有 23–33 行（admin 33 / mall 23 / core 23），撑到 30 只能靠复述根文件 → 改为 20。**不在阅读路径**（不算文档）：`openspec/changes/archive/`（119 文件 / 6223 行，占全仓 47%）· `reports/` · `dist/` · `openapi/` · `logs/`。
 - **⚠️ 精简的反直觉点**：`.agents/project/` 那 9–10 篇**不要再合并**。把横切篇（coding / dto-swagger / permissions / response-format）合成一篇看似精简，但改权限时要读一篇 200 行的混合文档 → **按需层的"多"是特性不是缺陷**。真正的精简指标不是文件数，而是**每次任务要读的行数**。
 - **真正该瘦的只有 `docs/` 顶层**（2748 行 → 目标约 480，−83%）：移走 `ai-*` 7 篇（1978 行）· 删 `features.md`（107）· 移走 `monorepo-migration-summary`（142）· 合并 `deployment.md`/`response-format.md` 与其语料同名篇（真重复，顺带消掉两个漂移对）。**不可删**：`docs/adr/`（决策唯一家）· `openspec/specs/`（行为契约）· `archive`（追溯）· `CONTEXT.md`（术语）。
 
 - **⚠️ 形态先于位置（2026-09-22 定，方案原则 7）**：同一内容可以落在**文档 / skill / 测试 / 代码注释 / 配置 / 生成物**上，**选错形态的代价大于选错位置**。活例：`docs/ai-engineering-workflow.md` + `playbook.md`（1102 行）是"从零建体系"的**方法论**——与本仓日常无关，形态本该是 skill，写成仓库 `docs/` 就长期与环境错位。**判据**：只对"下一个项目/下一个会话"有用的内容 → skill；只对本仓当前形态有用的 → 文档；能机器检查的 → 配置/测试。
+
+## git / 凭据 / 换行（2026-09-22 实测，比导文档时先读这一节）
+
+- **远端仓库是 public，且本机凭据只读**：GCM 里的凭据是 GitHub 用户 **`YuanQiii`**（OAuth `gho_*`），对 `gvray/gvray-admin` 的权限实测为 `{admin:false, maintain:false, push:false, triage:false, pull:true}` → **`git push` 一律 403**（`Permission to gvray/gvray-admin.git denied to YuanQiii`）。解除路径：① 授予写权限/换凭据；② fork 后推分支并发 PR。
+  查法：`git credential fill` 取 token → `curl -H "Authorization: Bearer $T" https://api.github.com/repos/gvray/gvray-admin` 看 `permissions`。
+- **⚠️ 仓库 public + 三处 `.env.production` 的 `JWT_SECRET` 与各自 dev 相同**（根 / `apps/admin` / `apps/mall`；`POSTGRES_PASSWORD` 三处已分离）→ 任何人可签出合法 token。这是 SECURITY.md 的第一条，**尚未修**（修复=轮换密钥 + env 移出仓库，删当前文件不够，git 历史仍在）。
+- **远端长期停在单应用布局**：远端 `main`（`12c39a0`）仍是迁移前的 `src/`，本地已迁到 `apps/*`+`packages/*`。**合并时必须按「把远端语义改动搬到新位置」解决**，直接接受远端整文件 = 回退迁移。已实证：远端 2026-09-19 的国际化提交顺带回退了 5 类事实（PostgreSQL→MySQL、`AGENTS.md`→`CLAUDE.md`、`.agents/project/`→`.claude/project/`、`prisma:migrate:dev`→`prisma migrate dev`、单应用目录树）。
+- **换行判定只用 `git ls-files --eol`**：实测 **439 个 `.ts` 的索引全是 `i/lf`**，仅 19 个工作区文件是 `w/crlf`（`core.autocrlf=true` 造成）。→ `prettier --check <工作区文件>` 在 Windows 会报「全文件不合规」，**是假阳性，CI（Linux）看不到**。
+  **⚠️ 不要用 `git cat-file -p :path` 判断**——本机实测它给出的 `:path` 结果是带 CR 的，会误导（与 `--eol` 的结论相反）。任何换行无关的对比都先 `tr -d '\r'`。
+- **CI 棘轮的两条正确判据（已写进 `.github/workflows/ci.yml`）**：① push 到 main 时若 `sha` 是**合并提交**，改动集必须用 `sha^1..sha`，用 `event.before..sha` 会把被合并进来的历史提交整批计入；② 棘轮语义是**逐文件与基线对比**——fmt 只卡「基线合规→现在不合规」+ 新增文件，lint 只卡 error 数上升。**钝判据（改动文件必须全绿）会让 CI 首跑必红**，因为全仓有 212 个 fmt 脏文件。
+- **本机没有 `find` 可用**（Git-Bash 里 `find` 报错）→ 用 shell 通配统计；`sort -u`/`sort -n` 会调到 Windows `sort.exe`，用 `awk "!seen[$0]++"` 代替。
 
 ## 项目级 skill 的加载方式
 
