@@ -50,6 +50,7 @@
   - ✅ **已接 CI（2026-09-22）**：`.github/workflows/docs-check.yml`（独立成文：`ci.yml` 加了 `paths: ["**","!**.md"]` 后整份不跑，会连文档检查一起跳过）。另有 `ci.yml` 的 `verify`（typecheck×4 + test，均实测绿）与 `lint-ratchet`。
 - **CI 棘轮的两条正确判据（写进 `.github/workflows/ci.yml`，2026-09-22）**：① **改动集**——push 时先在范围内找合并提交，取其 `^1..merge`；范围内无 merge 且文件数 >50 则退回 `sha^1..sha`。**用 `event.before..sha` 全量算会把积压的历史提交整批计入（本仓首次推送实测 828 个文件），门禁首跑必红。** ② **判据**——逐文件与基线对比：fmt 只卡「基线合规→现在不合规」+ 新文件，lint 只卡 error 数上升。比较前一律 `tr -d '\r'`（本机工作区有 CRLF，索引里全是 `i/lf`）。
 - **语料目录 `.agents/project/` 现为 9 篇纯规范**（`README.md` 索引已于 2026-09-21 按 ADR 0017 删除，不要再建）：`architecture` / `coding` / `configs` / **`database`** / `deployment` / `dto-swagger` / `permissions` / `response-format` / `workflow`。**`pitfalls.md` 已于 2026-09-22 并入 `docs/experience/pitfalls/` 并分流**——那篇自述就是"教训清单而非规范"，是"经验在两层各有一个家"的根源。`database.md` 承接原根文件的 `## 数据库约定`；**容器启动时的 schema 同步仍归 `deployment.md`，两篇分工不要混**。
+- ⚠️ **已知覆盖缺口（2026-09-22 发现，未处理）**：`docs-check.yml` 的 paths 与 `extraDirs` 都**不含 `openspec/` 与 `.workbuddy/`** → 变更提案（`openspec/changes/**`）与记忆文件里的相对链接没有任何自检在看。要补的话得先决定是否把 119 文件 / 6223 行的 `openspec/changes/archive/` 也算进来（按"不在阅读路径"的既定口径，archive 不该算）。
 - **已知残留**：`docs/adr/` 的 6 条断链**已修**（2026-09-21）；`docs/specs/` 目录已随那篇专题规格删除（2026-09-22）。**`file:///` 式绝对路径是本仓的一个反复出现的缺陷形态**（ADR 0009 一处、docs/specs 三处），见到就改。
 - **裁决记录**：`docs/adr/0017-constraint-docs-single-routing-table.md`（为什么删语料索引、为什么放弃 2000 字符上限、路由表单一归口的代价；**2026-09-22 补充说明**记了文档收敛的外部依据、`decisions/` 取消与语料 pitfalls 合并）。
 
