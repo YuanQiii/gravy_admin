@@ -76,24 +76,46 @@ jobs:
           # 而不是「本次改动」——按 before..sha 全量计算会把几十个历史提交的文件都算成本次新增，
           # 门禁首跑即红，继而失去信任（design.md 把它列为明确风险）。
           RATCHET_MAX_FILES=50
+          NULL_SHA=0000000000000000000000000000000000000000
+          END="${{ github.sha }}"
+          BEFORE="${{ github.event.before }}"
+          BASE=""
+          REASON=""
+
           if [ "${{ github.event_name }}" = "pull_request" ]; then
-            BASE="origin/${{ github.base_ref }}"
-            END="${{ github.sha }}"
             git fetch --no-tags origin "${{ github.base_ref }}"
+            BASE="origin/${{ github.base_ref }}"
+            REASON="PR 基线"
+          elif [ -z "$BEFORE" ] || [ "$BEFORE" = "$NULL_SHA" ] || ! git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
+            # **新分支的首次推送**：`event.before` 是全 0 SHA（或该对象在本地不存在），没有可比基线。
+            # 必须单独处理——否则 `git rev-list --merges "$BASE..$END"` 会因 bad object 直接报错，
+            # 门禁不是判红而是崩掉，这种失败比判红更难懂。
+            REASON="首次推送：无可比基线，只检查最后一个提交"
+            BASE="$(git rev-parse "$END^" 2>/dev/null || true)"
           else
-            BASE="${{ github.event.before }}"
-            END="${{ github.sha }}"
-            # 合并提交：只取「这次合并带进来的改动」。积压推送里最典型的就是一个 merge，
-            # 它的贡献正是从远端视角看的新工作。
-            MERGE=$(git rev-list --merges "$BASE..$END" 2>/dev/null | head -1)
+            MERGE="$(git rev-list --merges "$BEFORE..$END" 2>/dev/null | head -1)"
             if [ -n "$MERGE" ]; then
-              echo "本次推送含合并提交 $MERGE：以其 ^1.. 为改动集"
-              BASE="$MERGE^1"
+              # 合并提交：只取「这次合并带进来的改动」。积压推送里最典型的就是一个 merge，
+              # 它的贡献正是从远端视角看的新工作。
+              REASON="本次推送含合并提交 $MERGE，取其 ^1..merge"
+              BASE="$(git rev-parse "$MERGE^1")"
               END="$MERGE"
-            elif [ "$(git diff --name-only --diff-filter=ACMR "$BASE" "$END" | wc -l)" -gt "$RATCHET_MAX_FILES" ]; then
-              echo "推送范围超过 $RATCHET_MAX_FILES 个文件且不含合并提交：退回只检查最后一个提交"
-              BASE="$END^1"
+            elif [ "$(git diff --name-only --diff-filter=ACMR "$BEFORE" "$END" | wc -l)" -gt "$RATCHET_MAX_FILES" ]; then
+              REASON="推送范围超过 $RATCHET_MAX_FILES 个文件且不含合并提交，只检查最后一个提交"
+              BASE="$(git rev-parse "$END^")"
+            else
+              REASON="普通推送"
+              BASE="$BEFORE"
             fi
+          fi
+
+          echo "策略：$REASON"
+          if [ -z "$BASE" ]; then
+            # 根提交（没有父提交）时无可比对象：跳过棘轮，而不是猜一个基线。
+            echo "无可用基线，本次跳过棘轮"
+            echo "base=" >> "$GITHUB_OUTPUT"
+            echo "count=0" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
           echo "base=$BASE" >> "$GITHUB_OUTPUT"
           git diff --name-only --diff-filter=ACMR "$BASE" "$END" \
