@@ -21,15 +21,18 @@
       ⚠️ 比较前一律 `tr -d '\r'` 归一化换行：本机工作区有 19 个 `.ts` 是 CRLF（`git ls-files --eol` 实测，**索引里 439 个 `.ts` 全是 `i/lf`**），不加这一步会在 Windows 侧产生「全文件都不合规」的假阳性，而 CI（Linux）看不到这个问题。
 - [x] 2.2 新增 `.github/CODEOWNERS`，覆盖 `AGENTS.md`、`**/AGENTS.md`、`.agents/`、`docs/adr/`、`docs/experience/`。验证：文件存在，五类路径逐条 grep 命中
       → 待你确认：owner 句柄填的是远端 org `@gvray`（从 origin URL 推得）。**若它不是有效用户/team，GitHub 会静默忽略这些条目**。
-- [ ] 2.3 把工作推到远端并观察首跑（**需用户确认推送**）。验证：CI 三项 job 全部绿
-      → **阻塞中（2026-09-22）**：本地已与远端 `main` 合并（合并提交 `09f45c9`，双父 `667d7dd` + `12c39a0`，可快进推送），但推送被**仓库权限**挡住——
-      `git push origin HEAD:refs/heads/main` → `remote: Permission to gvray/gvray-admin.git denied to YuanQiii.`（403）。
-      凭据实测：GCM 里的凭据为 GitHub 用户 `YuanQiii`（OAuth token `gho_*`），对 `gvray/gvray-admin` 的权限是
-      `{admin:false, maintain:false, push:false, triage:false, pull:true}`，即**只读**。
-      解除方式二选一：① 给 `YuanQiii` 授予该仓库写权限（或换用有写权限的凭据）后重跑推送；
-      ② fork 该仓库后把分支推到 fork 并发 PR 到 `gvray:main`（无需新权限，且 PR 路径正好是 CI 与 CODEOWNERS 生效的场景）。
-- [ ] 2.4 用故意违规的探针验证 CI 真会拦：提交一处死链文档改动，确认 CI 失败（`docs:check` 报错）。验证：该次运行结论为失败，且失败原因是文档自检
-- [ ] 2.5 验证棘轮生效：改一个格式不合规的 `.ts` 文件 → CI 失败；只改 `.md` 文件 → 重型任务不执行。验证：两次运行的 job 列表与结论符合预期
+- [x] 2.3 把工作推到远端并观察首跑（**需用户确认推送**）。验证：CI 三项 job 全部绿
+      → **已完成（2026-09-22）**。推送目标由用户指定为 `YuanQiii/gravy_admin`，因本机无 SSH 密钥（`Permission denied (publickey)`）改用其 HTTPS 地址，并把 `origin` 的 **push** 地址指向它（**fetch 仍指 `gvray/gvray-admin`**）。该仓库是当天新建的空 public 仓库 → 首次推送为 `* [new branch] HEAD -> main`。
+      → **首跑结果**（`CI` run [35703031956](https://github.com/YuanQiii/gravy_admin/actions/runs/35703031956)，`success`）：`typecheck + test` 全绿（含 `pnpm install --frozen-lockfile`）；`fmt + lint（棘轮）` 绿，其中两个棘轮步骤按设计 **skipped**（首次推送无基线，`count=0`）。
+      → ⚠️ **实测发现**：`docs-check.yml` 在**首次推送时未触发**（`total_count: 0`），下一次普通推送起正常触发。首个推送到新分支时 `paths` 过滤的行为与后续不同——已记录，非配置问题（paths 本身覆盖 `docs/**`、`.agents/**`、`wayfinder/**`、`scripts/check-docs.mjs`）。
+      → 附带修正：`event.before` 在首次推送时是**全 0 SHA**，原判据会让 `git rev-list --merges` 因 bad object **把 job 弄崩**（比判红更难懂）→ 已显式识别该情形。
+- [x] 2.4 用故意违规的探针验证 CI 真会拦：提交一处死链文档改动，确认 CI 失败（`docs:check` 报错）。验证：该次运行结论为失败，且失败原因是文档自检
+      → **已验证**（`Docs check` run [35703263574](https://github.com/YuanQiii/gravy_admin/actions/runs/35703263574)，head `8ade55f`）：结论 **failure**，失败步骤就是「文档自检（死链 / 命令真实性 / § 指针 / 语料索引）」，日志逐字命中探针链接（`wayfinder/map.md: Relative link unreachable: ./ci-probe-does-not-exist.md`）+ `exit code 1`。
+      → 同一次推送下 **`CI` 未运行**（纯 `.md` 被 `paths` 的 `!**.md` 排除）——顺带验证了 2.5 的后半。探针已回退（`07a5f73`，`Docs check` 恢复 **success**，run [35703388695](https://github.com/YuanQiii/gravy_admin/actions/runs/35703388695)）。
+- [x] 2.5 验证棘轮生效：改一个格式不合规的 `.ts` 文件 → CI 失败；只改 `.md` 文件 → 重型任务不执行。验证：两次运行的 job 列表与结论符合预期
+      → **已验证**（`CI` run [35703652891](https://github.com/YuanQiii/gravy_admin/actions/runs/35703652891)，head `955404e`）：在 `apps/admin/src/modules/auth/dto/login.dto.ts`（基线 prettier **CLEAN**，本地实测）末尾追加一行只含空格的空行 → 结论 **failure**，`fmt 棘轮（基线合规的文件不得变脏）` 失败并给出 `::error 不符合 prettier 格式`；job 日志的 `策略：普通推送` 证明普通推送路径生效；同批 `typecheck + test` 仍 **success**（探针只动空白）。同时 **`Docs check` 未运行**（无文档改动）。
+      → **只改 `.md` 不跑重活**：见 2.4 那两次纯文档推送，`CI` 均未出现在运行列表里 ✓。
+      → 顺带改进：`lint 棘轮` 步骤原为 skipped（GitHub 对带 `if` 的步骤会自动附加 `success()`）→ 已加 `!cancelled()`，使两个棘轮在一次运行里都报出来。探针已回退（`3da861a`，`CI` 恢复 **success**，run [35704230754](https://github.com/YuanQiii/gravy_admin/actions/runs/35704230754)）。
 
 ## 3. P2 · 补根级人向文件
 
