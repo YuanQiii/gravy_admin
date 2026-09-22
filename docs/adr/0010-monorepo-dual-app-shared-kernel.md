@@ -79,6 +79,18 @@ ADR 0009 已预言「阶段二独立商城服务」。本 ADR 把演进落定为
 
 - mall 与 admin 仍共享同一 DB 与 Redis——本 ADR 拆进程不拆数据；数据级拆分留待商城域出现独立写模型需求时另立 ADR。
 
+## 补充说明（2026-09-22，迁移执行细节留存）
+
+原 `docs/monorepo-migration-summary.md`（迁移执行报告，2026-09-09）已随文档收敛删除——它是**过程记录**，决策部分本 ADR 已完整承载。只有三类内容不被本 ADR 覆盖，留存于此。
+
+**决策 10 的实际路由映射**（BREAKING，须与调用方同版本下发）：`b2c/<资源>` 与 `customer/<资源>` 一律去前缀——浏览侧 5 类资源（`filters` · `equipment` · `catalogs` · `brands[/:id]/hot` · `filter-types[/:id]/options`）· `auth/{login,refresh,logout}` · `addresses*` · `inquiries` · `favorites` · `history`。**admin 路由零变化**：`equipment/*`、`customer/addresses`、`inquiry/*`、`system/*` 保持。
+
+**迁移当时的验证证据**：双端独立端口与 Swagger 各自 200；`grep` 无跨 app import；mall 公开浏览 60/min → 429 + `Retry-After` 而 admin 预算独立；mall 匿名 `/filters`、`/equipment` 200 且 `operation_logs` 前后行数不变；伪造 `roleKeys` 的 customer token 打 admin `/equipment/filters` → 401；admin 容器 `migrationApplied=true` 而 mall 镜像无 migrations/schema。
+
+**回滚方式**：六步各一 commit。步骤 1–3 不改外部行为，可直接 `git revert`；步骤 4–6 含路由 BREAKING，回滚 = revert 该 commit + 重建步骤 6 之前的旧单镜像（彼时镜像仍可部署）。
+
+**当时遗留（2026-09-22 复核仍成立）**：① `docker:dev:up` 的 dev-target 热重载 CMD 未落地（prod 镜像已实证，dev 需 build-then-run 或 `nest start --watch`）② `packages/domain` 独立 `tsc` 产物含 core 副本（source-path 映射副作用，运行期无影响——app 构建自包含）③ `SessionHeartbeatInterceptor` 迁至 admin 后是否真正挂载待评估。
+
 ## 参考
 
 - CONTEXT.md 词条 `Admin` / `Mall` / `Anonymous Visitor`（应用命名定案）

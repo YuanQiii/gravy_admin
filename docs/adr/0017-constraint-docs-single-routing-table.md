@@ -56,6 +56,18 @@
 
 **代价（延续决策 1 的记账）**：语料增至 10 篇 / 451 行；`AGENTS.md` 增至 179 行 / **11394 字符**（本次 8264 → 11394）。涨幅主要来自「已知缺陷与待确认」一节——它是状态而非规则，若继续增长，下一次取舍应是把该节整体下沉为语料篇。
 
+## 补充说明（2026-09-22，体系设计的外部依据留存）
+
+原三篇调研文档已删除：`docs/ai-engineering-references.md`（12 个项目扫描，2026-09-11，用 `GET /repos/{owner}/{repo}/contents/` 逐一核对标志文件 + 3 个重点项目拉全文）、`docs/ai-engineering-comparison-unibest.md`（与 `feige996/unibest` 逐项对照）、`docs/ai-engineering-faq.md`（五问答疑）。它们记录的是**外部世界当时的样子**，不可从本仓代码推导，故把结论与失效条件留存于此，原始数据交给 git 历史。
+
+**可复核的扫描事实**：12 个候选里**同时具备「AI 上下文层」与「CI 门禁」的只有 5 个**，其中 3 个还是方法论/AI 工具自身（spec-kit、codex、BMAD）。halo 与本仓同类，但**有 CI、无 ADR、无经验库**；本仓恰好相反（有 openspec + ADR + 经验库，无 `.github/`）。→ 结论是本仓**欠的是「把已有规则接上 CI」**，而不是再设计一层文档。
+
+**两条穿透性结论（本补充说明的重点）**：① **没有 CI，门禁就是建议**——unibest 装齐 husky/commitlint/lint-staged 仍可 `git commit --no-verify` 绕过；② **没有物理约束，「唯一事实源」就会长出副本并漂移**——unibest 的 `AGENTS.md` 声明事实源在 `hermes/`，而 `.cursor/rules/` 下已复述并漂成泛化文本（错误四分类 → "可以用 http 或者 alova 或者 vue-query"）；本仓同样存在 `deployment` / `configs` / `response-format` 三对同名双写。这正是决策 1「能机器检查的才叫规范」的外部依据。
+
+**失效条件**：数据采集于 2026-09-11，对**外部项目**的结论会随其仓库演进失效；本仓的对照数字（12 中 5 有 CI 等）也只在当次快照下成立。后续查「某个 agent 约定该放哪、有没有人用」的入口是 `ItamarZand88/awesome-agent-conventions`（22 类约定，每条带 Read by / Location / Spec / Evidence / Last verified）——本次研究认为它是最值得收藏的单一索引。
+
+**当时提出、尚未做的两条后续建议**：① 建项目级 `.agents/skills/`，但只装**本仓自己的流程**（新增 admin 模块、加权限码、Prisma 迁移），判据是「这个技能换到别的项目还能用吗」——能则放全局 `~/.agents/skills/`，不能才放项目级；② 「教训型记忆」在公开项目里几乎没有实践，本仓的 pitfalls 已是较好样本——FAQ Q2 据此把 `docs/experience/` 列为经验库目录名的**最佳选择**（理由：与 `docs/adr/` 同族、自解释、不依赖隐喻），本变更 P5 采用 `hermes/` → `docs/experience/` 改名即以此条为据。
+
 ## 参考
 
 - `scripts/check-docs.mjs`（自检实现，含 CONFIG 常量）

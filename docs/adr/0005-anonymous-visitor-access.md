@@ -168,3 +168,17 @@ ADR 0005 上线后，B2C 转化反馈：anonymous 列表中信息残缺（多字
 - Customer 与 User 分离边界进一步落实：B2C 浏览 `b2c/*`，B2C 客户写端点 `b2c/inquiries`、`b2c/addresses`（皆 `CustomerJwtGuard`），后台 `equipment/inquiry/customer` 保持 RBAC。
 
 > **2026-09-09 supersede 注记**：本增补的 `b2c/` 路由前缀已被 ADR 0010 决策 10 supersede——B2C 拆独立 mall app（独立端口）后前缀语义冗余，全部剥除（`b2c/filters` → mall 的 `/filters`，`customer/auth` → `/auth`，依此类推）。本 ADR 其余决策（VisibilityOpts 三分流、加权排序、`B2C_OPTS`（→ `MALL_OPTS` 改名）、AccessGuard、权限码）不受影响。
+
+---
+
+## 补充说明（2026-09-22，加权排序规格的独有内容留存）
+
+原 `docs/specs/anonymous-filter-weighted-sort.md`（417 行专题规格）已删除：它的**行为契约**已由上面两条增补与 `openspec/specs/b2c/browse/spec.md`（`B2C 浏览排序与限流`）承载，该文件只是同一主题的第二份规格副本。只有下面四类讨论不被覆盖，留存于此。
+
+**明确的非目标**（原文 Out of Scope，逐条仍然成立）：不新增物化列 / 索引 / 迁移；不改 Controller、Query DTO、Response DTO、权限码；不改任何 URL；不动 `paginateWithSort` / `paginate` 签名；**权重不做可配置化**（5/3/1 写死在代码常量，不进 `system_configs`）；**brands / filter-types 不做加权**（各只有 1 个业务 nullable 字段，分歧不足以支撑 raw SQL）；不实现 B2C Customer 登录（只预留 `'b2c'` 值）。
+
+**性能依据与升级触发条件**：filters 数千行 × 13 个 `CASE WHEN`、equipment 数千行 × 8、catalogs 数十到数百行 × 2 → 均可接受；count 走 Prisma `count({ where })`，不参与排序、复用现有索引。数据量到万级时改为物化列 `nonEmptyWeightedScore Int` + 索引；运营要按品类调权重时把权重表改为 `system_configs` 配置项；加权策略被反馈不合理时改字段优先级或二元计数（接口契约不变）。
+
+**测试缝的选择**：**HTTP seam 为 e2e 主缝**——supertest 打端点，断言 `items` 顺序 / DTO 结构 / 分页，不断言 SQL 字符串；unit 为辅（`base.service.spec.ts` 的 `'b2c'` 用例）。原 `5.1` 的 `it.each` 表中 filters / equipment / catalogs 三个 case 因改走 `$queryRaw` 而各自迁入独立 describe，5.1 只留 brands / filter-types 走 `findMany`。三个模块的 `$queryRaw` mock 是**共享同一个根 `jest.fn()`**，故每个 describe 的 `beforeEach` 必须 `mockClear()`，否则 5.6/5.7/5.8 交叉污染。
+
+**决策来源**：本设计由 2026-08-28 **三轮 grilling 共 15 个决策点**收敛而来（Q1 三分流 · Q3 扩展到 equipment + catalogs 而跳过 brands/filter-types · Q5 沿用 per-module raw SQL 不抽通用方法 · Q6 中度 e2e · Q7 删死值 `'authenticated'` 并统一 `includes` 判断 · Q15 追加本 ADR 末尾一节而非新开 ADR）。
