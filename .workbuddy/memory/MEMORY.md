@@ -1,12 +1,12 @@
 # MEMORY.md — gvray 项目长期笔记
 
-## openspec 变更流水线现状（2026-09-22 复核：积压已清，现有 1 个在途且 apply 已完成）
+## openspec 变更流水线现状（2026-09-22 复核：积压已清，**无在途变更**）
 
 2026-09-16/17 的"业务审查问题清单逐项规划"曾产生 **17 个未归档 openspec 变更**。**2026-09-21 已全部归档**（archive 共 38 个）。
 
-**在途变更 `converge-constraint-docs-system`**（文档体系重构）—— **apply 44/44 完成（2026-09-22）**，`openspec validate --strict` 通过、4/4 artifacts complete。新建工程类能力 **`constraint-docs`**（10 条 Requirement），与既有 `workspace`、`schema-migrations` 同类。**只剩最后一步 `openspec archive converge-constraint-docs-system`。**
+**`converge-constraint-docs-system`（文档体系重构）已于 2026-09-22 归档**：apply 44/44、4/4 artifacts complete；`openspec archive -y` **无冲突**（`constraint-docs: create`，+11 added / ~0 / -0 / →0，无需 delta 重放），归档为 `changes/archive/2026-09-22-converge-constraint-docs-system`。**archive 总数 39；`openspec/specs/` 现有 13 个能力规格**——新建 **`constraint-docs`**（**11 条 Requirement**，与既有 `workspace`、`schema-migrations` 同类）。
 
-⚠️ **归档 ≠ 实现**：归档只把 delta 合并进 `openspec/specs/`。本次的实际改动已落盘（`AGENTS.md` / `README` / `.github/` / `CONTRIBUTING` / `SECURITY` / `docs/` / `.agents/` / `scripts/check-docs.mjs` / 包级 `AGENTS.md`），并按批次提交在本地 + 已推送到 `YuanQiii/gravy_admin`。
+⚠️ **归档 ≠ 在生产生效**：归档只把 delta 合并进 `openspec/specs/`。本变更是文档与门禁体系，改动已全部落盘（`AGENTS.md` / `README` / `.github/` / `CONTRIBUTING` / `SECURITY` / `docs/` / `.agents/` / `scripts/check-docs.mjs` / 包级 `AGENTS.md`）并推送到 `YuanQiii/gravy_admin`；**运行时行为零变化**，无 schema / 接口 / 依赖改动，故无迁移动作。归档后终验：`validate --specs` **13 passed / 0 failed** · `openspec list` 无活动变更 · `docs:check` All passed · 文件守恒（181 → 182 个 md，+1 即新主规格）。归档期勘误与补记写在归档件的 `tasks.md` 里（`design.md` 原「十条 Requirement」实测 11 条 → **删数字而非改数字**）。
 
 批次与结果：P0 只改错 → P1 接门禁（`docs-check.yml` + `ci.yml` + `CODEOWNERS`，**已在远端跑通并做过探针验证**，见「git / 凭据 / 换行」节）→ P2 补 `CONTRIBUTING.md` / `SECURITY.md` → P3 下沉包级 `AGENTS.md`（`packages/domain` 按实测不建）→ P4 收拢精简 docs（顶层 14 篇 2748 行 → **5 篇约 506 行**）→ P5 `hermes/` → `docs/experience/`、取消 `decisions/`、语料 10 → **9 篇纯规范**、删 9 篇、自检覆盖 13 → **43 文件** → **P6 方法论出仓库进 skill**。
 
